@@ -1,4 +1,4 @@
-# Unity IPA project
+# Tu Tiên Giới — Unity iOS project
 
 This Unity client targets Unity `6000.6.3f1`, matching the Editor installed at `D:\Unity\Editors\6000.6.3f1`. iOS Build Support is installed. The Editor generates the prototype scene and `GameServerConfig.asset` the first time it opens the project.
 

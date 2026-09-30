@@ -1,4 +1,4 @@
-name: Unity iOS build
+name: Tu Tiên Giới iOS build
 
 on:
   push:
@@ -145,7 +145,7 @@ jobs:
           targetPlatform: iOS
           unityVersion: auto
           buildsPath: build
-          buildName: iOS
+          buildName: TuTienGioi
           buildMethod: IOSVN.TuTien.Editor.IOSBuild.Build
           customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.example.iosvn' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS
 
@@ -156,6 +156,48 @@ jobs:
           if [[ -z "$PROJECT_PATH" ]]; then echo 'Unity-iPhone.xcodeproj was not found.' >&2; exit 1; fi
           echo "IOS_PROJECT_PATH=$PROJECT_PATH" >> "$GITHUB_ENV"
 
+      - name: Apply Tu Tiên Giới app icon to Xcode project
+        shell: bash
+        env:
+          APP_ICON_SOURCE: ${{ github.workspace }}/unity_project/Assets/Resources/Brand/TuTienGioi_AppIcon.png
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+          import subprocess
+          import sys
+          from pathlib import Path
+
+          source = Path(os.environ["APP_ICON_SOURCE"])
+          root = Path(os.environ["GITHUB_WORKSPACE"]) / "build" / "iOS"
+          iconsets = list(root.rglob("AppIcon.appiconset"))
+          if not source.is_file() or not iconsets:
+              sys.exit("Tu Tiên Giới app icon or Xcode AppIcon.appiconset is missing.")
+
+          generated = 0
+          for iconset in iconsets:
+              contents_path = iconset / "Contents.json"
+              contents = json.loads(contents_path.read_text(encoding="utf-8"))
+              for entry in contents.get("images", []):
+                  filename = entry.get("filename")
+                  if not filename:
+                      continue
+                  points = int(entry["size"].split("x")[0])
+                  scale = int(entry.get("scale", "1x").removesuffix("x"))
+                  pixels = points * scale
+                  destination = iconset / filename
+                  subprocess.run(
+                      ["/usr/bin/sips", "-s", "format", "png", "-z", str(pixels), str(pixels), str(source), "--out", str(destination)],
+                      check=True,
+                      stdout=subprocess.DEVNULL,
+                  )
+                  generated += 1
+          if generated == 0:
+              sys.exit("The Xcode AppIcon.appiconset has no generated icon slots.")
+          print(f"Generated {generated} Tu Tiên Giới iOS app icon sizes.")
+          PY
+
       - name: Compile for iOS device without signing
         shell: bash
         run: |
@@ -164,6 +206,7 @@ jobs:
             -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/ios-derived" \
+            PRODUCT_NAME='TuTienGioi' INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
             clean build
 
@@ -249,6 +292,7 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE_PATH" \
             -derivedDataPath "$RUNNER_TEMP/ios-signed-derived" \
+            PRODUCT_NAME='TuTienGioi' INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_IDENTITY='Apple Development' \
             DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
@@ -261,16 +305,21 @@ jobs:
             echo "Xcode did not export an IPA under: $EXPORT_PATH" >&2
             exit 1
           fi
-          cp "$IPA_PATH" "$RUNNER_TEMP/iOSVN-signed.ipa"
-          /usr/bin/unzip -tq "$RUNNER_TEMP/iOSVN-signed.ipa"
+          cp "$IPA_PATH" "$RUNNER_TEMP/TuTienGioi-signed.ipa"
+          /usr/bin/unzip -tq "$RUNNER_TEMP/TuTienGioi-signed.ipa"
           mkdir -p "$SIGNING_DIR/verify"
-          /usr/bin/unzip -q "$RUNNER_TEMP/iOSVN-signed.ipa" -d "$SIGNING_DIR/verify"
+          /usr/bin/unzip -q "$RUNNER_TEMP/TuTienGioi-signed.ipa" -d "$SIGNING_DIR/verify"
           SIGNED_APP="$(find "$SIGNING_DIR/verify/Payload" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print -quit)"
           if [[ -z "$SIGNED_APP" ]]; then
             echo 'The exported IPA does not contain an app in Payload/.' >&2
             exit 1
           fi
           /usr/bin/codesign --verify --deep --strict --verbose=2 "$SIGNED_APP"
+          DISPLAY_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$SIGNED_APP/Info.plist")"
+          if [[ "$DISPLAY_NAME" != "Tu Tiên Giới" ]]; then
+            echo "::error::Signed app display name is '$DISPLAY_NAME', expected 'Tu Tiên Giới'."
+            exit 1
+          fi
 
       - name: Package unsigned IPA
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa }}
@@ -285,16 +334,26 @@ jobs:
             exit 1
           fi
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist"
+          if /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_PATH/Info.plist" >/dev/null 2>&1; then
+            /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Tu Tiên Giới'" "$APP_PATH/Info.plist"
+          else
+            /usr/libexec/PlistBuddy -c "Add :CFBundleDisplayName string 'Tu Tiên Giới'" "$APP_PATH/Info.plist"
+          fi
+          DISPLAY_NAME="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_PATH/Info.plist")"
+          if [[ "$DISPLAY_NAME" != "Tu Tiên Giới" ]]; then
+            echo "::error::Unsigned app display name is '$DISPLAY_NAME', expected 'Tu Tiên Giới'."
+            exit 1
+          fi
           mkdir -p "$RUNNER_TEMP/unsigned-ipa/Payload"
           APP_NAME="$(basename "$APP_PATH")"
           ditto "$APP_PATH" "$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
-          (cd "$RUNNER_TEMP/unsigned-ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/iOSVN-unsigned.ipa" Payload)
-          /usr/bin/unzip -tq "$RUNNER_TEMP/iOSVN-unsigned.ipa"
+          (cd "$RUNNER_TEMP/unsigned-ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/TuTienGioi-unsigned.ipa" Payload)
+          /usr/bin/unzip -tq "$RUNNER_TEMP/TuTienGioi-unsigned.ipa"
 
       - uses: actions/upload-artifact@v4
         if: ${{ !inputs.use_prebuilt_xcode }}
         with:
-          name: unity-ios-xcode-project
+          name: TuTienGioi-ios-xcode-project
           path: build/iOS
           if-no-files-found: error
           retention-days: 7
@@ -302,16 +361,16 @@ jobs:
       - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa }}
         with:
-          name: iosvn-unsigned-ipa
-          path: ${{ runner.temp }}/iOSVN-unsigned.ipa
+          name: TuTienGioi-unsigned-ipa
+          path: ${{ runner.temp }}/TuTienGioi-unsigned.ipa
           if-no-files-found: error
           retention-days: 14
 
       - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa }}
         with:
-          name: iosvn-signed-ipa
-          path: ${{ runner.temp }}/iOSVN-signed.ipa
+          name: TuTienGioi-signed-ipa
+          path: ${{ runner.temp }}/TuTienGioi-signed.ipa
           if-no-files-found: error
           retention-days: 14
 
@@ -325,7 +384,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: iosvn-unsigned-ipa
+          name: TuTienGioi-unsigned-ipa
           path: release-assets
 
       - name: Create release and upload IPA
@@ -336,14 +395,18 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG_INPUT"
-          if [[ -z "$TAG" ]]; then TAG="iosvn-unsigned-${GITHUB_RUN_NUMBER}"; fi
+          if [[ -z "$TAG" ]]; then TAG="tutiengioi-unsigned-${GITHUB_RUN_NUMBER}"; fi
+          RELEASE_TITLE="Tu Tiên Giới - IPA chưa ký ${GITHUB_RUN_NUMBER}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/iOSVN-unsigned.ipa --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TITLE" \
+              --notes "IPA kiểm thử của Tu Tiên Giới. Cần cài qua công cụ ký như ESign; IPA chưa ký không thể cài trực tiếp."
+            gh release delete-asset "$TAG" iOSVN-unsigned.ipa --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+            gh release upload "$TAG" release-assets/TuTienGioi-unsigned.ipa --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" release-assets/iOSVN-unsigned.ipa \
+            gh release create "$TAG" release-assets/TuTienGioi-unsigned.ipa \
               --repo "$GITHUB_REPOSITORY" --prerelease \
-              --title "iOSVN unsigned IPA ${GITHUB_RUN_NUMBER}" \
-              --notes "Unsigned iOS build for testing; installing on iPhone requires an Apple-signed build."
+              --title "$RELEASE_TITLE" \
+              --notes "IPA kiểm thử của Tu Tiên Giới. Cần cài qua công cụ ký như ESign; IPA chưa ký không thể cài trực tiếp."
           fi
 
   publish-signed-ipa-release:
@@ -356,7 +419,7 @@ jobs:
     steps:
       - uses: actions/download-artifact@v4
         with:
-          name: iosvn-signed-ipa
+          name: TuTienGioi-signed-ipa
           path: release-assets
 
       - name: Create release and upload IPA
@@ -367,14 +430,18 @@ jobs:
         run: |
           set -euo pipefail
           TAG="$RELEASE_TAG_INPUT"
-          if [[ -z "$TAG" ]]; then TAG="iosvn-signed-${GITHUB_RUN_NUMBER}"; fi
+          if [[ -z "$TAG" ]]; then TAG="tutiengioi-signed-${GITHUB_RUN_NUMBER}"; fi
+          RELEASE_TITLE="Tu Tiên Giới - IPA đã ký ${GITHUB_RUN_NUMBER}"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
-            gh release upload "$TAG" release-assets/iOSVN-signed.ipa --repo "$GITHUB_REPOSITORY" --clobber
+            gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TITLE" \
+              --notes "IPA ký phát triển của Tu Tiên Giới; provisioning profile phải có thiết bị đã đăng ký."
+            gh release delete-asset "$TAG" iOSVN-signed.ipa --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
+            gh release upload "$TAG" release-assets/TuTienGioi-signed.ipa --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" release-assets/iOSVN-signed.ipa \
+            gh release create "$TAG" release-assets/TuTienGioi-signed.ipa \
               --repo "$GITHUB_REPOSITORY" --prerelease \
-              --title "iOSVN signed IPA ${GITHUB_RUN_NUMBER}" \
-              --notes "Development-signed iOS build. The registered device must be included in the provisioning profile."
+              --title "$RELEASE_TITLE" \
+              --notes "IPA ký phát triển của Tu Tiên Giới; provisioning profile phải có thiết bị đã đăng ký."
           fi
 
   publish-ipa-server-package:

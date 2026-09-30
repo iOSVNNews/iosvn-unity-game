@@ -21,6 +21,7 @@ namespace IOSVN.TuTien.Editor
 
             PlayerSettings.companyName = "iOSVN";
             PlayerSettings.productName = "Tu Tiên Giới";
+            PlayerSettings.iOS.applicationDisplayName = "Tu Tiên Giới";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
             var appIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/Brand/TuTienGioi_AppIcon.png");
             if (appIcon == null) throw new BuildFailedException("Missing iOS app icon at Assets/Resources/Brand/TuTienGioi_AppIcon.png.");
