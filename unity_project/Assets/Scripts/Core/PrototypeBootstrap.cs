@@ -2,6 +2,7 @@ using System;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
+using QuyCocBatHoang.Patching;
 
 namespace IOSVN.TuTien.Core
 {
@@ -21,6 +22,7 @@ namespace IOSVN.TuTien.Core
         private NetworkGameClient client;
         private Canvas canvas;
         private Text status;
+        private Text patchStatus;
         private GameObject content;
         private GameCatalog currentCatalog;
         private InputField nameInput;
@@ -41,7 +43,29 @@ namespace IOSVN.TuTien.Core
             client = NetworkGameClient.Instance;
             if (client == null) client = new GameObject("NetworkGameClient").AddComponent<NetworkGameClient>();
             BuildCanvas();
-            ShowLogin();
+            StartStartupPatchCheck();
+        }
+
+        private void StartStartupPatchCheck()
+        {
+            patchStatus = Label("Đang chuẩn bị tài nguyên...", 18, Muted, TextAnchor.MiddleCenter,
+                new Vector2(0.04f, 0.45f), new Vector2(0.96f, 0.55f));
+            var patcher = AssetDownloadManager.Instance;
+            if (patcher == null) patcher = new GameObject("AssetDownloadManager").AddComponent<AssetDownloadManager>();
+            var config = Resources.Load<GameServerConfig>("GameServerConfig");
+            patcher.Configure(config?.assetCdnBaseUrl);
+            patcher.OnStatusMessage.AddListener(message =>
+            {
+                if (patchStatus != null) patchStatus.text = message;
+            });
+            patcher.OnDownloadProgress.AddListener((_, progress) =>
+            {
+                if (patchStatus != null && !string.IsNullOrEmpty(progress)) patchStatus.text = progress;
+            });
+            patcher.StartPatchCheck((success, message) =>
+            {
+                ShowLogin(success ? message : "Không cập nhật được tài nguyên: " + message);
+            });
         }
 
         private void BuildCanvas()
@@ -64,7 +88,7 @@ namespace IOSVN.TuTien.Core
             content = PanelObject("Content", safeArea.transform, new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.96f), Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
         }
 
-        private void ShowLogin()
+        private void ShowLogin(string patchMessage = null)
         {
             ClearContent();
             Label("IOSVN  •  TU TIÊN", 36, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.79f), new Vector2(0.98f, 0.9f));
@@ -75,7 +99,7 @@ namespace IOSVN.TuTien.Core
             Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.40f), new Vector2(0.94f, 0.48f), Gold, () => SubmitAuth(false));
             Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.30f), new Vector2(0.94f, 0.38f), Panel, () => SubmitAuth(true));
             Label("Server game xử lý nhân vật, chiến đấu và vật phẩm.", 18, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.25f));
-            ShowStatus("Kết nối tới máy chủ game IPA.");
+            ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
         }
 
         private void SubmitAuth(bool createAccount)
@@ -142,7 +166,7 @@ namespace IOSVN.TuTien.Core
             var choice = new RegisterChoice
             {
                 name = nameInput.text.Trim(),
-                gender,
+                gender = gender,
                 mon = currentCatalog.mon[Mathf.Clamp(sectIndex, 0, currentCatalog.mon.Length - 1)].id,
                 he = currentCatalog.he[Mathf.Clamp(elementIndex, 0, currentCatalog.he.Length - 1)].id
             };
@@ -216,7 +240,7 @@ namespace IOSVN.TuTien.Core
                 labelObject.GetComponent<LayoutElement>().flexibleWidth = 1;
                 var hunt = Button("Khiêu chiến", Vector2.zero, Vector2.one, Gold, () => Hunt(monster.uid));
                 hunt.transform.SetParent(card.transform, false);
-                var buttonLayout = hunt.AddComponent<LayoutElement>(); buttonLayout.preferredWidth = 190; buttonLayout.preferredHeight = 54;
+                var buttonLayout = hunt.gameObject.AddComponent<LayoutElement>(); buttonLayout.preferredWidth = 190; buttonLayout.preferredHeight = 54;
             }
         }
 

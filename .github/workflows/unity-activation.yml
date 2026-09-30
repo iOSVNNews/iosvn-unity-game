@@ -1,0 +1,26 @@
+name: Unity license activation
+
+on:
+  workflow_dispatch:
+  push:
+    paths:
+      - '.github/workflows/unity-activation.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  request-activation:
+    name: Request Unity activation file
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - id: activation
+        uses: game-ci/unity-request-activation-file@v2
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.activation.outputs.filePath }}
+          path: ${{ steps.activation.outputs.filePath }}
+          if-no-files-found: error
+          retention-days: 3

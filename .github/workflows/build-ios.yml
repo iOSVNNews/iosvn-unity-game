@@ -47,12 +47,14 @@ jobs:
         shell: bash
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         run: |
-          if [[ -n "$UNITY_LICENSE" ]]; then
+          if [[ -n "$UNITY_LICENSE" && -n "$UNITY_EMAIL" && -n "$UNITY_PASSWORD" ]]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           else
             echo "configured=false" >> "$GITHUB_OUTPUT"
-            echo "::notice::Unity build skipped. Add the UNITY_LICENSE Actions secret to enable it."
+            echo "::notice::Unity build skipped. Configure UNITY_LICENSE, UNITY_EMAIL, and UNITY_PASSWORD Actions secrets."
           fi
 
   macos-preflight:
@@ -85,6 +87,8 @@ jobs:
       - uses: game-ci/unity-builder@v5.0.0
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+          UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
+          UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
         with:
           projectPath: unity_project
           targetPlatform: iOS
@@ -92,7 +96,7 @@ jobs:
           buildsPath: build
           buildName: iOS
           buildMethod: IOSVN.TuTien.Editor.IOSBuild.Build
-          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.example.iosvn' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -iosBuildPath ../build/iOS
+          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.example.iosvn' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS
 
       - name: Locate Xcode project
         shell: bash
