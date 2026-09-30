@@ -114,6 +114,7 @@ namespace IOSVN.TuTien.Core
         private static Sprite atlasTownSprite;
         private static Sprite atlasDungeonSprite;
         private static Sprite atlasMonsterSprite;
+        private string pendingBattleVisualAction;
 
         private void Awake()
         {
@@ -1807,36 +1808,30 @@ namespace IOSVN.TuTien.Core
             });
         }
 
+        private PixelCombatPresentation CreatePixelCombatPresentation()
+        {
+            var go = new GameObject("PixelCombatPresentation", typeof(RectTransform), typeof(PixelCombatPresentation));
+            go.transform.SetParent(content.transform, false);
+            Place(go.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            return go.GetComponent<PixelCombatPresentation>();
+        }
         private void ShowPvpBattle(PvpBattle battle)
         {
+            SetAtlasOrientation(true);
             ClearContent();
-            Label("PVP  •  GIAO CHIẾN", 29, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
-            var duelMap = ActiveBattleMap(FindBattleMapMode(FindBattleMapSet(IsImmortalRealm(latestState)), "pvp_duel"));
-            var mapName = battle.battleMap?.name ?? duelMap?.name;
-            var mapLine = string.IsNullOrEmpty(mapName) ? "" : $"\nChiến trường: {mapName}";
-            Label($"{battle.opponent?.name ?? "Đối thủ"}{mapLine}\nHP {Math.Max(0, battle.opponent?.hp ?? 0):N0}/{Math.Max(0, battle.opponent?.maxHp ?? 0):N0}  ·  Chiến lực {battle.opponent?.power ?? 0:N0}", 19, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.69f), new Vector2(0.96f, 0.85f));
-            Label($"{battle.me?.name ?? "Đạo hữu"}\nHP {Math.Max(0, battle.me?.hp ?? 0):N0}/{Math.Max(0, battle.me?.maxHp ?? 0):N0}  ·  MP {Math.Max(0, battle.me?.mp ?? 0):N0}/{Math.Max(0, battle.me?.maxMp ?? 0):N0}", 20, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.59f), new Vector2(0.96f, 0.69f));
-            var log = battle.log == null ? "" : string.Join("\n", Array.ConvertAll(battle.log, line => line?.text ?? ""));
-            Label(log, 17, Cream, TextAnchor.LowerLeft, new Vector2(0.06f, 0.38f), new Vector2(0.94f, 0.56f));
-            statusMin = new Vector2(0.02f, 0.34f); statusMax = new Vector2(0.98f, 0.37f);
-            if (!battle.over)
-            {
-                Button("TẤN CÔNG", new Vector2(0.05f, 0.24f), new Vector2(0.48f, 0.32f), Gold, () => SendPvpAction(battle, "attack", null));
-                Button("NÉ ĐÒN", new Vector2(0.52f, 0.24f), new Vector2(0.95f, 0.32f), Panel, () => SendPvpAction(battle, "dodge", null));
-                Button("LÀM MỚI TRẬN", new Vector2(0.05f, 0.15f), new Vector2(0.95f, 0.22f), Panel, RefreshPvpBattle);
-                if (battle.me?.skills != null && battle.me.skills.Length > 0 && battle.me.skills[0].canUse)
-                    Button("KỸ NĂNG: " + battle.me.skills[0].name, new Vector2(0.05f, 0.06f), new Vector2(0.95f, 0.13f), Panel, () => SendPvpAction(battle, "skill", battle.me.skills[0].id));
-            }
-            else Button("TRỞ VỀ", new Vector2(0.20f, 0.08f), new Vector2(0.80f, 0.16f), Gold, LoadState);
-            ShowStatus(battle.over ? (battle.isWin ? "Đạo hữu đã thắng trận PvP." : "Trận PvP đã kết thúc.") : "Đòn đánh PvP được gửi trực tiếp tới server.");
+            statusMin = new Vector2(0.25f, 0.245f); statusMax = new Vector2(0.75f, 0.28f);
+            var view = CreatePixelCombatPresentation();
+            view.BuildPvp(battle, client, latestState?.player?.appearanceColors, IsImmortalRealm(latestState), pendingBattleVisualAction,
+                (action, skillId) => SendPvpAction(battle, action, skillId), RefreshPvpBattle, LoadState, ShowPvpBattle);
+            pendingBattleVisualAction = null;
         }
-
         private void SendPvpAction(PvpBattle battle, string action, string skillId)
         {
+            pendingBattleVisualAction = action;
             GameAudioController.Instance?.PlaySkillEffect();
             client.PvpAct(battle.id, action, skillId, (updated, error) =>
             {
-                if (updated == null) { ShowStatus(error); return; }
+                if (updated == null) { pendingBattleVisualAction = null; ShowStatus(error); return; }
                 ShowPvpBattle(updated);
             });
         }
@@ -1963,43 +1958,22 @@ namespace IOSVN.TuTien.Core
 
         private void ShowBattle(BattleView battle)
         {
+            SetAtlasOrientation(true);
             ClearContent();
-            Label("GIAO CHIẾN", 32, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
-            var warning = battle.m?.warn != null ? "⚠ Boss sắp tung chiêu lớn!" : "";
-            var mapLine = battle.battleMap == null ? "" : $"\n🗺 {battle.battleMap.name}";
-            Label($"{battle.m?.icon}  {battle.m?.name ?? "Yêu thú"}{mapLine}\nHP {Math.Max(0, battle.m?.hp ?? 0):N0} / {Math.Max(0, battle.m?.maxHp ?? 0):N0}\n{warning}", 21, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.68f), new Vector2(0.96f, 0.84f));
-            Label($"{battle.p?.name ?? "Đạo hữu"}\nKhí huyết {Math.Max(0, battle.p?.hp ?? 0):N0} / {Math.Max(0, battle.p?.maxHp ?? 0):N0}     Linh lực {Math.Max(0, battle.p?.mp ?? 0):N0}", 20, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.59f), new Vector2(0.96f, 0.67f));
-            var log = battle.log == null ? "" : string.Join("\n", Array.ConvertAll(battle.log, line => line?.text ?? ""));
-            Label(log, 17, Cream, TextAnchor.LowerLeft, new Vector2(0.06f, 0.40f), new Vector2(0.94f, 0.57f));
-            statusMin = new Vector2(0.02f, 0.34f); statusMax = new Vector2(0.98f, 0.39f);
-            if (!battle.over)
-            {
-                Button("TẤN CÔNG", new Vector2(0.05f, 0.25f), new Vector2(0.48f, 0.32f), Gold, () => SendBattleAction("attack"));
-                Button("NÉ ĐÒN", new Vector2(0.52f, 0.25f), new Vector2(0.95f, 0.32f), Panel, () => SendBattleAction("dodge"));
-                var availableSkills = 0;
-                foreach (var skill in battle.skills ?? Array.Empty<BattleSkill>())
-                {
-                    if (skill == null || skill.locked || string.IsNullOrEmpty(skill.id) || availableSkills >= 2) continue;
-                    var index = skill.i;
-                    var y = availableSkills == 0 ? 0.17f : 0.09f;
-                    Button((skill.icon ?? "✨") + " " + skill.name, new Vector2(0.05f, y), new Vector2(0.95f, y + 0.065f), Panel, () => SendBattleSkill(index));
-                    availableSkills++;
-                }
-                Button("RÚT LUI", new Vector2(0.26f, 0.025f), new Vector2(0.74f, 0.085f), Panel, () => SendBattleAction("flee"));
-            }
-            else if (!string.IsNullOrEmpty(battle.dungeonLeaderId) && (battle.result == "win" || battle.result == "win_down"))
-                Button("MỞ ẢI TIẾP THEO", new Vector2(0.10f, 0.12f), new Vector2(0.90f, 0.20f), Gold, NextDungeonStage);
-            else Button("TRỞ VỀ", new Vector2(0.20f, 0.12f), new Vector2(0.80f, 0.20f), Gold, LoadState);
-            ShowStatus(battle.over ? $"Trận đã kết thúc: {battle.result}" : "Thao tác được máy chủ xác nhận.");
+            statusMin = new Vector2(0.25f, 0.245f); statusMax = new Vector2(0.75f, 0.28f);
+            var view = CreatePixelCombatPresentation();
+            view.BuildPve(battle, client, latestState?.player?.appearanceColors, IsImmortalRealm(latestState), pendingBattleVisualAction,
+                SendBattleAction, SendBattleSkill, NextDungeonStage, LoadState, ShowBattle);
+            pendingBattleVisualAction = null;
         }
-
         private void SendBattleAction(string action)
         {
+            pendingBattleVisualAction = action;
             ShowStatus("Đang gửi thao tác chiến đấu...");
             GameAudioController.Instance?.PlaySkillEffect();
             client.BattleAct(action, (result, error) =>
             {
-                if (result?.battle == null) { ShowStatus(error); return; }
+                if (result?.battle == null) { pendingBattleVisualAction = null; ShowStatus(error); return; }
                 ShowBattle(result.battle);
                 if (!string.IsNullOrWhiteSpace(result.result?.msg)) ShowStatus(result.result.msg);
             });
@@ -2007,11 +1981,12 @@ namespace IOSVN.TuTien.Core
 
         private void SendBattleSkill(int slot)
         {
+            pendingBattleVisualAction = "skill";
             ShowStatus("Đang thi triển kỹ năng...");
             GameAudioController.Instance?.PlaySkillEffect();
             client.BattleAct("skill", slot, (result, error) =>
             {
-                if (result?.battle == null) { ShowStatus(error); return; }
+                if (result?.battle == null) { pendingBattleVisualAction = null; ShowStatus(error); return; }
                 ShowBattle(result.battle);
                 if (!string.IsNullOrWhiteSpace(result.result?.msg)) ShowStatus(result.result.msg);
             });

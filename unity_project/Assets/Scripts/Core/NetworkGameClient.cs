@@ -38,7 +38,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class HuntChoice { public string monsterUid; }
     [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; }
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }
-    [Serializable] public class BattleMonsterView { public string name; public string icon; public long hp; public long maxHp; public BattleWarning warn; }
+    [Serializable] public class BattleMonsterView { public string name; public string icon; public long hp; public long maxHp; public BattleWarning warn; public int packSize; public int minionCount; }
     [Serializable] public class BattleLogLine { public string text; public long t; }
     [Serializable] public class BattleSkill { public int i; public string id; public string name; public string icon; public string kind; public bool locked; public long readyAt; public long mp; }
     [Serializable] public class BattleView { public string id; public bool over; public string result; public string dungeonLeaderId; public BattleMapInfo battleMap; public BattlePlayerView p; public BattleMonsterView m; public BattleSkill[] skills; public BattleLogLine[] log; }
