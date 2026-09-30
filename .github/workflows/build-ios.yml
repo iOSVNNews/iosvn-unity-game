@@ -185,6 +185,10 @@ jobs:
                   "#import <UnityFramework/UnityAppController.h>",
                   '#import "../Classes/UnityAppController.h"',
               ),
+              Path("build/iOS/MainApp/main.mm"): (
+                  "#import <UnityFramework/UnityFramework.h>",
+                  '#import "../UnityFramework/UnityFramework.h"',
+              ),
           }
           for path, (old, new) in replacements.items():
               source = path.read_text(encoding="utf-8")
