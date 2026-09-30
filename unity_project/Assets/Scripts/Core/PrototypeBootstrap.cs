@@ -96,14 +96,13 @@ namespace IOSVN.TuTien.Core
         private void ShowLogin(string patchMessage = null)
         {
             ClearContent();
-            Label("IOSVN  •  TU TIÊN", 36, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.79f), new Vector2(0.98f, 0.9f));
-            Label("Đăng nhập để tiếp tục hành trình", 22, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.73f), new Vector2(0.96f, 0.79f));
+            GameLogo(new Vector2(0.12f, 0.71f), new Vector2(0.88f, 0.96f));
+            Label("Đăng nhập để tiếp tục hành trình", 22, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.64f), new Vector2(0.96f, 0.70f));
 
-            emailInput = Input("Email", "email", new Vector2(0.06f, 0.61f), new Vector2(0.94f, 0.69f), false);
-            passwordInput = Input("Mật khẩu", "password", new Vector2(0.06f, 0.51f), new Vector2(0.94f, 0.59f), true);
-            Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.40f), new Vector2(0.94f, 0.48f), Gold, () => SubmitAuth(false));
-            Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.30f), new Vector2(0.94f, 0.38f), Panel, () => SubmitAuth(true));
-            Label("Server game xử lý nhân vật, chiến đấu và vật phẩm.", 18, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.19f), new Vector2(0.96f, 0.25f));
+            emailInput = Input("Email", "email", new Vector2(0.06f, 0.54f), new Vector2(0.94f, 0.62f), false);
+            passwordInput = Input("Mật khẩu", "password", new Vector2(0.06f, 0.44f), new Vector2(0.94f, 0.52f), true);
+            Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.33f), new Vector2(0.94f, 0.41f), Gold, () => SubmitAuth(false));
+            Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.30f), Panel, () => SubmitAuth(true));
             ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
         }
 
@@ -230,7 +229,8 @@ namespace IOSVN.TuTien.Core
             Label($"Đang ở: {here}  •  {state.realm?.name ?? "Sơ nhập"}", 18, Muted, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.82f), new Vector2(0.98f, 0.88f));
             Button("PVE THÀNH NÀY", new Vector2(0.02f, 0.755f), new Vector2(0.48f, 0.81f), Panel, () => ShowPveTown(state, state.town));
             Button("PVP THÀNH NÀY", new Vector2(0.52f, 0.755f), new Vector2(0.98f, 0.81f), Gold, () => ShowPvp(state));
-            var rows = CreateScrollList("WorldMap", 0.20f, 0.74f);
+            Button("BỘ MAP PVP / PVE", new Vector2(0.02f, 0.685f), new Vector2(0.98f, 0.74f), Panel, () => ShowBattleMapSet(state, IsImmortalRealm(state)));
+            var rows = CreateScrollList("WorldMap", 0.21f, 0.67f);
             foreach (var map in mapCatalog.maps ?? Array.Empty<MapInfo>())
             {
                 var townCount = CountTowns(map.id);
@@ -247,7 +247,114 @@ namespace IOSVN.TuTien.Core
                 }
             }
             Button("VỀ GAME", new Vector2(0.52f, 0.04f), new Vector2(0.98f, 0.105f), Panel, LoadState);
-            ShowStatus("19 map • 65 thành • mỗi thành có yêu thú và bí cảnh PvE. PvP ghép người chơi đang ở cùng thành.");
+            ShowStatus("19 bản đồ thế giới • hai bộ chiến trường Phàm/Tiên • bản đồ hoạt động được xem trong mục Bộ Map PVP / PVE.");
+        }
+
+        private bool IsImmortalRealm(GameState state)
+        {
+            var mapId = state?.town?.mapId;
+            foreach (var map in mapCatalog?.maps ?? Array.Empty<MapInfo>())
+                if (map != null && map.id == mapId) return map.ascensionRequired;
+            return state?.player?.ascended == true;
+        }
+
+        private BattleMapRealmSet FindBattleMapSet(bool immortal)
+        {
+            foreach (var set in mapCatalog?.battleMapSets ?? Array.Empty<BattleMapRealmSet>())
+                if (set != null && set.requiresAscension == immortal) return set;
+            return null;
+        }
+
+        private static BattleMapMode FindBattleMapMode(BattleMapRealmSet set, string modeId)
+        {
+            foreach (var mode in set?.modes ?? Array.Empty<BattleMapMode>())
+                if (mode != null && mode.id == modeId) return mode;
+            return null;
+        }
+
+        private static BattleMapInfo ActiveBattleMap(BattleMapMode mode)
+        {
+            foreach (var map in mode?.maps ?? Array.Empty<BattleMapInfo>())
+                if (map != null && (map.isActive || map.id == mode.activeMapId)) return map;
+            return mode?.maps != null && mode.maps.Length > 0 ? mode.maps[0] : null;
+        }
+
+        private void AddModeMapOverview(Transform parent, GameState state, bool pvp)
+        {
+            var set = FindBattleMapSet(IsImmortalRealm(state));
+            if (set == null) return;
+            var modeIds = pvp
+                ? new[] { "pvp_ranked", "pvp_duel", "pvp_sat_phat", "pvp_sect" }
+                : new[] { "pve_small_monster", "pve_elite_boss", "pve_world_boss", "pve_ancient_cave" };
+            var lines = new System.Collections.Generic.List<string> { $"BỘ MAP {set.name.ToUpperInvariant()} · {(pvp ? "PVP" : "PVE")}" };
+            foreach (var id in modeIds)
+            {
+                var mode = FindBattleMapMode(set, id);
+                var active = ActiveBattleMap(mode);
+                if (mode == null || active == null) continue;
+                var suffix = mode.rotation?.strategy == "random_cycle"
+                    ? $" · {mode.maps?.Length ?? 0} map, xoay ngẫu nhiên mỗi {Math.Max(1, mode.rotation.periodSeconds / 60)} phút"
+                    : "";
+                lines.Add($"{mode.name}: {active.name}{suffix}");
+            }
+            var card = PanelObject("ModeMapOverview", parent, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Panel);
+            card.AddComponent<LayoutElement>().preferredHeight = 118;
+            var label = ChildText(card.transform, "Text", 14, Muted, TextAnchor.MiddleLeft, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.96f));
+            label.text = string.Join("\n", lines);
+        }
+
+        private void ShowBattleMapSet(GameState state, bool immortal)
+        {
+            ShowStatus("Đang đồng bộ bộ map và map Cổ Động đang mở...");
+            client.LoadMapCatalog((catalog, error) =>
+            {
+                if (catalog == null) { ShowStatus(error); return; }
+                mapCatalog = catalog;
+                RenderBattleMapSet(state, immortal);
+            });
+        }
+
+        private void RenderBattleMapSet(GameState state, bool immortal)
+        {
+            var set = FindBattleMapSet(immortal);
+            if (set == null) { ShowStatus("Máy chủ chưa gửi bộ bản đồ chiến đấu."); return; }
+            latestState = state;
+            ClearContent();
+            Label("BỘ MAP PVP / PVE", 27, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
+            Label("Mỗi chế độ có chiến trường riêng; Cổ Động có 5 map xoay vòng ngẫu nhiên.", 16, Muted, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.82f), new Vector2(0.98f, 0.88f));
+            var currentImmortal = IsImmortalRealm(state);
+            Button("PHÀM GIỚI", new Vector2(0.02f, 0.755f), new Vector2(0.48f, 0.81f), immortal ? Panel : Gold, () => ShowBattleMapSet(state, false));
+            Button("TIÊN GIỚI", new Vector2(0.52f, 0.755f), new Vector2(0.98f, 0.81f), immortal ? Gold : Panel, () => ShowBattleMapSet(state, true));
+            Label($"{set.name} · {set.modes?.Length ?? 0} chế độ · 12 map", 17, Cream, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.70f), new Vector2(0.98f, 0.75f));
+            var rows = CreateScrollList("BattleMapSet", 0.21f, 0.685f);
+            foreach (var mode in set.modes ?? Array.Empty<BattleMapMode>())
+            {
+                if (mode == null) continue;
+                var rotating = mode.rotation?.strategy == "random_cycle";
+                var header = PanelObject("Mode_" + mode.id, rows, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color32(39, 48, 60, 255));
+                header.AddComponent<LayoutElement>().preferredHeight = 62;
+                var rotationText = rotating
+                    ? $"Xoay ngẫu nhiên · {mode.maps?.Length ?? 0} map · chu kỳ {Math.Max(1, mode.rotation.periodSeconds / 60)} phút"
+                    : "Bản đồ riêng của chế độ";
+                var headerText = ChildText(header.transform, "ModeInfo", 16, Gold, TextAnchor.MiddleLeft, new Vector2(0.03f, 0.05f), new Vector2(0.97f, 0.95f));
+                headerText.text = $"{mode.name} · {mode.maps?.Length ?? 0} map\n{rotationText}";
+                foreach (var map in mode.maps ?? Array.Empty<BattleMapInfo>())
+                {
+                    if (map == null) continue;
+                    var activeMap = map != null && (map.isActive || map.id == mode.activeMapId);
+                    var card = PanelObject("BattleMap_" + map?.id, rows, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero,
+                        activeMap ? new Color32(55, 49, 34, 255) : Panel);
+                    card.AddComponent<LayoutElement>().preferredHeight = 104;
+                    var detail = ChildText(card.transform, "MapInfo", 13, activeMap ? Gold : Cream, TextAnchor.MiddleLeft, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.96f));
+                    var palette = map.palette == null ? "" : string.Join(" · ", map.palette);
+                    detail.text = $"{(activeMap ? "✦ ĐANG MỞ  " : "")}{map.name}\n{map.description}\n{map.terrain} · {map.weather} · {palette}";
+                }
+            }
+            Button("VỀ BẢN ĐỒ", new Vector2(0.52f, 0.04f), new Vector2(0.98f, 0.105f), Panel, () => ShowMap(state));
+            Button("CẬP NHẬT MAP", new Vector2(0.02f, 0.04f), new Vector2(0.48f, 0.105f), Panel, () => ShowBattleMapSet(state, immortal));
+            ShowStatus(immortal && !currentImmortal
+                ? "Đang xem trước chiến trường Tiên Giới; cần Phi Thăng mới tham chiến được."
+                : $"Bộ {set.name}: 4 map PvP, 3 map PvE cố định và 5 Cổ Động xoay vòng.");
         }
 
         private void AddTownMapRow(Transform parent, TownInfo town, MapInfo map)
@@ -293,22 +400,22 @@ namespace IOSVN.TuTien.Core
 
         private void ShowPveTown(GameState state, TownInfo town)
         {
-            if (mapCatalog == null)
-            {
-                ShowStatus("Đang tải danh sách bí cảnh...");
-                client.LoadMapCatalog((catalog, error) =>
-                {
-                    if (catalog == null) { ShowStatus(error); return; }
-                    mapCatalog = catalog;
-                    ShowPveTown(state, town);
-                });
-                return;
-            }
             if (town == null || state?.town?.id != town.id)
             {
                 ShowStatus("Hãy tới đúng thành trấn để tham gia nội dung PvE.");
                 return;
             }
+            ShowStatus("Đang đồng bộ map PvE và Cổ Động đang mở...");
+            client.LoadMapCatalog((catalog, error) =>
+            {
+                if (catalog != null) mapCatalog = catalog;
+                if (mapCatalog == null) { ShowStatus(error); return; }
+                RenderPveTown(state, town);
+            });
+        }
+
+        private void RenderPveTown(GameState state, TownInfo town)
+        {
             latestState = state;
             ClearContent();
             Label("PVE  •  " + town.name, 27, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
@@ -316,6 +423,7 @@ namespace IOSVN.TuTien.Core
             Button("PVP Ở THÀNH NÀY", new Vector2(0.02f, 0.755f), new Vector2(0.48f, 0.81f), Gold, () => ShowPvp(state));
             Button("BẢN ĐỒ", new Vector2(0.52f, 0.755f), new Vector2(0.98f, 0.81f), Panel, () => ShowMap(state));
             var rows = CreateScrollList("PveList", 0.20f, 0.74f);
+            AddModeMapOverview(rows, state, pvp: false);
             var targets = state.worldMonsters ?? Array.Empty<WorldMonster>();
             if (targets.Length == 0) AddInfoRow(rows, "🌫️ Chưa có yêu thú xuất hiện tại thành này. Làm mới danh sách sau.");
             else AddMonsterCards(targets, rows);
@@ -371,6 +479,17 @@ namespace IOSVN.TuTien.Core
         private void ShowPvp(GameState state)
         {
             latestState = state;
+            ShowStatus("Đang đồng bộ map PvP...");
+            client.LoadMapCatalog((catalog, error) =>
+            {
+                if (catalog != null) mapCatalog = catalog;
+                if (mapCatalog == null) { ShowStatus(error); return; }
+                ContinueShowPvp(state);
+            });
+        }
+
+        private void ContinueShowPvp(GameState state)
+        {
             ShowStatus("Đang tìm người chơi cùng thành...");
             client.LoadPvpBattle((battle, _) =>
             {
@@ -390,6 +509,7 @@ namespace IOSVN.TuTien.Core
                 Button("PVE THÀNH NÀY", new Vector2(0.02f, 0.755f), new Vector2(0.48f, 0.81f), Panel, () => ShowPveTown(state, state.town));
                 Button("LÀM MỚI PVP", new Vector2(0.52f, 0.755f), new Vector2(0.98f, 0.81f), Panel, () => ShowPvp(state));
                 var rows = CreateScrollList("PvpList", 0.20f, 0.74f);
+                AddModeMapOverview(rows, state, pvp: true);
                 var opponents = pvp.sameTownPlayers ?? Array.Empty<PvpOpponent>();
                 if (opponents.Length == 0) AddInfoRow(rows, "Chưa có người chơi PvP đang hoạt động ở thành này. Hãy thử lại sau khi người chơi khác đăng nhập.");
                 for (var i = 0; i < opponents.Length; i++) AddPvpRow(rows, opponents[i]);
@@ -428,7 +548,10 @@ namespace IOSVN.TuTien.Core
         {
             ClearContent();
             Label("PVP  •  GIAO CHIẾN", 29, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
-            Label($"{battle.opponent?.name ?? "Đối thủ"}\nHP {Math.Max(0, battle.opponent?.hp ?? 0):N0}/{Math.Max(0, battle.opponent?.maxHp ?? 0):N0}  ·  Chiến lực {battle.opponent?.power ?? 0:N0}", 22, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.69f), new Vector2(0.96f, 0.85f));
+            var duelMap = ActiveBattleMap(FindBattleMapMode(FindBattleMapSet(IsImmortalRealm(latestState)), "pvp_duel"));
+            var mapName = battle.battleMap?.name ?? duelMap?.name;
+            var mapLine = string.IsNullOrEmpty(mapName) ? "" : $"\nChiến trường: {mapName}";
+            Label($"{battle.opponent?.name ?? "Đối thủ"}{mapLine}\nHP {Math.Max(0, battle.opponent?.hp ?? 0):N0}/{Math.Max(0, battle.opponent?.maxHp ?? 0):N0}  ·  Chiến lực {battle.opponent?.power ?? 0:N0}", 19, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.69f), new Vector2(0.96f, 0.85f));
             Label($"{battle.me?.name ?? "Đạo hữu"}\nHP {Math.Max(0, battle.me?.hp ?? 0):N0}/{Math.Max(0, battle.me?.maxHp ?? 0):N0}  ·  MP {Math.Max(0, battle.me?.mp ?? 0):N0}/{Math.Max(0, battle.me?.maxMp ?? 0):N0}", 20, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.59f), new Vector2(0.96f, 0.69f));
             var log = battle.log == null ? "" : string.Join("\n", Array.ConvertAll(battle.log, line => line?.text ?? ""));
             Label(log, 17, Cream, TextAnchor.LowerLeft, new Vector2(0.06f, 0.38f), new Vector2(0.94f, 0.56f));
@@ -580,7 +703,8 @@ namespace IOSVN.TuTien.Core
             ClearContent();
             Label("GIAO CHIẾN", 32, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
             var warning = battle.m?.warn != null ? "⚠ Boss sắp tung chiêu lớn!" : "";
-            Label($"{battle.m?.icon}  {battle.m?.name ?? "Yêu thú"}\nHP {Math.Max(0, battle.m?.hp ?? 0):N0} / {Math.Max(0, battle.m?.maxHp ?? 0):N0}\n{warning}", 24, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.68f), new Vector2(0.96f, 0.84f));
+            var mapLine = battle.battleMap == null ? "" : $"\n🗺 {battle.battleMap.name}";
+            Label($"{battle.m?.icon}  {battle.m?.name ?? "Yêu thú"}{mapLine}\nHP {Math.Max(0, battle.m?.hp ?? 0):N0} / {Math.Max(0, battle.m?.maxHp ?? 0):N0}\n{warning}", 21, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.68f), new Vector2(0.96f, 0.84f));
             Label($"{battle.p?.name ?? "Đạo hữu"}\nKhí huyết {Math.Max(0, battle.p?.hp ?? 0):N0} / {Math.Max(0, battle.p?.maxHp ?? 0):N0}     Linh lực {Math.Max(0, battle.p?.mp ?? 0):N0}", 20, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.59f), new Vector2(0.96f, 0.67f));
             var log = battle.log == null ? "" : string.Join("\n", Array.ConvertAll(battle.log, line => line?.text ?? ""));
             Label(log, 17, Cream, TextAnchor.LowerLeft, new Vector2(0.06f, 0.40f), new Vector2(0.94f, 0.57f));
@@ -677,6 +801,26 @@ namespace IOSVN.TuTien.Core
             text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = alignment;
             text.text = value; text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
             return text;
+        }
+
+        private void GameLogo(Vector2 min, Vector2 max)
+        {
+            var texture = Resources.Load<Texture2D>("Brand/TuTienGioi_Logo");
+            if (texture == null)
+            {
+                Label("TU TIÊN GIỚI", 36, Gold, TextAnchor.MiddleCenter, min, max);
+                return;
+            }
+
+            var obj = new GameObject("TuTienGioiLogo", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+            obj.transform.SetParent(content.transform, false);
+            Place(obj.GetComponent<RectTransform>(), min, max);
+            var image = obj.GetComponent<RawImage>();
+            image.texture = texture;
+            image.raycastTarget = false;
+            var aspect = obj.GetComponent<AspectRatioFitter>();
+            aspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            aspect.aspectRatio = (float)texture.width / texture.height;
         }
 
         private InputField Input(string label, string placeholder, Vector2 min, Vector2 max, bool secret)

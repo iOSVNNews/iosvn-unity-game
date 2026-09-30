@@ -8,6 +8,7 @@ const http = require('http');
 const { Game, GameError } = require('./ipa_core/engine');
 const { GameStore } = require('./ipa_core/store');
 const C = require('./ipa_core/catalog');
+const { getBattleMapSets } = require('./ipa_core/mode_maps');
 const { EmailAuthStore } = require('./email_auth_store');
 
 const ROOT = __dirname;
@@ -104,6 +105,36 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         if (realm.index < town.realmMin)
             throw new GameError(`Cần đạt ${town.realmMinName || `cảnh giới ${town.realmMin}`} mới được tham gia nội dung ở ${town.name}.`);
     };
+
+    const battleMapFor = (userId, battle, modeId) => {
+        const player = game.player(userId);
+        const currentTown = C.TOWN_BY_ID.get(String(player?.town || ''));
+        const currentWorld = C.MAP_BY_ID.get(String(currentTown?.mapId || ''));
+        const immortal = currentWorld ? Boolean(currentWorld.ascensionRequired) : Boolean(player?.ascended);
+        const set = getBattleMapSets(game.now()).find(item => item.requiresAscension === immortal);
+        const mode = set?.modes.find(item => item.id === modeId);
+        if (!mode?.maps?.length) return null;
+        battle.modeBattleMapId ||= mode.activeMapId;
+        const selected = mode.maps.find(item => item.id === battle.modeBattleMapId) || mode.maps.find(item => item.id === mode.activeMapId);
+        return selected ? { ...selected, isActive: true, modeId: mode.id, modeName: mode.name, realmSetId: set.id, realmSetName: set.name } : null;
+    };
+    const withBattleMap = (view, battle, userId, modeId) => {
+        if (!view || view.none) return view;
+        const battleMap = battleMapFor(userId, battle || {}, modeId);
+        return battleMap ? { ...view, battleMap } : view;
+    };
+    const pveModeForBattle = battle => battle?.dungeonLeaderId
+        ? 'pve_ancient_cave'
+        : battle?.monsterDef?.worldBoss
+            ? 'pve_world_boss'
+            : battle?.monsterDef?.small
+                ? 'pve_small_monster'
+                : 'pve_elite_boss';
+    const pvpModeForBattle = battle => battle?.sectWarChallenge
+        ? 'pvp_sect'
+        : ['roam_attack', 'town_attack'].includes(battle?.purpose)
+            ? 'pvp_sat_phat'
+            : 'pvp_duel';
 
     const isDemon = player => Boolean(player?.isDemon) ||
         ((Number(player?.maScore) || 0) > 0 && (Number(player?.maScore) || 0) > Math.max(0, Number(player?.daoScore ?? player?.daoTam ?? 100)));
@@ -219,6 +250,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             towns: C.TOWNS,
             dungeons: C.DUNGEONS.map(({ id, name, icon, townId, realmMin, stamina, desc }) => ({ id, name, icon, townId, realmMin, stamina, desc })),
             monsters: Array.from(C.MONSTER_BY_ID.values()).map(({ id, name, icon, realm, element }) => ({ id, name, icon, realm, element })),
+            battleMapSets: getBattleMapSets(),
         }),
         'POST /api/travel': ({ user, body }) => {
             const townId = String(body.toTownId || '');
@@ -240,40 +272,53 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         'POST /api/world/hunt': ({ user, body }) => {
             requireTownRealm(user.id, game.player(user.id)?.town);
             const battle = game.startWorldHunt(user.id, String(body.monsterUid || ''));
-            return { ...battle.view(game.now(), user.id), state: game.view(user.id) };
+            const modeId = pveModeForBattle(battle);
+            const view = withBattleMap(battle.view(game.now(), user.id), battle, user.id, modeId);
+            return { ...view, state: game.view(user.id) };
         },
         'POST /api/dungeon/enter': ({ user, body }) => {
             const dungeon = C.DUNGEON_BY_ID.get(String(body.dungeonId || ''));
             requireTownRealm(user.id, dungeon?.townId || game.player(user.id)?.town);
             const result = game.startDungeonBattle(user.id, String(body.dungeonId || ''));
-            return { ...result, state: game.view(user.id) };
+            const battle = game.battle(user.id);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, 'pve_ancient_cave'), state: game.view(user.id) };
         },
         'POST /api/dungeon/next-stage': ({ user }) => {
             const active = game.player(user.id)?.activeDungeon;
             if (!active || Number(active.stageIndex) + 1 >= Number(active.totalStages))
                 return { completed: true, message: 'Đã vượt qua toàn bộ bí cảnh.' };
             const result = game.nextDungeonStage(user.id);
-            return { ...result, state: game.view(user.id) };
+            const battle = game.battle(user.id);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, 'pve_ancient_cave'), state: game.view(user.id) };
         },
         'GET /api/battle/current': ({ user }) => {
             const battle = game.battle(user.id);
-            return { battle: battle ? battle.view(game.now(), user.id) : null };
+            const view = battle ? battle.view(game.now(), user.id) : null;
+            return { battle: withBattleMap(view, battle, user.id, battle ? pveModeForBattle(battle) : '') };
         },
         'POST /api/battle/act': ({ user, body }) => {
             const battle = game.battle(user.id);
             if (!battle) throw Object.assign(new GameError('Không có trận đấu đang diễn ra.'), { status: 409 });
             const result = battle.act(game.now(), body, user.id);
-            return { result, battle: battle.view(game.now(), user.id), state: game.view(user.id) };
+            const view = withBattleMap(battle.view(game.now(), user.id), battle, user.id, pveModeForBattle(battle));
+            return { result, battle: view, state: game.view(user.id) };
         },
         'GET /api/pvp': ({ user }) => game.pvpList(user.id),
         'POST /api/pvp/fight': ({ user, body }) => {
             const result = game.pvpManualFight(user.id, String(body.targetId || ''));
-            return { ...result, state: game.view(user.id) };
+            const battle = game.pvpManualBattles?.get(String(user.id));
+            const modeId = pvpModeForBattle(battle);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, modeId), state: game.view(user.id) };
         },
-        'GET /api/pvp/battle': ({ user }) => ({ battle: game.getPvpBattle(user.id) }),
+        'GET /api/pvp/battle': ({ user }) => {
+            const battle = game.pvpManualBattles?.get(String(user.id));
+            const view = game.getPvpBattle(user.id);
+            return { battle: withBattleMap(view, battle, user.id, pvpModeForBattle(battle)) };
+        },
         'POST /api/pvp/action': ({ user, body }) => {
+            const instance = game.pvpManualBattles?.get(String(user.id));
             const battle = game.pvpManualAction(user.id, String(body.battleId || ''), String(body.act || 'attack'), body.skillId || null);
-            return { battle, state: game.view(user.id) };
+            return { battle: withBattleMap(battle, instance, user.id, pvpModeForBattle(instance)), state: game.view(user.id) };
         },
     };
 

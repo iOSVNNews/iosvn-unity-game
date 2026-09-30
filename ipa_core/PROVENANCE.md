@@ -9,3 +9,5 @@ SHA-256 of the synchronized IPA snapshot:
 - `store.js`: `dd86ea12b00e26764b2c8c89737bc1d61e1c820b0ef3a444993f5c8d324d5e78`
 
 The IPA server reads `CULTIVATION_REALM_NAMES` from `catalog.js` to expose realm names for email-owned accounts and its separate save store, so that export must remain present. Do not edit the live Telegram game files when adding IPA-specific behavior. Keep later source updates traceable to an AWS source snapshot and review game rules before importing them.
+
+`mode_maps.js` is a new IPA-only battle-map catalog. It defines the Phàm Giới and Tiên Giới PvP/PvE map sets and a server-clocked random rotation across five Cổ Động maps per realm. Active map IDs are attached to live battle responses so a map stays selected for that encounter. It does not modify the AWS Telegram Mini App snapshot.
