@@ -8,12 +8,14 @@ Mở tab **Actions** → **Unity iOS build**. Build dùng Unity Builder và runn
 
 ### Cấu hình bắt buộc
 
-- Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build (workflow `Unity license activation` tạo tệp `.alf` một lần).
+- Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp license `.ulf` đã kích hoạt trong Unity Hub.
 - Variables `IOS_BUNDLE_ID` và `IPA_SERVER_URL`.
 - Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
 - Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
 
 Thiếu Unity license thì workflow ghi thông báo và bỏ qua build. Runner macOS của repo private dùng quota phút GitHub Actions và có thể bị tính phí theo gói.
+
+Trên Windows, Unity Hub tạo license file khi vào **Preferences > Licenses > Add > Get a free personal license**. Sau đó thêm nội dung `C:\ProgramData\Unity\Unity_lic.ulf` cùng email và mật khẩu tài khoản Unity vào GitHub **Settings > Secrets and variables > Actions**. Không gửi mật khẩu qua chat.
 
 ## Hiện trạng
 

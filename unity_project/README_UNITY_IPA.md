@@ -8,7 +8,7 @@ See the project overview at [`../README.md`](../README.md) and the online contra
 
 `.github/workflows/build-ios.yml` builds the Xcode project on a GitHub macOS runner. It can produce an unsigned Xcode artifact after Unity activation is configured. A testable IPA requires an Apple Developer signing certificate and provisioning profile that match `IOS_BUNDLE_ID`.
 
-The `Unity license activation` workflow requests the one-time `.alf` activation artifact for GitHub's build machine. Upload that file to Unity's license portal to obtain a `.ulf` file, then configure repository Actions secrets `UNITY_LICENSE`, `UNITY_EMAIL`, and `UNITY_PASSWORD`. Do not put Unity or Apple credentials in the repository.
+For a Personal license, activate it in Unity Hub and add the `.ulf` file contents plus `UNITY_EMAIL` and `UNITY_PASSWORD` as repository Actions secrets. On Windows, Unity Hub normally writes the license to `C:\ProgramData\Unity\Unity_lic.ulf`; use **Preferences > Licenses > Add > Get a free personal license** to create the file if needed. Do not put Unity or Apple credentials in the repository.
 
 To export a signed IPA, configure the Actions variable `IOS_BUNDLE_ID` and secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, and `IOS_PROFILE_BASE64`. The bundle ID in the profile must match the variable. `IPA_SERVER_URL` is still unset because the dedicated IPA server does not yet have a host or HTTPS address.
 

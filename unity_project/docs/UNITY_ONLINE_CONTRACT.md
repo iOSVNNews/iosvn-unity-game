@@ -9,9 +9,9 @@
 
 ## Current project state
 
-The Unity folder includes Unity 6.3 LTS project metadata, an editor setup script that generates a starter scene, and a runtime-built mobile UI for email login, character creation, profile, target list, and basic server-authoritative combat. The API base URL is a project setting for the separate IPA server.
+The Unity project targets the installed Unity `6000.6.3f1` Editor on drive D. An editor setup script creates a starter scene, and runtime UI provides email login, character creation, profile, target list, and basic server-authoritative combat. A local iOS export completed successfully on Windows; GitHub CI and signed IPA are still blocked on Unity and Apple secrets.
 
-The first local implementation is in `ipa_server.js` and `email_auth_store.js`. Its gameplay files in `ipa_core/` were copied from the running AWS game source on 2026-09-30; `ipa_core/PROVENANCE.md` records the source hashes. The current root `server.js` and root game files remain the Telegram Mini App branch. The IPA server uses server-issued email identities and an independent save file. This draft has not been deployed or connected to a Unity build.
+The first local implementation is in `ipa_server.js` and `email_auth_store.js`. Its gameplay files in `ipa_core/` were copied from the running AWS game source on 2026-09-30; `ipa_core/PROVENANCE.md` records the source hashes. The current root `server.js` and root game files remain the Telegram Mini App branch. The IPA server uses server-issued email identities and an independent save file. The dedicated server has not been hosted, and its API URL is not configured in the Unity build.
 
 ## Dedicated server contract
 
@@ -32,8 +32,8 @@ The first server draft stores password hashes with scrypt and stores random bear
 
 ## Opening the Unity project
 
-Open `D:\game_iosvn\unity_project` with Unity **6000.3.13f1 (Unity 6.3 LTS)**. On first editor load, a setup script creates `Assets/Scenes/OnlinePrototype.unity`, registers it as the first build scene and creates `Assets/Resources/GameServerConfig.asset`. Set `apiBaseUrl` to the separate server's HTTPS address before using online features.
+Open `D:\game_iosvn\unity_project` with Unity **6000.6.3f1**. On first editor load, a setup script creates `Assets/Scenes/OnlinePrototype.unity`, registers it as the first build scene and creates `Assets/Resources/GameServerConfig.asset`. Set `apiBaseUrl` to the separate server's HTTPS address before using online features; set `assetCdnBaseUrl` to enable startup content downloads.
 
-The machine has Unity Hub 3.22.0, but the Unity Editor executable is not installed in the usual Hub or Program Files locations. The project has not been compiled in Unity. `.github/workflows/build-ios.yml` uses GameCI Unity Builder v5.0.0 to export an Xcode project and can optionally sign/export an IPA on a macOS runner. A signed IPA needs GitHub Actions secrets for the Unity license and Apple signing certificate/provisioning profile, plus the bundle ID and Apple team ID.
+The Editor and iOS Build Support are installed on drive D. `.github/workflows/build-ios.yml` uses GameCI Unity Builder v5.0.0 to export an Xcode project and can optionally sign/export an IPA on a macOS runner. A signed IPA needs GitHub Actions secrets for the Unity license and Apple signing certificate/provisioning profile, plus the bundle ID and Apple team ID.
 
-The repository workflow reads `IOS_BUNDLE_ID` and `IPA_SERVER_URL` from GitHub Actions Variables. It reads `UNITY_LICENSE`, `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, and `IOS_PROFILE_BASE64` from GitHub Actions Secrets. Keep the repository private because the gameplay source and assets are project IP. The IPA job is manual and requires an Apple Developer signing profile appropriate to the selected distribution type. GitHub-hosted macOS runners can build and sign through Xcode, but private-repository macOS minutes may be billed under the account's plan.
+The repository workflow reads `IOS_BUNDLE_ID`, `IPA_SERVER_URL`, and `ASSET_CDN_URL` from GitHub Actions Variables. It reads `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD`, `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, and `IOS_PROFILE_BASE64` from GitHub Actions Secrets. Keep the repository private because the gameplay source and assets are project IP. The IPA job is manual and requires an Apple Developer signing profile appropriate to the selected distribution type. GitHub-hosted macOS runners can build and sign through Xcode, but private-repository macOS minutes may be billed under the account's plan.
