@@ -1,5 +1,7 @@
 # Tu Tiên Giới — Unity iOS project
 
+The iOS display name is **Tu Tiên Giới** and the Bundle ID is `com.iosvn.tutiengioi`. ESign users may sign the unsigned IPA with their own certificate and provisioning profile; the profile must authorize this Bundle ID, either explicitly or through a compatible wildcard App ID.
+
 This Unity client targets Unity `6000.6.3f1`, matching the Editor installed at `D:\Unity\Editors\6000.6.3f1`. iOS Build Support is installed. The Editor generates the prototype scene and `GameServerConfig.asset` the first time it opens the project.
 
 See the project overview at [`../README.md`](../README.md) and the online contract at [`docs/UNITY_ONLINE_CONTRACT.md`](docs/UNITY_ONLINE_CONTRACT.md).

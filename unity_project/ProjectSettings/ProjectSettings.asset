@@ -170,7 +170,7 @@ PlayerSettings:
   androidMaxAspectRatio: 2.4
   androidMinAspectRatio: 1
   applicationIdentifier:
-    iPhone: com.example.iosvn
+    iPhone: com.iosvn.tutiengioi
   buildNumber:
     Standalone: 0
     VisionOS: 0

@@ -15,7 +15,7 @@ namespace IOSVN.TuTien.Editor
         public static void Build()
         {
             OnlinePrototypeProjectSetup.EnsurePrototypeScene();
-            var bundleId = Argument("-iosBundleId", "com.example.iosvn");
+            var bundleId = Argument("-iosBundleId", "com.iosvn.tutiengioi");
             var outputPath = Argument("-iosBuildPath", "../build/iOS");
             if (!IsValidBundleId(bundleId)) throw new BuildFailedException("IOS_BUNDLE_ID must be a reverse-DNS identifier, for example com.studio.game.");
 

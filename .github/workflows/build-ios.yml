@@ -127,10 +127,17 @@ jobs:
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/xcode-export"
-          gh release download "$XCODE_EXPORT_TAG" \
-            --repo "$GITHUB_REPOSITORY" \
-            --pattern ios-xcode-export.zip \
-            --dir "$RUNNER_TEMP/xcode-export"
+          RELEASES_JSON="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          ASSET_ID="$(printf '%s\n' "$RELEASES_JSON" | jq -r --arg tag "$XCODE_EXPORT_TAG" \
+            '.[] | select(.tag_name == $tag) | .assets[] | select(.name == "ios-xcode-export.zip") | .id' | head -n1)"
+          if [[ -z "$ASSET_ID" ]]; then
+            echo "Could not find ios-xcode-export.zip in release $XCODE_EXPORT_TAG." >&2
+            exit 1
+          fi
+          gh api -H 'Accept: application/octet-stream' \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+            > "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+          unzip -tq "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
           mkdir -p "$GITHUB_WORKSPACE/build/iOS"
           unzip -q "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip" -d "$GITHUB_WORKSPACE/build/iOS"
 
@@ -147,7 +154,7 @@ jobs:
           buildsPath: build
           buildName: TuTienGioi
           buildMethod: IOSVN.TuTien.Editor.IOSBuild.Build
-          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.example.iosvn' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS
+          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS
 
       - name: Locate Xcode project
         shell: bash
@@ -206,7 +213,8 @@ jobs:
             -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/ios-derived" \
-            PRODUCT_NAME='TuTienGioi' INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
+            PRODUCT_NAME='TuTienGioi' PRODUCT_BUNDLE_IDENTIFIER='com.iosvn.tutiengioi' \
+            INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
             clean build
 
@@ -292,7 +300,8 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE_PATH" \
             -derivedDataPath "$RUNNER_TEMP/ios-signed-derived" \
-            PRODUCT_NAME='TuTienGioi' INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
+            PRODUCT_NAME='TuTienGioi' PRODUCT_BUNDLE_IDENTIFIER='com.iosvn.tutiengioi' \
+            INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_IDENTITY='Apple Development' \
             DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
@@ -333,7 +342,11 @@ jobs:
             find "$RUNNER_TEMP/ios-derived/Build/Products" -maxdepth 5 -name '*.app' -print || true
             exit 1
           fi
-          /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist"
+          BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
+          if [[ "$BUNDLE_ID" != "com.iosvn.tutiengioi" ]]; then
+            echo "::error::Unsigned app bundle ID is '$BUNDLE_ID', expected 'com.iosvn.tutiengioi'."
+            exit 1
+          fi
           if /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_PATH/Info.plist" >/dev/null 2>&1; then
             /usr/libexec/PlistBuddy -c "Set :CFBundleDisplayName 'Tu Tiên Giới'" "$APP_PATH/Info.plist"
           else

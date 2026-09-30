@@ -1,10 +1,10 @@
-# Tu Tiên iOSVN
+# Tu Tiên Giới
 
 Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản AWS sang `ipa_core/`; server IPA dùng tài khoản email và dữ liệu lưu riêng. Server IPA chưa được deploy.
 
 ## Build trên GitHub
 
-Mở **Actions** → **Unity iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS.
+Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS.
 
 Để xuất bản thử nghiệm chưa ký từ Xcode export có sẵn, chạy workflow thủ công với:
 
@@ -20,7 +20,8 @@ IPA unsigned được lưu thành Actions artifact và đính kèm vào Release.
 ### Cấu hình bắt buộc
 
 - Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
-- Variables `IOS_BUNDLE_ID` và `IPA_SERVER_URL`.
+- App dùng tên **Tu Tiên Giới** và Bundle ID mặc định `com.iosvn.tutiengioi`; chỉ đặt variable `IOS_BUNDLE_ID` nếu cần ghi đè. Mỗi người ký bằng chứng chỉ riêng phải dùng provisioning profile cho phép Bundle ID này. Profile wildcard tương thích cũng có thể cho phép app mà không cần đăng ký ID tường minh.
+- Variable `IPA_SERVER_URL`.
 - Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
 - Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
 
