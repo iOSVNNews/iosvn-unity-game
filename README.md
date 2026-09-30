@@ -6,7 +6,7 @@ Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản
 
 Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS. Khi dùng Xcode export dựng sẵn, workflow giữ bản export thành Actions artifact trong 90 ngày để không cần công khai release kỹ thuật.
 
-Để khởi tạo artifact Xcode lần đầu, chạy **Cache Unity iOS Xcode export** và chọn release nguồn. Sau đó mở run vừa chạy, sao chép run ID, rồi chạy **Tu Tiên Giới iOS build** với:
+Để khởi tạo artifact Xcode lần đầu, chạy **Tu Tiên Giới iOS build** với `cache_xcode_export_only=true` và `xcode_export_tag=iosvn-xcode-bootstrap`. Mở run vừa chạy, sao chép run ID, rồi chạy lại workflow với:
 
 - `use_prebuilt_xcode=true`
 - `xcode_export_run_id=<run ID của workflow cache>`

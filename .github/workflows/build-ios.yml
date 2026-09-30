@@ -24,6 +24,11 @@ on:
       - '.github/workflows/build-ios.yml'
   workflow_dispatch:
     inputs:
+      cache_xcode_export_only:
+        description: 'Cache the source Xcode export without compiling an IPA'
+        required: false
+        type: boolean
+        default: false
       use_prebuilt_xcode:
         description: 'Use a cached Unity Xcode export (does not need a Unity CI license)'
         required: false
@@ -77,6 +82,7 @@ permissions:
 jobs:
   license-check:
     name: Check Unity license
+    if: ${{ inputs.cache_xcode_export_only != true }}
     runs-on: ubuntu-latest
     outputs:
       configured: ${{ steps.license.outputs.configured }}
@@ -100,6 +106,7 @@ jobs:
 
   macos-preflight:
     name: Verify GitHub macOS and Xcode
+    if: ${{ inputs.cache_xcode_export_only != true }}
     runs-on: macos-15-intel
     timeout-minutes: 10
     steps:
@@ -110,10 +117,43 @@ jobs:
           xcodebuild -version
           xcrun simctl list devices available | head -n 12
 
+  cache-xcode-export:
+    name: Cache Xcode export for future IPA builds
+    if: ${{ inputs.cache_xcode_export_only == true }}
+    runs-on: ubuntu-latest
+    steps:
+      - name: Download Xcode export from source release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          XCODE_EXPORT_TAG: ${{ inputs.xcode_export_tag }}
+        run: |
+          set -euo pipefail
+          mkdir -p "$RUNNER_TEMP/xcode-export"
+          RELEASES_JSON="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          ASSET_ID="$(printf '%s\n' "$RELEASES_JSON" | jq -r --arg tag "$XCODE_EXPORT_TAG" \
+            '.[] | select(.tag_name == $tag) | .assets[] | select(.name == "ios-xcode-export.zip") | .id' | head -n1)"
+          if [[ -z "$ASSET_ID" ]]; then
+            echo "Could not find ios-xcode-export.zip in release $XCODE_EXPORT_TAG." >&2
+            exit 1
+          fi
+          gh api -H 'Accept: application/octet-stream' \
+            "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+            > "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+          unzip -tq "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+
+      - name: Save Xcode export for IPA workflows
+        uses: actions/upload-artifact@v4
+        with:
+          name: TuTienGioi-ios-xcode-export
+          path: ${{ runner.temp }}/xcode-export/ios-xcode-export.zip
+          if-no-files-found: error
+          retention-days: 90
+
   build-ios:
     name: Build and validate on GitHub macOS
     needs: [license-check, macos-preflight]
-    if: ${{ needs.license-check.outputs.configured == 'true' }}
+    if: ${{ inputs.cache_xcode_export_only != true && needs.license-check.outputs.configured == 'true' }}
     runs-on: macos-15-intel
     timeout-minutes: 90
     steps:
