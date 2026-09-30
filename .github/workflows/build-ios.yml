@@ -161,15 +161,17 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          APP_PATH="$RUNNER_TEMP/ios-derived/Build/Products/Release-iphoneos/Unity-iPhone.app"
-          if [[ ! -d "$APP_PATH" ]]; then
-            echo "Xcode did not produce the expected app: $APP_PATH" >&2
-            find "$RUNNER_TEMP/ios-derived/Build/Products" -maxdepth 4 -name '*.app' -print || true
+          PRODUCTS_PATH="$RUNNER_TEMP/ios-derived/Build/Products/Release-iphoneos"
+          APP_PATH="$(find "$PRODUCTS_PATH" -mindepth 1 -maxdepth 1 -type d -name '*.app' -print -quit)"
+          if [[ -z "$APP_PATH" ]]; then
+            echo "Xcode did not produce an app under: $PRODUCTS_PATH" >&2
+            find "$RUNNER_TEMP/ios-derived/Build/Products" -maxdepth 5 -name '*.app' -print || true
             exit 1
           fi
           /usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist"
           mkdir -p "$RUNNER_TEMP/unsigned-ipa/Payload"
-          ditto "$APP_PATH" "$RUNNER_TEMP/unsigned-ipa/Payload/Unity-iPhone.app"
+          APP_NAME="$(basename "$APP_PATH")"
+          ditto "$APP_PATH" "$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
           (cd "$RUNNER_TEMP/unsigned-ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/iOSVN-unsigned.ipa" Payload)
           /usr/bin/unzip -tq "$RUNNER_TEMP/iOSVN-unsigned.ipa"
 
