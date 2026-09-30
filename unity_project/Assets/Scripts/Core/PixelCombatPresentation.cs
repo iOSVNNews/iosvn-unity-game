@@ -25,20 +25,25 @@ namespace IOSVN.TuTien.Core
         {
             public RectTransform rect;
             public Image image;
+            public Sprite[] frames;
             public Vector2 start;
             public Vector2 end;
             public float launched;
             public float duration;
             public float angle;
             public bool radial;
+            public bool aura;
             public Color tint;
         }
+
+        private sealed class SkillFxInfo { public string id; public string name; public string kind; }
 
         private static readonly Color Gold = new Color32(225, 185, 104, 255);
         private static readonly Color Cream = new Color32(239, 228, 203, 255);
         private static readonly Color Panel = new Color32(25, 33, 43, 255);
         private static readonly Dictionary<string, Texture2D> TerrainCache = new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Sprite[]> FighterCache = new Dictionary<string, Sprite[]>();
+        private readonly Dictionary<string, SkillFxInfo> knownSkills = new Dictionary<string, SkillFxInfo>(StringComparer.OrdinalIgnoreCase);
         private static Sprite projectileSprite;
         private static Sprite shadowSprite;
 
@@ -60,7 +65,8 @@ namespace IOSVN.TuTien.Core
         private Action<PvpBattle> pvpComplete;
 
         public void BuildPve(BattleView battle, NetworkGameClient network, AppearanceColors appearance, bool immortal,
-            string initialAction, Action<string> act, Action<int> useSkill, Action nextStage, Action exit,
+            string initialAction, string initialSkillId, string initialSkillName, string initialSkillKind,
+            Action<string> act, Action<BattleSkill> useSkill, Action nextStage, Action exit,
             Action<BattleView> completed)
         {
             pvp = false;
@@ -81,7 +87,10 @@ namespace IOSVN.TuTien.Core
             {
                 var visible = new List<BattleSkill>();
                 foreach (var skill in battle.skills ?? Array.Empty<BattleSkill>())
+                {
+                    RememberSkill(skill?.id, skill?.name, skill?.kind);
                     if (skill != null && !skill.locked && !string.IsNullOrEmpty(skill.id) && visible.Count < 2) visible.Add(skill);
+                }
                 BuildPveActions(visible.ToArray(), act, useSkill, nextStage, exit, battle.over);
                 SetStatus("Thao tác và sát thương do máy chủ xử lý.");
             }
@@ -96,12 +105,13 @@ namespace IOSVN.TuTien.Core
                 SetStatus("Trận đã kết thúc: " + battle.result);
             }
             StartScene(!battle.over);
-            PlayAction(initialAction);
+            PlayAction(initialAction, initialSkillId, initialSkillName, initialSkillKind);
             if (!battle.over) pollLoop = StartCoroutine(PollPve());
         }
 
         public void BuildPvp(PvpBattle battle, NetworkGameClient network, AppearanceColors appearance, bool immortal,
-            string initialAction, Action<string, string> act, Action refresh, Action exit,
+            string initialAction, string initialSkillId, string initialSkillName, string initialSkillKind,
+            Action<string, string, string, string> act, Action refresh, Action exit,
             Action<PvpBattle> completed)
         {
             pvp = true;
@@ -130,7 +140,7 @@ namespace IOSVN.TuTien.Core
                 SetStatus(battle.isWin ? "Đạo hữu đã thắng trận PvP." : "Trận PvP đã kết thúc.");
             }
             StartScene(!battle.over);
-            PlayAction(initialAction);
+            PlayAction(initialAction, initialSkillId, initialSkillName, initialSkillKind);
             if (!battle.over) pollLoop = StartCoroutine(PollPvp());
         }
 
@@ -176,9 +186,10 @@ namespace IOSVN.TuTien.Core
             AddMeter(box.transform, "PlayerMP", "LINH LỰC", mp, maxMp, new Color32(63, 156, 224, 255), new Vector2(0.045f, 0.10f), new Vector2(0.955f, 0.375f));
         }
 
-        private void BuildPveActions(BattleSkill[] skills, Action<string> act, Action<int> useSkill, Action next, Action exit, bool over)
+        private void BuildPveActions(BattleSkill[] skills, Action<string> act, Action<BattleSkill> useSkill, Action next, Action exit, bool over)
         {
             if (over) return;
+            foreach (var skill in skills) RememberSkill(skill?.id, skill?.name, skill?.kind);
             AddButton("ĐÁNH THƯỜNG", new Vector2(0.36f, 0.045f), new Vector2(0.505f, 0.215f), Gold, () => act?.Invoke("attack"));
             AddButton("NÉ ĐÒN", new Vector2(0.51f, 0.045f), new Vector2(0.655f, 0.215f), Panel, () => act?.Invoke("dodge"));
             var positions = new[] { new Vector2(0.66f, 0.045f), new Vector2(0.81f, 0.045f) };
@@ -186,17 +197,20 @@ namespace IOSVN.TuTien.Core
             for (var i = 0; i < skills.Length && i < positions.Length; i++)
             {
                 var skill = skills[i];
-                var button = AddButton((string.IsNullOrEmpty(skill.icon) ? "KỸ NĂNG" : skill.icon) + "\n" + skill.name, positions[i], limits[i], new Color32(48, 67, 87, 255), () => useSkill?.Invoke(skill.i));
+                var button = AddButton(skill.name, positions[i], limits[i], new Color32(48, 67, 87, 255), () => useSkill?.Invoke(skill));
                 SetButtonFont(button, 14);
+                AttachSkillIcon(button, skill.id, skill.name, skill.kind);
             }
             AddButton("RÚT LUI", new Vector2(0.02f, 0.775f), new Vector2(0.15f, 0.84f), new Color32(53, 48, 43, 255), () => act?.Invoke("flee"));
         }
 
-        private void BuildPvpActions(PvpBattle battle, Action<string, string> act)
+        private void BuildPvpActions(PvpBattle battle, Action<string, string, string, string> act)
         {
             if (battle.over) return;
-            AddButton("ĐÁNH THƯỜNG", new Vector2(0.36f, 0.045f), new Vector2(0.505f, 0.215f), Gold, () => act?.Invoke("attack", null));
-            AddButton("NÉ ĐÒN", new Vector2(0.51f, 0.045f), new Vector2(0.655f, 0.215f), Panel, () => act?.Invoke("dodge", null));
+            foreach (var skill in battle.me?.skills ?? Array.Empty<PvpSkill>()) RememberSkill(skill?.id, skill?.name, skill?.kind);
+            foreach (var skill in battle.opponent?.skills ?? Array.Empty<PvpSkill>()) RememberSkill(skill?.id, skill?.name, skill?.kind);
+            AddButton("ĐÁNH THƯỜNG", new Vector2(0.36f, 0.045f), new Vector2(0.505f, 0.215f), Gold, () => act?.Invoke("attack", null, null, null));
+            AddButton("NÉ ĐÒN", new Vector2(0.51f, 0.045f), new Vector2(0.655f, 0.215f), Panel, () => act?.Invoke("dodge", null, null, null));
             var positions = new[] { new Vector2(0.66f, 0.045f), new Vector2(0.81f, 0.045f) };
             var limits = new[] { new Vector2(0.805f, 0.215f), new Vector2(0.955f, 0.215f) };
             var index = 0;
@@ -204,10 +218,38 @@ namespace IOSVN.TuTien.Core
             {
                 if (skill == null || !skill.canUse || index >= positions.Length) continue;
                 var skillId = skill.id;
-                var button = AddButton((string.IsNullOrEmpty(skill.icon) ? "KỸ NĂNG" : skill.icon) + "\n" + skill.name, positions[index], limits[index], new Color32(48, 67, 87, 255), () => act?.Invoke("skill", skillId));
+                var button = AddButton(skill.name, positions[index], limits[index], new Color32(48, 67, 87, 255),
+                    () => act?.Invoke("skill", skillId, skill.name, skill.kind));
                 SetButtonFont(button, 14);
+                AttachSkillIcon(button, skill.id, skill.name, skill.kind);
                 index++;
             }
+        }
+
+        private void AttachSkillIcon(Button button, string id, string name, string kind)
+        {
+            if (button == null) return;
+            var label = button.GetComponentInChildren<Text>();
+            if (label != null)
+            {
+                label.rectTransform.anchorMin = new Vector2(.24f, .03f);
+                label.rectTransform.anchorMax = new Vector2(.98f, .97f);
+                label.rectTransform.offsetMin = label.rectTransform.offsetMax = Vector2.zero;
+                label.alignment = TextAnchor.MiddleCenter;
+            }
+            var go = new GameObject("AnimatedSkillPixel", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(button.transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = new Vector2(.015f, .19f); rect.anchorMax = new Vector2(.25f, .81f);
+            rect.offsetMin = rect.offsetMax = Vector2.zero;
+            var image = go.GetComponent<Image>(); image.preserveAspect = true; image.raycastTarget = false;
+            PixelSkillArt.Animate(image, id, name, kind, immortalRealm, UnityEngine.Random.value);
+        }
+
+        private void RememberSkill(string id, string name, string kind)
+        {
+            if (string.IsNullOrWhiteSpace(name)) return;
+            knownSkills[name] = new SkillFxInfo { id = id, name = name, kind = kind };
         }
 
         private void BuildStatus()
@@ -334,7 +376,51 @@ namespace IOSVN.TuTien.Core
                 var rect = go.GetComponent<RectTransform>(); rect.anchorMin = rect.anchorMax = from; rect.sizeDelta = new Vector2(32f, 32f);
                 var image = go.GetComponent<Image>(); image.sprite = sprite; image.raycastTarget = false;
                 var hidden = tint; hidden.a = 0; image.color = hidden;
-                projectiles.Add(new Projectile { rect = rect, image = image, start = from, end = to, launched = Time.time + i * 0.045f, duration = radial ? 0.36f : 0.52f, angle = i * Mathf.PI * 2f / count, radial = radial, tint = tint });
+                projectiles.Add(new Projectile { rect = rect, image = image, start = from, end = to, launched = Time.unscaledTime + i * 0.045f, duration = radial ? 0.36f : 0.52f, angle = i * Mathf.PI * 2f / count, radial = radial, tint = tint });
+            }
+        }
+
+        private void SpawnSkillEffect(Vector2 from, Vector2 to, string skillId, string skillName, string skillKind)
+        {
+            var kind = string.IsNullOrWhiteSpace(skillKind) ? "atk" : skillKind.ToLowerInvariant();
+            var aura = kind == "shield" || kind == "reflect" || kind == "buff" || kind == "heal" || kind == "mana";
+            var escape = kind == "escape";
+            var impactAtCaster = aura || escape;
+            var frames = PixelSkillArt.Frames(skillId, skillName, kind, immortalRealm);
+            var count = kind == "multi" ? Mathf.Clamp(4 + ((skillId ?? skillName ?? "").Length % 4), 4, 7)
+                : kind == "dot" ? 3 : 1;
+            var accent = PixelSkillArt.Accent(skillId, skillName, kind, immortalRealm);
+            for (var i = 0; i < count; i++)
+            {
+                var origin = from;
+                var destination = impactAtCaster ? from : to;
+                if (escape) destination = from + new Vector2(pvp ? .17f : -.14f, .035f);
+                if (aura && count > 1)
+                {
+                    var angle = i * Mathf.PI * 2f / count;
+                    destination = from + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * .035f;
+                }
+                if (kind == "dot")
+                {
+                    var angle = i * Mathf.PI * 2f / count;
+                    origin = to + new Vector2(Mathf.Cos(angle), Mathf.Sin(angle)) * .025f;
+                    destination = to;
+                }
+                var go = new GameObject("PixelSkillEffect_" + (skillId ?? "skill") + "_" + i, typeof(RectTransform), typeof(Image));
+                go.transform.SetParent(transform, false);
+                var rect = go.GetComponent<RectTransform>();
+                rect.anchorMin = rect.anchorMax = origin;
+                rect.sizeDelta = new Vector2(20f, 20f);
+                var image = go.GetComponent<Image>();
+                image.sprite = frames[0]; image.preserveAspect = true; image.raycastTarget = false;
+                projectiles.Add(new Projectile
+                {
+                    rect = rect, image = image, frames = frames, start = origin, end = destination,
+                    launched = Time.unscaledTime + i * (kind == "multi" ? .075f : .06f),
+                    duration = aura ? .94f : escape ? .72f : kind == "dot" ? 1.12f : 1.02f,
+                    angle = i * Mathf.PI * 2f / Mathf.Max(1, count), radial = kind == "dot",
+                    aura = aura || escape, tint = accent
+                });
             }
         }
 
@@ -344,27 +430,53 @@ namespace IOSVN.TuTien.Core
             {
                 var shot = projectiles[i];
                 if (shot.rect == null || shot.image == null) { projectiles.RemoveAt(i); continue; }
-                var elapsed = now - shot.launched;
+                var elapsed = Time.unscaledTime - shot.launched;
                 if (elapsed >= shot.duration) { Destroy(shot.rect.gameObject); projectiles.RemoveAt(i); continue; }
                 var t = Mathf.Clamp01(elapsed / shot.duration);
-                var pos = shot.radial
-                    ? shot.start + new Vector2(Mathf.Cos(shot.angle), Mathf.Sin(shot.angle)) * (0.015f + 0.065f * t)
-                    : Vector2.Lerp(shot.start, shot.end, t) + new Vector2(0f, Mathf.Sin(t * Mathf.PI) * 0.055f);
+                Vector2 pos;
+                if (shot.aura)
+                {
+                    var radius = .012f + .012f * Mathf.Sin(t * Mathf.PI);
+                    pos = shot.start + new Vector2(Mathf.Cos(shot.angle + t * 5.2f), Mathf.Sin(shot.angle + t * 5.2f)) * radius;
+                }
+                else if (shot.radial)
+                    pos = shot.start + Vector2.Lerp(Vector2.zero, new Vector2(Mathf.Cos(shot.angle), Mathf.Sin(shot.angle)) * .03f, Mathf.Sin(t * Mathf.PI));
+                else
+                {
+                    var travel = Mathf.Clamp01(t / .72f);
+                    var arch = Mathf.Sin(travel * Mathf.PI) * (.035f + Mathf.Abs(shot.angle) % .035f);
+                    pos = Vector2.Lerp(shot.start, shot.end, travel) + new Vector2(0f, arch);
+                }
                 shot.rect.anchorMin = shot.rect.anchorMax = pos;
-                var size = 24f + Mathf.Sin(t * Mathf.PI) * 18f;
+                var impact = shot.aura ? Mathf.Sin(t * Mathf.PI) : Mathf.Clamp01((t - .68f) / .32f);
+                var size = shot.frames == null ? 24f + Mathf.Sin(t * Mathf.PI) * 18f
+                    : shot.aura ? 38f + impact * 30f : 32f + impact * 38f;
                 shot.rect.sizeDelta = new Vector2(size, size);
-                var color = shot.tint; color.a = elapsed < 0 ? 0f : Mathf.Sin(t * Mathf.PI) * 0.96f;
-                shot.image.color = color;
+                if (shot.frames == null)
+                {
+                    var color = shot.tint; color.a = elapsed < 0 ? 0f : Mathf.Sin(t * Mathf.PI) * 0.96f;
+                    shot.image.color = color;
+                }
+                else
+                {
+                    var frame = Mathf.FloorToInt(Mathf.Max(0f, elapsed) * 15f) % shot.frames.Length;
+                    shot.image.sprite = shot.frames[frame];
+                    var alpha = elapsed < 0f ? 0f : shot.aura ? .65f + impact * .35f : t < .74f ? Mathf.Clamp01(t * 4f) : 1f - Mathf.Clamp01((t - .74f) / .26f);
+                    shot.image.color = new Color(1f, 1f, 1f, alpha);
+                    var rotation = shot.aura ? (float)Time.unscaledTime * 65f : Mathf.Atan2(shot.end.y - shot.start.y, shot.end.x - shot.start.x) * Mathf.Rad2Deg;
+                    shot.rect.localRotation = Quaternion.Euler(0f, 0f, rotation);
+                }
             }
         }
 
-        private void PlayAction(string action)
+        private void PlayAction(string action, string skillId, string skillName, string skillKind)
         {
             if (string.IsNullOrEmpty(action)) return;
             var player = new Vector2(0.70f, pvp ? 0.45f : 0.46f);
             var target = new Vector2(0.30f, pvp ? 0.45f : 0.47f);
-            if (action == "dodge") SpawnVolley(player, player, new Color32(230, 242, 255, 255), true, 8);
-            else SpawnVolley(player, target, action == "skill" ? new Color32(88, 211, 255, 255) : new Color32(255, 204, 94, 255), false, action == "skill" ? 11 : 7);
+            if (action == "dodge") SpawnSkillEffect(player, player, "phu_don_quyet", "Vạn Dặm Thần Hành Phù", "escape");
+            else if (action == "skill") SpawnSkillEffect(player, target, skillId, skillName, skillKind);
+            else SpawnVolley(player, target, new Color32(255, 204, 94, 255), false, 7);
         }
 
         private IEnumerator PollPve()
@@ -430,6 +542,12 @@ namespace IOSVN.TuTien.Core
             if (!playerHit && !enemyHit) return;
             var from = playerHit ? new Vector2(0.70f, pvp ? 0.45f : 0.46f) : new Vector2(0.30f, pvp ? 0.45f : 0.47f);
             var to = playerHit ? new Vector2(0.30f, pvp ? 0.45f : 0.47f) : new Vector2(0.70f, pvp ? 0.45f : 0.46f);
+            foreach (var skill in knownSkills.Values)
+            {
+                if (string.IsNullOrWhiteSpace(skill.name) || line.IndexOf(skill.name, StringComparison.OrdinalIgnoreCase) < 0) continue;
+                SpawnSkillEffect(from, to, skill.id, skill.name, skill.kind);
+                return;
+            }
             SpawnVolley(from, to, playerHit ? new Color32(255, 207, 92, 255) : new Color32(112, 215, 248, 255), false, 7);
         }
 
