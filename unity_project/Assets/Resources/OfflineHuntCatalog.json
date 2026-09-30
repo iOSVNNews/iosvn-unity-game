@@ -1,0 +1,1385 @@
+{
+  "sourceMapId": "map_1",
+  "sourceMapName": "Thanh Châu",
+  "monsters": [
+    {
+      "id": "ty_tho_yeu",
+      "name": "Độc Hỏa Nghĩ",
+      "realm": 0,
+      "element": "hoa",
+      "hp": 425,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.15,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_luc_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_hoa_cau",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "moc_bua",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "truc_but",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "dong_dinh",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_hoa",
+          "rate": 0.01,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "ty_chuot_dat",
+      "name": "U Minh Thử",
+      "realm": 0,
+      "element": "tho",
+      "hp": 425,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.15,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_luc_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_binh_an",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "moc_bua",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "truc_but",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "dong_dinh",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_tho",
+          "rate": 0.01,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "ty_ran_co",
+      "name": "Hắc Thủy Xà",
+      "realm": 1,
+      "element": "thuy",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.15,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_luc_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_bang_tien",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.06,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "o_thiet_doan_chuy",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "chu_sa_lang_hao",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "thanh_moc_dinh",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_thuy",
+          "rate": 0.01,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "ty_ong_vang",
+      "name": "Thiết Giáp Phong",
+      "realm": 1,
+      "element": "kim",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.15,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_luc_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_kim_cang",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.06,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "o_thiet_doan_chuy",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "chu_sa_lang_hao",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "thanh_moc_dinh",
+          "rate": 0.03,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_kim",
+          "rate": 0.01,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "da_lang",
+      "name": "Độc Giác Thanh Giao",
+      "realm": 0,
+      "element": "thuy",
+      "hp": 380,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_thuy",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "doc_phong",
+      "name": "Kim Giác Tê",
+      "realm": 0,
+      "element": "kim",
+      "hp": 300,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_kim",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "thanh_xa",
+      "name": "Hắc Thủy Huyền Xà",
+      "realm": 1,
+      "element": "moc",
+      "hp": 430,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_moc",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "phe_kim_trung",
+      "name": "Phệ Kim Trùng",
+      "realm": 4,
+      "element": "kim",
+      "hp": 824,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_4",
+          "rate": 0.006794772479999999,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_ket_anh",
+          "rate": 0.0012150000000000002,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_huyet_tinh",
+          "rate": 0.018,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "boi_nguyen_dan",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_frag_skill_sat_luc",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_frag_dan_giang_tran",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_frag_phu_dinh_than",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_kim",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "kim_si_dieu",
+      "name": "Kim Sí Điêu",
+      "realm": 1,
+      "element": "phong",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_phong",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "loi_oa_thu",
+      "name": "Lôi Oa Cổ Thú",
+      "realm": 1,
+      "element": "loi",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_loi",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "lac_phach_chuy_quy",
+      "name": "Lạc Phách Chùy Quỷ",
+      "realm": 1,
+      "element": "tho",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_tho",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "ty_linh_meo",
+      "name": "Linh Miêu Thú",
+      "realm": 0,
+      "element": "phong",
+      "hp": 425,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.3,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.15,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_luc_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_cuong_luc",
+          "rate": 0.1,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "moc_bua",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "truc_but",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "equip",
+          "id": "dong_dinh",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_phong",
+          "rate": 0.01,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "bach_ngoc_chu",
+      "name": "Bạch Ngọc Chu Trùng",
+      "realm": 0,
+      "element": "kim",
+      "hp": 425,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_0",
+          "rate": 0.008,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_tay_tuy_hoan",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_kim",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "thanh_lang_vuong",
+      "name": "Thanh Giác Lang Vương",
+      "realm": 1,
+      "element": "phong",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_phong",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    },
+    {
+      "id": "trieu_quoc_ma_chu",
+      "name": "Triệu Quốc Oán Ma Nhện",
+      "realm": 1,
+      "element": "thuy",
+      "hp": 502,
+      "drops": [
+        {
+          "kind": "cons",
+          "id": "dan_tieu_canh_1",
+          "rate": 0.00768,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_pha_chuong",
+          "rate": 0.0015,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_yeu_dan",
+          "rate": 0.6,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_linh_thao",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "mat",
+          "id": "mat_van_thiet",
+          "rate": 0.5,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_xuan_dan",
+          "rate": 0.12,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "hoi_linh_dan",
+          "rate": 0.08,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "phu_dinh_than",
+          "rate": 0.05,
+          "qty": 1
+        },
+        {
+          "kind": "cons",
+          "id": "dan_thong_thao_thuy",
+          "rate": 0.015,
+          "qty": 1,
+          "directChance": true,
+          "elementMastery": true
+        }
+      ]
+    }
+  ],
+  "items": [
+    {
+      "id": "dan_tieu_canh_0",
+      "name": "Phàm Nhân Tiểu Cảnh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Đan dược chuyên dụng giúp vượt bình cảnh tiểu cảnh trong Phàm Nhân; không thể thay thế đan đột phá đại cảnh giới."
+    },
+    {
+      "id": "mat_yeu_dan",
+      "name": "Yêu Đan",
+      "kind": "mat",
+      "tier": "pham",
+      "desc": "Nội đan của yêu thú ngưng tụ tinh hoa, dùng để luyện đan và rèn đúc pháp bảo."
+    },
+    {
+      "id": "mat_linh_thao",
+      "name": "Linh Thảo Ngàn Năm",
+      "kind": "mat",
+      "tier": "pham",
+      "desc": "Dược thảo hấp thu linh khí nhật nguyệt, nguyên liệu chính để đan sư phối chế linh đan."
+    },
+    {
+      "id": "mat_van_thiet",
+      "name": "Huyền Thiên Vẫn Thiết",
+      "kind": "mat",
+      "tier": "pham",
+      "desc": "Quặng sắt rơi từ cửu thiên hoặc đáy thâm uyên, dùng để rèn thần binh hộ giáp."
+    },
+    {
+      "id": "hoi_xuan_dan",
+      "name": "Hồi Xuân Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Hồi 35% khí huyết trong trận hoặc ngoài trận"
+    },
+    {
+      "id": "hoi_linh_dan",
+      "name": "Hồi Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Hồi 40% linh lực trong trận"
+    },
+    {
+      "id": "hoi_luc_dan",
+      "name": "Hồi Lực Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Hồi 40 thể lực, tối đa 50 lần dùng mỗi ngày"
+    },
+    {
+      "id": "phu_hoa_cau",
+      "name": "Hỏa Cầu Phù",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Phóng ra cầu lửa thiêu đốt đối thủ gây 180% sát thương."
+    },
+    {
+      "id": "dan_tay_tuy_hoan",
+      "name": "Tẩy Tủy Hoàn",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Đan dược gột rửa phàm cốt, giúp phàm nhân bước vào Luyện Thể cảnh"
+    },
+    {
+      "id": "moc_bua",
+      "name": "Mộc Búa",
+      "kind": "equip",
+      "tier": "pham",
+      "desc": ""
+    },
+    {
+      "id": "truc_but",
+      "name": "Thanh Trúc Phù Bút",
+      "kind": "equip",
+      "tier": "pham",
+      "desc": ""
+    },
+    {
+      "id": "dong_dinh",
+      "name": "Đồng Đỉnh Nhỏ",
+      "kind": "equip",
+      "tier": "pham",
+      "desc": ""
+    },
+    {
+      "id": "dan_thong_thao_hoa",
+      "name": "Hỏa Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Hỏa, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "phu_binh_an",
+      "name": "Bình An Phù",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tạo hộ thuẫn bình an tương đương 25% HP tối đa."
+    },
+    {
+      "id": "dan_thong_thao_tho",
+      "name": "Địa Mạch Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Thổ, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "dan_tieu_canh_1",
+      "name": "Luyện Thể Tiểu Cảnh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Đan dược chuyên dụng giúp vượt bình cảnh tiểu cảnh trong Luyện Thể; không thể thay thế đan đột phá đại cảnh giới."
+    },
+    {
+      "id": "phu_bang_tien",
+      "name": "Băng Tiễn Phù",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Bắn ra mưa tên băng làm chậm và gây 160% sát thương."
+    },
+    {
+      "id": "dan_pha_chuong",
+      "name": "Phá Chướng Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Phá vỡ chướng ngại kinh mạch, đả thông khí hải tiến vào Luyện Khí"
+    },
+    {
+      "id": "o_thiet_doan_chuy",
+      "name": "Ô Thiết Đoán Chùy",
+      "kind": "equip",
+      "tier": "hoang",
+      "desc": ""
+    },
+    {
+      "id": "chu_sa_lang_hao",
+      "name": "Chu Sa Lang Hào Bút",
+      "kind": "equip",
+      "tier": "hoang",
+      "desc": ""
+    },
+    {
+      "id": "thanh_moc_dinh",
+      "name": "Thanh Mộc Đỉnh",
+      "kind": "equip",
+      "tier": "hoang",
+      "desc": ""
+    },
+    {
+      "id": "dan_thong_thao_thuy",
+      "name": "Thủy Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Thủy, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "phu_kim_cang",
+      "name": "Kim Cang Phù",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Kim cang hộ thể chắn 30% sát thương."
+    },
+    {
+      "id": "dan_thong_thao_kim",
+      "name": "Kim Nguyên Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Kim, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "phu_dinh_than",
+      "name": "Định Thần Phù",
+      "kind": "cons",
+      "tier": "hoang",
+      "desc": "Định thân phong tỏa hành động của đối thủ trong 2 giây."
+    },
+    {
+      "id": "dan_thong_thao_moc",
+      "name": "Mộc Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Mộc, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "dan_tieu_canh_4",
+      "name": "Kim Đan Tiểu Cảnh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Đan dược chuyên dụng giúp vượt bình cảnh tiểu cảnh trong Kim Đan; không thể thay thế đan đột phá đại cảnh giới."
+    },
+    {
+      "id": "dan_ket_anh",
+      "name": "Kết Anh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Đan dược phá toái Kim Đan hóa thành Nguyên Anh thần thông quảng đại"
+    },
+    {
+      "id": "mat_huyet_tinh",
+      "name": "Cổ Thần Huyết Tinh",
+      "kind": "mat",
+      "tier": "huyen",
+      "desc": "Huyết tinh ngưng kết từ tinh huyết viễn cổ, rèn bảo vật uy lực vô song."
+    },
+    {
+      "id": "boi_nguyen_dan",
+      "name": "Bồi Nguyên Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Hồi 65% khí huyết trong trận hoặc ngoài trận"
+    },
+    {
+      "id": "mat_frag_skill_sat_luc",
+      "name": "Mảnh Tàn Thiên: Sát Lục Tiên Quyết",
+      "kind": "mat",
+      "tier": "huyen",
+      "desc": "Mảnh tàn thiên ma đạo Sát Lục Tiên Quyết."
+    },
+    {
+      "id": "mat_frag_dan_giang_tran",
+      "name": "Mảnh Đan Phương: Giáng Trần Đan",
+      "kind": "mat",
+      "tier": "huyen",
+      "desc": "Mảnh tàn diệp đan phương Giáng Trần Đan."
+    },
+    {
+      "id": "mat_frag_phu_dinh_than",
+      "name": "Mảnh Phù Lục: Định Thân Phù",
+      "kind": "mat",
+      "tier": "hoang",
+      "desc": "Mảnh tàn quyển phù lục Định Thân Phù."
+    },
+    {
+      "id": "dan_thong_thao_phong",
+      "name": "Phong Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Phong, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "dan_thong_thao_loi",
+      "name": "Lôi Linh Đan",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng vĩnh viễn 2% thông thạo hệ Lôi, tối đa 100%; tăng sát thương kỹ năng cùng hệ trong giới hạn phẩm chất."
+    },
+    {
+      "id": "phu_cuong_luc",
+      "name": "Cương Lực Phù",
+      "kind": "cons",
+      "tier": "pham",
+      "desc": "Tăng 15% sức tấn công trong 8 giây."
+    }
+  ]
+}

@@ -22,14 +22,21 @@ namespace IOSVN.TuTien.Core
             public string title;
             public TownInfo town;
             public DungeonInfo dungeon;
+            public string monsterId;
             public Vector2Int cell;
         }
+
+        [Serializable] private sealed class OfflineInventoryStack { public string id; public int quantity; }
+        [Serializable] private sealed class OfflineProgressSave { public int hp = 240; public int kills; public int stones = 30000; public List<OfflineInventoryStack> items = new List<OfflineInventoryStack>(); }
 
         private static readonly Color Ink = new Color32(13, 18, 27, 255);
         private static readonly Color Panel = new Color32(25, 33, 43, 255);
         private static readonly Color Gold = new Color32(225, 185, 104, 255);
         private static readonly Color Cream = new Color32(239, 228, 203, 255);
         private static readonly Color Muted = new Color32(158, 171, 184, 255);
+        private const string OfflineProgressKey = "tutien.offline.progress.v1";
+        private static readonly Dictionary<string, Sprite> PixelIconCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+        private static readonly Dictionary<string, Sprite> CultivatorSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
 
         private NetworkGameClient client;
         private Canvas canvas;
@@ -58,7 +65,7 @@ namespace IOSVN.TuTien.Core
         private bool atlasFromExploration;
         private const int ExplorationMapWidth = 144;
         private const int ExplorationMapHeight = 64;
-        private const int ExplorationTilePixels = 12;
+        private const int ExplorationTilePixels = 16;
         private const float ExplorationDefaultZoom = 1.12f;
         private Text status;
         private Text patchStatus;
@@ -76,6 +83,26 @@ namespace IOSVN.TuTien.Core
         private bool offlinePreview;
         private GameState offlinePreviewState;
         private bool offlineCreationPreview;
+        private OfflineHuntCatalogData offlineHuntCatalog;
+        private OfflineProgressSave offlineProgress = new OfflineProgressSave();
+        private OfflineMonsterData activeOfflineMonster;
+        private GameObject offlineBattleRoot;
+        private Texture2D offlineBattleTexture;
+        private GameObject offlineInventoryRoot;
+        private RectTransform offlinePlayerFighter;
+        private RectTransform offlineMonsterFighter;
+        private Image offlineMonsterImage;
+        private Image offlinePlayerHealthFill;
+        private Image offlineMonsterHealthFill;
+        private Text offlineBattleMessage;
+        private Text offlineBattleTitle;
+        private bool offlineActionRunning;
+        private bool offlineProgressLoaded;
+        private Button offlineSkillButton;
+        private Vector2 offlineBattleMoveInput;
+        private Vector2 offlinePlayerBattlePosition;
+        private float offlineNextEnemyAttackTime;
+        private float offlineBattleMotionTime;
         private string[] sectNames;
         private string[] elementNames;
         private string gender = "nam";
@@ -125,12 +152,91 @@ namespace IOSVN.TuTien.Core
 
         private void Awake()
         {
-            Screen.orientation = ScreenOrientation.Portrait;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
             client = NetworkGameClient.Instance;
             if (client == null) client = new GameObject("NetworkGameClient").AddComponent<NetworkGameClient>();
             if (GameAudioController.Instance == null) new GameObject("GameAudioController").AddComponent<GameAudioController>();
             BuildCanvas();
             StartStartupPatchCheck();
+        }
+
+        private void Update()
+        {
+            if (offlineBattleRoot == null || offlinePlayerFighter == null || offlineMonsterFighter == null || offlineBattleOver) return;
+            var bounds = offlineBattleRoot.GetComponent<RectTransform>().rect;
+            var playerPosition = offlinePlayerBattlePosition;
+            if (offlineBattleMoveInput.sqrMagnitude > .01f && !offlineActionRunning)
+            {
+                playerPosition += offlineBattleMoveInput.normalized * (330f * Time.deltaTime);
+                playerPosition.x = Mathf.Clamp(playerPosition.x, -bounds.width * .45f, bounds.width * .45f);
+                playerPosition.y = Mathf.Clamp(playerPosition.y, -bounds.height * .31f, bounds.height * .32f);
+                offlinePlayerBattlePosition = playerPosition;
+            }
+            offlinePlayerFighter.localPosition = playerPosition + Vector2.up * Mathf.Sin(offlineBattleMotionTime * 7f) * 3f;
+
+            offlineBattleMotionTime += Time.deltaTime;
+            var enemyPosition = offlineMonsterFighter.localPosition;
+            var distance = Vector2.Distance(playerPosition, enemyPosition);
+            if (!offlineActionRunning)
+            {
+                var orbit = new Vector2(Mathf.Sin(offlineBattleMotionTime * 2.1f), Mathf.Cos(offlineBattleMotionTime * 1.7f)) * 30f;
+                var target = distance > 205f ? playerPosition : playerPosition + orbit;
+                var speed = distance > 205f ? 125f : 86f;
+                enemyPosition = Vector2.MoveTowards(enemyPosition, target, speed * Time.deltaTime);
+                enemyPosition.x = Mathf.Clamp(enemyPosition.x, -bounds.width * .45f, bounds.width * .45f);
+                enemyPosition.y = Mathf.Clamp(enemyPosition.y, -bounds.height * .31f, bounds.height * .32f);
+                offlineMonsterFighter.localPosition = enemyPosition;
+
+                if (distance < 178f && Time.time >= offlineNextEnemyAttackTime)
+                {
+                    offlineNextEnemyAttackTime = Time.time + 1.15f;
+                    var damage = UnityEngine.Random.Range(8, 15);
+                    offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - damage);
+                    offlineMonsterImage.color = new Color32(255, 137, 112, 255);
+                    StartCoroutine(ResetMonsterHitFlash());
+                    offlineBattleMessage.text = activeOfflineMonster.name + " áp sát phản kích · mất " + damage + " khí huyết.";
+                    if (offlineProgress.hp <= 0)
+                    {
+                        offlineProgress.hp = OfflineMaxHp / 2;
+                        offlineBattleOver = true;
+                        offlineBattleTitle.text = "TRỌNG THƯƠNG  ·  ĐƯỢC CỨU VỀ THÀNH";
+                        offlineBattleMessage.text = "Chưa nhận được chiến lợi phẩm. Khí huyết đã hồi một nửa.";
+                        SetOfflineButtonLabel(offlineLeaveButton, "HỒI THÀNH  ·  VỀ MAP");
+                    }
+                    SaveOfflineProgress();
+                    ShowOfflineBattleVitals();
+                }
+            }
+
+        }
+
+        private IEnumerator ResetMonsterHitFlash()
+        {
+            yield return new WaitForSeconds(.12f);
+            if (offlineMonsterImage != null) offlineMonsterImage.color = Color.white;
+        }
+
+        private void SetOfflineBattleMove(Vector2 direction) => offlineBattleMoveInput = direction;
+
+        private Button BattleMoveButton(string label, Vector2 min, Vector2 max, Vector2 direction)
+        {
+            var button = Button(label, min, max, new Color32(27, 35, 42, 232), () => { }, offlineBattleRoot.transform);
+            var trigger = button.gameObject.AddComponent<EventTrigger>();
+            AddBattlePointerEvent(trigger, EventTriggerType.PointerDown, () => SetOfflineBattleMove(direction));
+            AddBattlePointerEvent(trigger, EventTriggerType.PointerUp, () => SetOfflineBattleMove(Vector2.zero));
+            AddBattlePointerEvent(trigger, EventTriggerType.PointerExit, () => SetOfflineBattleMove(Vector2.zero));
+            return button;
+        }
+
+        private static void AddBattlePointerEvent(EventTrigger trigger, EventTriggerType eventType, Action callback)
+        {
+            var entry = new EventTrigger.Entry { eventID = eventType };
+            entry.callback.AddListener(_ => callback?.Invoke());
+            trigger.triggers.Add(entry);
         }
 
         private void StartStartupPatchCheck()
@@ -163,7 +269,7 @@ namespace IOSVN.TuTien.Core
             var scaler = canvasObject.GetComponent<CanvasScaler>();
             canvasScaler = scaler;
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
-            scaler.referenceResolution = new Vector2(1080, 1920);
+            scaler.referenceResolution = new Vector2(1920, 1080);
             scaler.matchWidthOrHeight = 0.5f;
 
             if (FindAnyObjectByType<EventSystem>() == null)
@@ -181,15 +287,19 @@ namespace IOSVN.TuTien.Core
         {
             ClearContent();
             statusMin = new Vector2(0.02f, 0.005f); statusMax = new Vector2(0.98f, 0.035f);
-            GameLogo(new Vector2(0.12f, 0.71f), new Vector2(0.88f, 0.96f));
-            Label("Đăng nhập để tiếp tục hành trình", 22, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.64f), new Vector2(0.96f, 0.70f));
+            GameLogo(new Vector2(0.035f, 0.20f), new Vector2(0.465f, 0.86f));
+            Label("TU TIÊN GIỚI", 34, Gold, TextAnchor.MiddleCenter, new Vector2(0.06f, 0.12f), new Vector2(0.44f, 0.19f));
+            Label("PHÀM GIỚI  ·  TIÊN GIỚI  ·  VẠN ĐẠO", 16, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.065f), new Vector2(0.46f, 0.12f));
 
-            emailInput = Input("email", "Email", new Vector2(0.06f, 0.52f), new Vector2(0.94f, 0.60f), false);
-            passwordInput = Input("password", "Mật khẩu", new Vector2(0.06f, 0.42f), new Vector2(0.94f, 0.50f), true);
-            Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.32f), new Vector2(0.94f, 0.40f), Gold, () => SubmitAuth(false));
-            Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.23f), new Vector2(0.94f, 0.30f), Panel, () => SubmitAuth(true));
-            Button("XEM BẢN ĐỒ NGOẠI TUYẾN", new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.21f), Panel, EnterOfflinePreview);
-            Button("XEM THỬ TẠO NHÂN VẬT", new Vector2(0.06f, 0.045f), new Vector2(0.94f, 0.115f), Panel, EnterOfflineCharacterCreationPreview);
+            var card = PanelObject("LandscapeAuthCard", content.transform, new Vector2(.52f, .10f), new Vector2(.96f, .90f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
+            ChildText(card.transform, "AuthTitle", 28, Gold, TextAnchor.MiddleLeft, new Vector2(.07f, .83f), new Vector2(.93f, .95f)).text = "ĐĂNG NHẬP";
+            ChildText(card.transform, "AuthSubtitle", 16, Muted, TextAnchor.MiddleLeft, new Vector2(.07f, .77f), new Vector2(.93f, .85f)).text = "Lưu hồ sơ tu luyện trên tài khoản email";
+            emailInput = Input("email", "Email", new Vector2(.07f, .64f), new Vector2(.93f, .75f), false, card.transform);
+            passwordInput = Input("password", "Mật khẩu", new Vector2(.07f, .50f), new Vector2(.93f, .61f), true, card.transform);
+            Button("ĐĂNG NHẬP", new Vector2(.07f, .36f), new Vector2(.50f, .47f), Gold, () => SubmitAuth(false), card.transform);
+            Button("TẠO TÀI KHOẢN", new Vector2(.53f, .36f), new Vector2(.93f, .47f), Panel, () => SubmitAuth(true), card.transform);
+            Button("CHƠI THỬ NGOẠI TUYẾN", new Vector2(.07f, .20f), new Vector2(.93f, .31f), new Color32(42, 75, 67, 255), EnterOfflinePreview, card.transform);
+            Button("THỬ TẠO NHÂN VẬT", new Vector2(.07f, .06f), new Vector2(.93f, .17f), Panel, EnterOfflineCharacterCreationPreview, card.transform);
             ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
         }
 
@@ -228,16 +338,17 @@ namespace IOSVN.TuTien.Core
             pendingVerificationEmail = email?.Trim();
             statusMin = new Vector2(0.02f, 0.015f); statusMax = new Vector2(0.98f, 0.075f);
             ClearContent();
-            GameLogo(new Vector2(0.12f, 0.75f), new Vector2(0.88f, 0.98f));
-            Label("XÁC MINH EMAIL", 27, Gold, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.67f), new Vector2(0.96f, 0.73f));
-            Label("Nhập mã 6 số đã gửi tới\n" + pendingVerificationEmail, 18, Muted, TextAnchor.MiddleCenter, new Vector2(0.06f, 0.57f), new Vector2(0.94f, 0.66f));
-            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(0.06f, 0.45f), new Vector2(0.94f, 0.53f), false);
+            GameLogo(new Vector2(0.035f, 0.19f), new Vector2(0.465f, 0.81f));
+            var card = PanelObject("LandscapeVerificationCard", content.transform, new Vector2(.52f, .13f), new Vector2(.96f, .87f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
+            ChildText(card.transform, "VerificationTitle", 28, Gold, TextAnchor.MiddleLeft, new Vector2(.07f, .79f), new Vector2(.93f, .94f)).text = "XÁC MINH EMAIL";
+            ChildText(card.transform, "VerificationEmail", 17, Muted, TextAnchor.MiddleLeft, new Vector2(.07f, .64f), new Vector2(.93f, .79f)).text = "Nhập mã 6 số đã gửi tới  " + pendingVerificationEmail;
+            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(.07f, .48f), new Vector2(.93f, .61f), false, card.transform);
             verificationCodeInput.contentType = InputField.ContentType.IntegerNumber;
             verificationCodeInput.characterLimit = 6;
             verificationCodeInput.keyboardType = TouchScreenKeyboardType.NumberPad;
-            Button("XÁC MINH VÀO GAME", new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.42f), Gold, SubmitEmailVerification);
-            Button("GỬI LẠI MÃ", new Vector2(0.06f, 0.23f), new Vector2(0.94f, 0.31f), Panel, ResendEmailVerification);
-            Button("QUAY LẠI ĐĂNG NHẬP", new Vector2(0.06f, 0.12f), new Vector2(0.94f, 0.20f), Panel, () => ShowLogin());
+            Button("XÁC MINH VÀO GAME", new Vector2(.07f, .30f), new Vector2(.50f, .43f), Gold, SubmitEmailVerification, card.transform);
+            Button("GỬI LẠI MÃ", new Vector2(.53f, .30f), new Vector2(.93f, .43f), Panel, ResendEmailVerification, card.transform);
+            Button("QUAY LẠI ĐĂNG NHẬP", new Vector2(.07f, .11f), new Vector2(.93f, .24f), Panel, () => ShowLogin(), card.transform);
             ShowStatus(string.IsNullOrWhiteSpace(message) ? "Mã có hiệu lực trong 10 phút." : message);
         }
 
@@ -276,6 +387,13 @@ namespace IOSVN.TuTien.Core
                 return;
             }
             mapCatalog = JsonUtility.FromJson<MapCatalog>(catalogAsset.text);
+            offlineHuntCatalog = OfflineHuntCatalogData.Load();
+            if (offlineHuntCatalog == null || offlineHuntCatalog.monsters == null || offlineHuntCatalog.monsters.Length == 0)
+            {
+                ShowStatus("Thiếu dữ liệu quái và vật phẩm ngoại tuyến trong bản cài.");
+                return;
+            }
+            LoadOfflineProgress();
             var town = FirstTownInAtlas(false);
             if (mapCatalog?.maps == null || mapCatalog.maps.Length == 0 || town == null)
             {
@@ -301,7 +419,7 @@ namespace IOSVN.TuTien.Core
             SetRealmMusic(offlinePreviewState);
             SetAtlasOrientation(true);
             ShowMap(offlinePreviewState);
-            ShowStatus("Đang xem bản đồ offline. Đăng nhập, di chuyển và chiến đấu cần máy chủ online.");
+            ShowStatus($"Chơi thử ngoại tuyến · {offlineHuntCatalog.sourceMapName} · {offlineProgress.kills} trận thắng · túi đồ lưu trên máy.");
         }
 
         private void ReturnFromWorldAtlas(GameState state)
@@ -686,7 +804,9 @@ namespace IOSVN.TuTien.Core
             var mapName = string.IsNullOrWhiteSpace(explorationMap.provinceName) ? explorationMap.name : explorationMap.provinceName;
             Label($"{(explorationMap.ascensionRequired ? "TIÊN GIỚI" : "PHÀM GIỚI")}  ·  {mapName}", 23, Gold, TextAnchor.MiddleLeft,
                 new Vector2(.15f, .08f), new Vector2(.56f, .92f), top.transform);
-            explorationLocationText = Label("", 17, Cream, TextAnchor.MiddleRight, new Vector2(.57f, .08f), new Vector2(.83f, .92f), top.transform);
+            explorationLocationText = Label("", 16, Cream, TextAnchor.MiddleRight, new Vector2(.55f, .08f), new Vector2(.70f, .92f), top.transform);
+            if (offlinePreview)
+                Button("TÚI ĐỒ  " + OfflineInventoryCount(), new Vector2(.71f, .06f), new Vector2(.84f, .94f), new Color32(45, 61, 56, 255), ShowOfflineInventory, top.transform);
             Button("VỀ GAME", new Vector2(.85f, .06f), new Vector2(.992f, .94f), Panel,
                 () => { if (offlinePreview) ShowStatus("Đang ở chế độ xem bản đồ offline."); else LoadState(); }, top.transform);
 
@@ -704,13 +824,15 @@ namespace IOSVN.TuTien.Core
 
             var poiPanel = PanelObject("ExplorationPoiPanel", content.transform, new Vector2(.015f, .755f), new Vector2(.77f, .89f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 220));
             explorationPoiText = ChildText(poiPanel.transform, "SelectedPoint", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .06f), new Vector2(.97f, .94f));
-            explorationPoiText.text = "Chạm một ô trên bản đồ để nhân vật đi tới; chạm biểu tượng để xem thành trấn, cổ động hoặc bãi yêu.";
+            explorationPoiText.text = offlinePreview
+                ? $"{offlineProgress.hp}/{OfflineMaxHp} KHÍ HUYẾT  ·  {offlineProgress.stones:N0} LINH THẠCH  ·  {offlineProgress.kills} trận thắng\nChạm bãi tiểu yêu, để nhân vật đi tới rồi chọn KHIÊU CHIẾN."
+                : "Chạm bản đồ để nhân vật đi theo đường mòn; chọn thành trấn, cổ động hoặc bãi yêu để xem hoạt động.";
 
             Button("↑", new Vector2(.075f, .135f), new Vector2(.125f, .195f), Panel, () => MoveExplorationBy(Vector2Int.up));
             Button("←", new Vector2(.025f, .075f), new Vector2(.075f, .135f), Panel, () => MoveExplorationBy(Vector2Int.left));
             Button("↓", new Vector2(.075f, .075f), new Vector2(.125f, .135f), Panel, () => MoveExplorationBy(Vector2Int.down));
             Button("→", new Vector2(.125f, .075f), new Vector2(.175f, .135f), Panel, () => MoveExplorationBy(Vector2Int.right));
-            Button("THÀNH / ĐIỂM ĐẾN", new Vector2(.77f, .075f), new Vector2(.98f, .145f), Gold, () => ActivateSelectedExplorationPoint(state));
+            Button(offlinePreview ? "KHIÊU CHIẾN / VÀO ĐIỂM" : "THÀNH / ĐIỂM ĐẾN", new Vector2(.77f, .075f), new Vector2(.98f, .145f), Gold, () => ActivateSelectedExplorationPoint(state));
             Button("−", new Vector2(.38f, .075f), new Vector2(.425f, .13f), Panel, () => SetExplorationZoom(explorationZoom - .15f));
             var zoomTrack = PanelObject("ExplorationZoomTrack", content.transform, new Vector2(.435f, .091f), new Vector2(.625f, .112f), Vector2.zero, Vector2.zero, new Color32(38, 42, 47, 245));
             var zoomHandle = PanelObject("ExplorationZoomHandle", zoomTrack.transform, new Vector2(0f, -1f), new Vector2(.12f, 2f), Vector2.zero, Vector2.zero, Gold);
@@ -746,10 +868,12 @@ namespace IOSVN.TuTien.Core
             var seed = ordinal * 9137 + (map.ascensionRequired ? 517 : 31);
             var oldRandom = UnityEngine.Random.state;
             UnityEngine.Random.InitState(seed);
-            var land = ordinal >= 9 ? new Color32(83, 111, 102, 255) : ordinal == 4 ? new Color32(91, 125, 119, 255) : new Color32(104, 119, 77, 255);
-            var mountain = ordinal >= 9 ? new Color32(107, 115, 122, 255) : ordinal == 6 ? new Color32(110, 72, 57, 255) : new Color32(104, 96, 80, 255);
-            var water = ordinal == 4 ? new Color32(57, 106, 124, 255) : ordinal >= 9 ? new Color32(71, 124, 139, 255) : new Color32(70, 110, 117, 255);
-            var shore = new Color32(162, 147, 105, 255);
+            // The province is an ink-and-paper map, not a tiled green minimap.
+            // Keep the water-like regions in muted paper gray to match the game's scroll atlas.
+            var land = ordinal >= 9 ? new Color32(190, 194, 185, 255) : ordinal == 6 ? new Color32(179, 149, 117, 255) : new Color32(197, 180, 145, 255);
+            var mountain = ordinal >= 9 ? new Color32(113, 123, 124, 255) : ordinal == 6 ? new Color32(105, 74, 57, 255) : new Color32(117, 96, 72, 255);
+            var water = ordinal == 4 ? new Color32(157, 159, 151, 255) : ordinal >= 9 ? new Color32(162, 174, 173, 255) : new Color32(166, 159, 145, 255);
+            var shore = new Color32(221, 207, 174, 255);
             var mountainNoise = new float[w, h]; var forestNoise = new float[w, h];
             for (var y = 0; y < h; y++) for (var x = 0; x < w; x++)
             {
@@ -780,7 +904,7 @@ namespace IOSVN.TuTien.Core
             for (var y = 0; y < h; y++) for (var x = 0; x < w; x++)
             {
                 var k = kinds[x, y];
-                var variation = .86f + mountainNoise[x, y] * .27f;
+                var variation = .95f + mountainNoise[x, y] * .10f;
                 var baseColor = k == 1 ? Color32.Lerp(land, new Color32(36, 70, 53, 255), .45f) :
                     k == 2 ? Color32.Lerp(mountain, new Color32(169, 159, 139, 255), mountainNoise[x, y] > .67f ? .56f : .1f) :
                     k == 3 ? Color32.Lerp(water, new Color32(119, 159, 161, 255), mountainNoise[x, y] * .3f) :
@@ -823,7 +947,12 @@ namespace IOSVN.TuTien.Core
                 if (town.monsterPool != null && town.monsterPool.Length > 0)
                 {
                     var zoneCell = FindOpenExplorationCell(cell + new Vector2Int(-4, -3), used); used.Add(zoneCell.y * ExplorationMapWidth + zoneCell.x);
-                    explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.MonsterZone, title = "Bãi tiểu yêu · " + town.name, town = town, cell = zoneCell });
+                    var monsterId = town.monsterPool[(town.id.GetHashCode() & 0x7fffffff) % town.monsterPool.Length];
+                    var monsterName = FindOfflineMonster(monsterId)?.name;
+                    if (string.IsNullOrEmpty(monsterName))
+                        foreach (var candidate in mapCatalog.monsters ?? Array.Empty<MonsterInfo>())
+                            if (candidate != null && candidate.id == monsterId) { monsterName = candidate.name; break; }
+                    explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.MonsterZone, title = "Bãi tiểu yêu · " + (monsterName ?? town.name), town = town, monsterId = monsterId, cell = zoneCell });
                 }
             }
         }
@@ -872,43 +1001,62 @@ namespace IOSVN.TuTien.Core
             {
                 var pixel = color;
                 var hash = (cellX * 73856093) ^ (cellY * 19349663) ^ (x * 83492791) ^ (y * 297121507);
-                var speckle = (hash & 15) == 0;
+                var detail = hash & 31;
                 if (kind == 2)
                 {
-                    var peak = 5 + Mathf.Abs((cellX * 3 + cellY * 7) % 5);
-                    if (y > peak + x / 2 && y > peak + (tile - x) / 2) pixel = ScalePixel(color, .50f);
-                    else if ((x + y + cellX) % 5 == 0 || y == peak + x / 2 || y == peak + (tile - x) / 2) pixel = new Color32(201, 190, 164, 255);
-                    if (ordinal >= 9 && y >= peak + 2) pixel = new Color32(204, 214, 213, 255);
+                    var peak = 3 + Mathf.Abs((cellX * 3 + cellY * 7) % 6);
+                    var ridge = peak + Mathf.Abs(x - tile / 2) / 2;
+                    if (y > ridge + 2) pixel = ScalePixel(color, .47f);
+                    else if (y >= ridge && y <= ridge + 2) pixel = ScalePixel(color, .70f);
+                    else if ((x + y + cellX) % 7 == 0 || y == ridge - 1) pixel = new Color32(202, 192, 169, 255);
+                    if (ordinal >= 9 && y >= ridge - 1) pixel = new Color32(206, 218, 218, 255);
+                    if (detail == 2 && y > ridge + 1) pixel = ScalePixel(pixel, .72f);
                 }
                 else if (kind == 1)
                 {
-                    if ((x >= 3 && x <= 9 && y >= 2 && y <= 8) || (x >= 1 && x <= 10 && y >= 5 && y <= 10)) pixel = new Color32((byte)Mathf.Clamp(color.r * .77f, 0, 255), (byte)Mathf.Clamp(color.g * 1.12f, 0, 255), (byte)Mathf.Clamp(color.b * .82f, 0, 255), 255);
-                    if (x == 6 && y >= 8 && y <= 11) pixel = new Color32(112, 83, 55, 255);
+                    var canopyCenter = tile / 2 + ((cellX + cellY) % 3 - 1);
+                    var canopyWidth = y < 5 ? 2 : y < 11 ? 5 : 4;
+                    var inCanopy = y >= 2 && y <= 13 && Mathf.Abs(x - canopyCenter) <= canopyWidth;
+                    if (inCanopy) pixel = (y < 5 || detail < 5)
+                        ? new Color32(99, 139, 69, 255)
+                        : new Color32((byte)Mathf.Clamp(color.r * .67f, 0, 255), (byte)Mathf.Clamp(color.g * 1.10f, 0, 255), (byte)Mathf.Clamp(color.b * .72f, 0, 255), 255);
+                    if (x == canopyCenter && y >= 10 && y <= 15) pixel = new Color32(112, 83, 55, 255);
+                    if (inCanopy && detail == 9) pixel = new Color32(157, 176, 91, 255);
                 }
                 else if (kind == 3)
                 {
-                    if ((y + cellY) % 5 == 2 && x > 1 && x < 10) pixel = new Color32(120, 164, 159, 255);
+                    if ((x + cellX * 3 + y) % 13 < 2) pixel = new Color32(120, 164, 159, 255);
+                    if (detail == 0) pixel = new Color32(50, 91, 101, 255);
                 }
                 else if (kind == 4)
                 {
-                    if (x == 0 || x == tile - 1 || y == 0 || y == tile - 1) pixel = Color32.Lerp(color, land, .42f);
-                    else if (speckle) pixel = new Color32(194, 164, 104, 255);
+                    if (detail == 1 || detail == 12) pixel = new Color32(199, 166, 112, 255);
+                    else if (detail == 6) pixel = new Color32(128, 103, 68, 255);
+                    else if (detail == 21) pixel = Color32.Lerp(color, land, .35f);
                 }
-                else if (kind == 0 && speckle) pixel = ScalePixel(color, (hash & 16) == 0 ? .90f : 1.08f);
-                if (x == 0 || y == 0) pixel = new Color32((byte)(pixel.r * .70f), (byte)(pixel.g * .70f), (byte)(pixel.b * .70f), 255);
+                else if (kind == 0)
+                {
+                    if (detail == 3 || detail == 19) pixel = ScalePixel(color, .82f);
+                    else if (detail == 7) pixel = ScalePixel(color, 1.19f);
+                    if (detail == 11 && ((x + cellX) % 3 == 0)) pixel = new Color32(150, 162, 91, 255);
+                }
+                else if (kind == 5 && detail == 7) pixel = ScalePixel(color, .94f);
                 pixels[(oy + y) * textureWidth + ox + x] = pixel;
             }
         }
 
         private void AddExplorationMarker(WorldMapPoint point)
         {
-            var size = point.kind == WorldPointKind.Town ? 24f : 19f;
+            var size = point.kind == WorldPointKind.Town ? 32f : point.kind == WorldPointKind.MonsterZone ? 36f : 28f;
             var root = new GameObject("WorldPoint_" + point.kind + "_" + point.title, typeof(RectTransform), typeof(Image), typeof(Button));
             root.transform.SetParent(explorationMapRect, false);
             var rect = root.GetComponent<RectTransform>(); rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(size, size);
             rect.anchoredPosition = ExplorationCellPosition(point.cell);
             var image = root.GetComponent<Image>();
-            image.sprite = AtlasPixelSprite(point.kind == WorldPointKind.Town ? "T" : point.kind == WorldPointKind.Dungeon ? "D" : "Y");
+            image.sprite = point.kind == WorldPointKind.MonsterZone
+                ? LoadPixelIcon("PixelArt/Monsters/" + point.monsterId)
+                : AtlasPixelSprite(point.kind == WorldPointKind.Town ? "T" : "D");
+            if (image.sprite == null) image.sprite = AtlasPixelSprite(point.kind == WorldPointKind.MonsterZone ? "Y" : point.kind == WorldPointKind.Town ? "T" : "D");
             image.color = point.kind == WorldPointKind.Town ? new Color32(255, 227, 165, 255) : Color.white;
             image.preserveAspect = true;
             root.GetComponent<Button>().onClick.AddListener(() => SelectExplorationPoint(point));
@@ -930,6 +1078,8 @@ namespace IOSVN.TuTien.Core
 
         private static Sprite CreateCultivatorSprite(AppearanceColors colors)
         {
+            var cacheKey = (colors?.hair ?? "") + "|" + (colors?.outfit ?? "") + "|" + (colors?.eyes ?? "");
+            if (CultivatorSpriteCache.TryGetValue(cacheKey, out var cached)) return cached;
             const int width = 16, height = 24;
             var pixels = new Color32[width * height]; var clear = new Color32(0, 0, 0, 0);
             for (var i = 0; i < pixels.Length; i++) pixels[i] = clear;
@@ -942,7 +1092,9 @@ namespace IOSVN.TuTien.Core
             rect(4, 3, 8, 2, new Color32(197, 166, 100, 255)); rect(6, 1, 4, 2, new Color32(42, 44, 46, 255)); rect(13, 10, 1, 12, new Color32(195, 197, 191, 255));
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "PlayerPixelSprite", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             texture.SetPixels32(pixels); texture.Apply(false, true);
-            return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(.5f, .1f), width);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(.5f, .1f), width);
+            CultivatorSpriteCache[cacheKey] = sprite;
+            return sprite;
         }
 
         private static Color32 PixelColor(string value, Color32 fallback)
@@ -1069,7 +1221,7 @@ namespace IOSVN.TuTien.Core
             if (explorationSelectedPoint == null) { explorationPoiText.text = "Đường núi · Chạm bản đồ để đi từng ô."; return; }
             var point = explorationSelectedPoint;
             var kind = point.kind == WorldPointKind.Town ? "THÀNH TRẤN" : point.kind == WorldPointKind.Dungeon ? "CỔ ĐỘNG" : "BÃI TIỂU YÊU";
-            explorationPoiText.text = $"{kind}  ·  {point.title}     ({point.cell.x + 1}, {point.cell.y + 1})\n{point.town?.realmMinName ?? explorationMap?.realmMinName ?? "Địa vực tu luyện"}  ·  {(point.town?.desc ?? point.dungeon?.desc ?? "Điểm thám hiểm trên bản đồ")}";
+            explorationPoiText.text = $"{kind}  ·  {point.title}     ({point.cell.x + 1}, {point.cell.y + 1})\n{point.town?.realmMinName ?? explorationMap?.realmMinName ?? "Địa vực tu luyện"}  ·  {(offlinePreview && point.kind == WorldPointKind.MonsterZone ? "Chạm KHIÊU CHIẾN để mở trận và nhận chiến lợi phẩm." : point.town?.desc ?? point.dungeon?.desc ?? "Điểm thám hiểm trên bản đồ")}";
         }
 
         private void PanExplorationMap(Vector2 delta)
@@ -1117,7 +1269,15 @@ namespace IOSVN.TuTien.Core
             var point = explorationSelectedPoint;
             if (point == null) { ShowStatus("Hãy chọn một thành trấn, cổ động hoặc bãi yêu trước."); return; }
             if (explorationCell != point.cell) { MoveExplorationTo(point.cell); return; }
-            if (offlinePreview) { ShowStatus("Bản đồ đã sẵn sàng offline; chiến đấu và ngự kiếm cần máy chủ online."); return; }
+            if (offlinePreview)
+            {
+                if (point.kind == WorldPointKind.Town) { OfflineTravelTo(point.town); return; }
+                var encounter = point;
+                if (point.kind == WorldPointKind.Dungeon && string.IsNullOrEmpty(point.monsterId) && point.town?.monsterPool?.Length > 0)
+                    encounter = new WorldMapPoint { kind = point.kind, title = point.title, town = point.town, dungeon = point.dungeon, monsterId = point.town.monsterPool[point.town.monsterPool.Length - 1], cell = point.cell };
+                StartOfflineHunt(encounter);
+                return;
+            }
             if (point.kind == WorldPointKind.Town)
             {
                 if (state.town?.id == point.town.id) ShowHome(state); else TravelTo(point.town);
@@ -1125,6 +1285,416 @@ namespace IOSVN.TuTien.Core
             else if (state.town?.id != point.town?.id) TravelTo(point.town);
             else if (point.kind == WorldPointKind.Dungeon) { SetAtlasOrientation(false); EnterDungeon(point.dungeon.id); }
             else { SetAtlasOrientation(false); ShowPveTown(state, point.town); }
+        }
+
+        private void OfflineTravelTo(TownInfo town)
+        {
+            if (town == null || town.mapId != offlineHuntCatalog?.sourceMapId)
+            {
+                ShowStatus("Bản chơi thử offline hiện mở đầy đủ khu vực đầu Thanh Châu; các châu còn lại vẫn có trên atlas.");
+                return;
+            }
+            offlinePreviewState.town = town;
+            latestState = offlinePreviewState;
+            var destination = FindPointForTown(town.id);
+            if (destination != null)
+                PlayerPrefs.SetString(ExplorationSaveKey(offlinePreviewState, explorationMap), destination.cell.x + "," + destination.cell.y);
+            PlayerPrefs.Save();
+            RenderExplorationMap(offlinePreviewState);
+            ShowStatus("Đã ngự kiếm tới " + town.name + " · trận đánh và vật phẩm offline đã được lưu trên máy.");
+        }
+
+        private void LoadOfflineProgress()
+        {
+            if (offlineProgressLoaded) return;
+            var saved = PlayerPrefs.GetString(OfflineProgressKey, "");
+            if (!string.IsNullOrEmpty(saved))
+            {
+                try { offlineProgress = JsonUtility.FromJson<OfflineProgressSave>(saved); }
+                catch { offlineProgress = new OfflineProgressSave(); }
+            }
+            if (offlineProgress == null) offlineProgress = new OfflineProgressSave();
+            if (offlineProgress.items == null) offlineProgress.items = new List<OfflineInventoryStack>();
+            if (offlineProgress.items.Count == 0)
+            {
+                AddOfflineInventory("moc_kiem", 1);
+                AddOfflineInventory("bo_y", 1);
+                AddOfflineInventory("hoi_xuan_dan", 3);
+            }
+            offlineProgress.hp = Mathf.Clamp(offlineProgress.hp, 1, OfflineMaxHp);
+            offlineProgressLoaded = true;
+            SaveOfflineProgress();
+        }
+
+        private const int OfflineMaxHp = 240;
+
+        private void SaveOfflineProgress()
+        {
+            PlayerPrefs.SetString(OfflineProgressKey, JsonUtility.ToJson(offlineProgress));
+            PlayerPrefs.Save();
+        }
+
+        private int OfflineInventoryCount()
+        {
+            var total = 0;
+            foreach (var item in offlineProgress?.items ?? new List<OfflineInventoryStack>()) total += Mathf.Max(0, item?.quantity ?? 0);
+            return total;
+        }
+
+        private OfflineMonsterData FindOfflineMonster(string id)
+        {
+            foreach (var monster in offlineHuntCatalog?.monsters ?? Array.Empty<OfflineMonsterData>())
+                if (monster != null && monster.id == id) return monster;
+            return null;
+        }
+
+        private OfflineItemData FindOfflineItem(string id)
+        {
+            foreach (var item in offlineHuntCatalog?.items ?? Array.Empty<OfflineItemData>())
+                if (item != null && item.id == id) return item;
+            return null;
+        }
+
+        private static Sprite LoadPixelIcon(string resourcePath)
+        {
+            if (string.IsNullOrEmpty(resourcePath)) return null;
+            if (PixelIconCache.TryGetValue(resourcePath, out var cached)) return cached;
+            var texture = Resources.Load<Texture2D>(resourcePath);
+            if (texture == null) return null;
+            texture.filterMode = FilterMode.Point;
+            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 64);
+            sprite.name = resourcePath;
+            PixelIconCache[resourcePath] = sprite;
+            return sprite;
+        }
+
+        private void AddOfflineInventory(string itemId, int quantity)
+        {
+            if (quantity <= 0 || offlineProgress?.items == null) return;
+            foreach (var stack in offlineProgress.items)
+                if (stack.id == itemId) { stack.quantity += quantity; return; }
+            offlineProgress.items.Add(new OfflineInventoryStack { id = itemId, quantity = quantity });
+        }
+
+        private bool RemoveOfflineInventory(string itemId, int quantity)
+        {
+            foreach (var stack in offlineProgress?.items ?? new List<OfflineInventoryStack>())
+            {
+                if (stack.id != itemId || stack.quantity < quantity) continue;
+                stack.quantity -= quantity;
+                if (stack.quantity <= 0) offlineProgress.items.Remove(stack);
+                return true;
+            }
+            return false;
+        }
+
+        private void ShowOfflineInventory()
+        {
+            if (offlineInventoryRoot != null) { Destroy(offlineInventoryRoot); offlineInventoryRoot = null; return; }
+            offlineInventoryRoot = PanelObject("OfflineInventoryOverlay", content.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0, 0, 0, .76f));
+            var card = PanelObject("InventoryCard", offlineInventoryRoot.transform, new Vector2(.20f, .12f), new Vector2(.80f, .88f), Vector2.zero, Vector2.zero, new Color32(23, 29, 36, 255));
+            ChildText(card.transform, "InventoryTitle", 26, Gold, TextAnchor.MiddleLeft, new Vector2(.05f, .87f), new Vector2(.78f, .98f)).text = "TÚI ĐỒ NGOẠI TUYẾN";
+            ChildText(card.transform, "InventoryCount", 16, Muted, TextAnchor.MiddleRight, new Vector2(.66f, .87f), new Vector2(.94f, .98f)).text = $"{OfflineInventoryCount()} vật phẩm";
+            var shown = 0;
+            foreach (var stack in offlineProgress.items)
+            {
+                if (shown >= 7) break;
+                var item = FindOfflineItem(stack.id);
+                var y1 = .82f - shown * .105f;
+                var row = PanelObject("InventoryItem_" + stack.id, card.transform, new Vector2(.04f, y1 - .09f), new Vector2(.96f, y1), Vector2.zero, Vector2.zero, new Color32(36, 43, 50, 255));
+                var icon = new GameObject("ItemPixel", typeof(RectTransform), typeof(Image)); icon.transform.SetParent(row.transform, false);
+                Place(icon.GetComponent<RectTransform>(), new Vector2(.025f, .10f), new Vector2(.13f, .90f));
+                var sprite = LoadPixelIcon("PixelArt/Items/" + stack.id);
+                icon.GetComponent<Image>().sprite = sprite; icon.GetComponent<Image>().preserveAspect = true;
+                ChildText(row.transform, "ItemName", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.16f, .12f), new Vector2(.76f, .88f)).text = item?.name ?? stack.id;
+                ChildText(row.transform, "ItemQuantity", 17, Gold, TextAnchor.MiddleRight, new Vector2(.77f, .12f), new Vector2(.96f, .88f)).text = "× " + stack.quantity;
+                shown++;
+            }
+            if (shown == 0) ChildText(card.transform, "EmptyInventory", 18, Muted, TextAnchor.MiddleCenter, new Vector2(.08f, .40f), new Vector2(.92f, .60f)).text = "Túi đồ đang trống.";
+            Button("ĐÓNG", new Vector2(.35f, .04f), new Vector2(.65f, .13f), Gold, ShowOfflineInventory, card.transform);
+        }
+
+        private void StartOfflineHunt(WorldMapPoint point)
+        {
+            if (offlineBattleRoot != null || offlineActionRunning) return;
+            activeOfflineMonster = FindOfflineMonster(point?.monsterId);
+            if (activeOfflineMonster == null)
+            {
+                ShowStatus("Bãi này chưa có sprite hoặc dữ liệu quái trong gói offline.");
+                return;
+            }
+            if (offlineProgress.hp <= 0) offlineProgress.hp = OfflineMaxHp / 2;
+            offlineActionRunning = false;
+            offlineBattleOver = false;
+            offlineBattleMonsterHp = Mathf.Max(110, Mathf.RoundToInt(activeOfflineMonster.hp * .42f));
+            offlineBattleEnergy = 3;
+            if (explorationMapRoot != null) explorationMapRoot.SetActive(false);
+            if (offlineInventoryRoot != null) { Destroy(offlineInventoryRoot); offlineInventoryRoot = null; }
+            ClearContent();
+
+            offlineBattleRoot = PanelObject("OfflinePixelBattle", content.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
+            offlineBattleRoot.GetComponent<Image>().raycastTarget = false;
+            var ground = new GameObject("PixelArena", typeof(RectTransform), typeof(RawImage)); ground.transform.SetParent(offlineBattleRoot.transform, false);
+            Place(ground.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            offlineBattleTexture = BuildOfflineBattleGround(activeOfflineMonster);
+            ground.GetComponent<RawImage>().texture = offlineBattleTexture;
+            ground.GetComponent<RawImage>().raycastTarget = false;
+            PanelObject("BattleShade", offlineBattleRoot.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0, 0, 0, .20f));
+
+            var header = PanelObject("BattleHud", offlineBattleRoot.transform, new Vector2(.025f, .815f), new Vector2(.975f, .98f), Vector2.zero, Vector2.zero, new Color32(15, 20, 24, 235));
+            ChildText(header.transform, "PlayerVitals", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .53f), new Vector2(.37f, .94f)).text = $"ĐẠO HỮU  ·  {offlineProgress.hp}/{OfflineMaxHp} KHÍ HUYẾT";
+            ChildText(header.transform, "BattleLocation", 15, Gold, TextAnchor.MiddleCenter, new Vector2(.38f, .53f), new Vector2(.60f, .94f)).text = "PVE  ·  " + (point.town?.name ?? offlineHuntCatalog.sourceMapName);
+            ChildText(header.transform, "EnemyName", 17, Cream, TextAnchor.MiddleRight, new Vector2(.61f, .53f), new Vector2(.80f, .94f)).text = activeOfflineMonster.name;
+            offlinePlayerHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.035f, .15f), new Vector2(.37f, .43f), new Color32(73, 190, 111, 255));
+            offlineMonsterHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.61f, .15f), new Vector2(.80f, .43f), new Color32(206, 72, 63, 255));
+
+            offlinePlayerFighter = MakeBattleFighter("PixelCultivator", CreateCultivatorSprite(offlinePreviewState.player.appearanceColors), new Vector2(.28f, .48f), new Vector2(114, 172));
+            offlineMonsterImage = MakeBattleFighterImage("PixelMonster", LoadPixelIcon("PixelArt/Monsters/" + activeOfflineMonster.id), new Vector2(.70f, .49f), new Vector2(190, 190), out offlineMonsterFighter);
+            if (offlineMonsterImage.sprite == null) offlineMonsterImage.sprite = AtlasPixelSprite("Y");
+            offlineBattleTitle = ChildText(offlineBattleRoot.transform, "EnemyCaption", 18, Cream, TextAnchor.MiddleCenter, new Vector2(.54f, .35f), new Vector2(.86f, .42f));
+            offlineBattleTitle.text = activeOfflineMonster.name;
+            offlineBattleMessage = ChildText(offlineBattleRoot.transform, "CombatLog", 17, new Color32(255, 228, 169, 255), TextAnchor.MiddleCenter, new Vector2(.29f, .27f), new Vector2(.71f, .34f));
+            offlineBattleMessage.text = "Yêu thú phát hiện đạo hữu!";
+
+            BattleMoveButton("↑", new Vector2(.105f, .135f), new Vector2(.175f, .205f), Vector2.up);
+            BattleMoveButton("←", new Vector2(.035f, .055f), new Vector2(.105f, .125f), Vector2.left);
+            BattleMoveButton("↓", new Vector2(.105f, .055f), new Vector2(.175f, .125f), Vector2.down);
+            BattleMoveButton("→", new Vector2(.175f, .055f), new Vector2(.245f, .125f), Vector2.right);
+            Button("ĐÁNH", new Vector2(.64f, .045f), new Vector2(.75f, .19f), Gold, () => OfflineBattleAction(false), offlineBattleRoot.transform);
+            offlineSkillButton = Button("KIẾM KHÍ  ·  " + offlineBattleEnergy, new Vector2(.76f, .045f), new Vector2(.87f, .19f), new Color32(52, 75, 96, 255), () => OfflineBattleAction(true), offlineBattleRoot.transform);
+            Button("HỒI ĐAN", new Vector2(.88f, .045f), new Vector2(.99f, .19f), new Color32(57, 90, 70, 255), UseOfflineHealingPill, offlineBattleRoot.transform);
+            offlineLeaveButton = Button("RÚT LUI", new Vector2(.82f, .85f), new Vector2(.97f, .95f), Panel, FinishOfflineBattle, header.transform);
+            offlineNextEnemyAttackTime = Time.time + 1.1f;
+            offlineBattleMotionTime = 0f;
+            offlineBattleMoveInput = Vector2.zero;
+            offlinePlayerBattlePosition = offlinePlayerFighter.localPosition;
+            ShowOfflineBattleVitals();
+        }
+
+        private bool offlineBattleOver;
+        private int offlineBattleMonsterHp;
+        private int offlineBattleEnergy;
+        private Button offlineLeaveButton;
+
+        private Image MakeBattleHealthBar(Transform parent, Vector2 min, Vector2 max, Color color)
+        {
+            var frame = PanelObject("HealthTrack", parent, min, max, Vector2.zero, Vector2.zero, new Color32(36, 39, 39, 255));
+            var fill = PanelObject("HealthFill", frame.transform, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2), color).GetComponent<Image>();
+            fill.type = Image.Type.Filled; fill.fillMethod = Image.FillMethod.Horizontal; fill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            return fill;
+        }
+
+        private RectTransform MakeBattleFighter(string name, Sprite sprite, Vector2 anchor, Vector2 size)
+        {
+            var rect = MakeBattleFighterImage(name, sprite, anchor, size, out _).rectTransform;
+            return rect;
+        }
+
+        private Image MakeBattleFighterImage(string name, Sprite sprite, Vector2 anchor, Vector2 size, out RectTransform rect)
+        {
+            var obj = new GameObject(name, typeof(RectTransform), typeof(Image)); obj.transform.SetParent(offlineBattleRoot.transform, false);
+            rect = obj.GetComponent<RectTransform>(); rect.anchorMin = rect.anchorMax = anchor; rect.sizeDelta = size;
+            var image = obj.GetComponent<Image>(); image.sprite = sprite; image.preserveAspect = true; image.raycastTarget = false;
+            return image;
+        }
+
+        private Texture2D BuildOfflineBattleGround(OfflineMonsterData monster)
+        {
+            const int width = 320, height = 180;
+            var pixels = new Color32[width * height];
+            var ground = monster.element == "hoa" ? new Color32(76, 70, 56, 255) : monster.element == "thuy" ? new Color32(57, 82, 79, 255) : new Color32(70, 91, 58, 255);
+            for (var y = 0; y < height; y++) for (var x = 0; x < width; x++)
+            {
+                var n = ((x * 92837111) ^ (y * 689287499) ^ (monster.id.GetHashCode() * 283923481)) & 31;
+                var color = n < 3 ? ScalePixel(ground, .73f) : n > 27 ? ScalePixel(ground, 1.25f) : ground;
+                var roadCenter = width * .51f + Mathf.Sin(y * .035f + (monster.realm * .6f)) * 39f;
+                if (Mathf.Abs(x - roadCenter) < 8 + (int)(Mathf.Sin(y * .08f) * 2)) color = n % 4 == 0 ? new Color32(147, 118, 77, 255) : new Color32(126, 103, 72, 255);
+                pixels[y * width + x] = color;
+            }
+            var oldRandom = UnityEngine.Random.state;
+            UnityEngine.Random.InitState(monster.id.GetHashCode());
+            for (var i = 0; i < 42; i++)
+            {
+                var x = UnityEngine.Random.Range(8, width - 8); var y = UnityEngine.Random.Range(8, height - 8);
+                var leaf = UnityEngine.Random.value > .42f;
+                var c = leaf ? new Color32(48, 79, 52, 255) : new Color32(107, 102, 89, 255);
+                DrawPixelRect(pixels, width, height, x - 2, y, 5, 2, c);
+                DrawPixelRect(pixels, width, height, x - 1, y - 2, 3, 2, ScalePixel(c, 1.22f));
+                if (!leaf) DrawPixelRect(pixels, width, height, x, y + 2, 2, 2, new Color32(61, 54, 45, 255));
+            }
+            for (var i = 0; i < 160; i++)
+            {
+                var x = UnityEngine.Random.Range(2, width - 2); var y = UnityEngine.Random.Range(2, height - 2);
+                if (UnityEngine.Random.value > .5f) DrawPixelRect(pixels, width, height, x, y, 1, UnityEngine.Random.Range(1, 4), new Color32(126, 149, 88, 255));
+            }
+            UnityEngine.Random.state = oldRandom;
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "AWS_OfflinePixelArena", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels32(pixels); texture.Apply(false, true); return texture;
+        }
+
+        private static void DrawPixelRect(Color32[] pixels, int width, int height, int x, int y, int drawWidth, int drawHeight, Color32 color)
+        {
+            for (var py = Mathf.Max(0, y); py < Mathf.Min(height, y + drawHeight); py++)
+                for (var px = Mathf.Max(0, x); px < Mathf.Min(width, x + drawWidth); px++) pixels[py * width + px] = color;
+        }
+
+        private void ShowOfflineBattleVitals()
+        {
+            if (offlinePlayerHealthFill != null) offlinePlayerHealthFill.fillAmount = Mathf.Clamp01(offlineProgress.hp / (float)OfflineMaxHp);
+            if (offlineMonsterHealthFill != null) offlineMonsterHealthFill.fillAmount = Mathf.Clamp01(offlineBattleMonsterHp / (float)Mathf.Max(1, Mathf.RoundToInt(activeOfflineMonster.hp * .42f)));
+        }
+
+        private void OfflineBattleAction(bool skill)
+        {
+            if (offlineActionRunning || offlineBattleOver) return;
+            if (skill && offlineBattleEnergy <= 0) { offlineBattleMessage.text = "Linh lực đã cạn · đánh thường để tiếp tục."; return; }
+            var range = Vector2.Distance(offlinePlayerFighter.localPosition, offlineMonsterFighter.localPosition);
+            if (range > 310f) { offlineBattleMessage.text = "Yêu thú đang ở xa · dùng phím hướng để áp sát."; return; }
+            offlineActionRunning = true;
+            StartCoroutine(ResolveOfflineBattleTurn(skill));
+        }
+
+        private IEnumerator ResolveOfflineBattleTurn(bool skill)
+        {
+            if (skill) offlineBattleEnergy--;
+            SetOfflineButtonLabel(offlineSkillButton, "KIẾM KHÍ  ·  " + offlineBattleEnergy);
+            StartCoroutine(AnimateOfflineSwordEffect(skill));
+            var playerHome = offlinePlayerFighter.anchoredPosition;
+            var enemyHome = offlineMonsterFighter.anchoredPosition;
+            var direction = ((Vector2)offlineMonsterFighter.localPosition - (Vector2)offlinePlayerFighter.localPosition).normalized * (skill ? 92 : 72);
+            var duration = .16f;
+            for (var time = 0f; time < duration; time += Time.deltaTime)
+            {
+                offlinePlayerFighter.anchoredPosition = playerHome + direction * Mathf.Sin(time / duration * Mathf.PI * .5f);
+                yield return null;
+            }
+            offlinePlayerFighter.anchoredPosition = playerHome + direction;
+            if (skill) offlineMonsterImage.color = new Color32(255, 184, 102, 255);
+            var damage = skill ? 88 : 51;
+            offlineBattleMonsterHp = Mathf.Max(0, offlineBattleMonsterHp - damage);
+            for (var n = 0; n < 5; n++)
+            {
+                offlineMonsterFighter.anchoredPosition = enemyHome + new Vector2(UnityEngine.Random.Range(-9, 10), UnityEngine.Random.Range(-6, 7));
+                yield return new WaitForSeconds(.035f);
+            }
+            offlineMonsterFighter.anchoredPosition = enemyHome;
+            offlinePlayerFighter.anchoredPosition = playerHome;
+            offlineMonsterImage.color = Color.white;
+            ShowOfflineBattleVitals();
+
+            if (offlineBattleMonsterHp <= 0)
+            {
+                offlineBattleOver = true;
+                offlineProgress.kills++;
+                offlineProgress.stones += 300;
+                var drops = RollOfflineDrops(activeOfflineMonster);
+                var description = new List<string>();
+                foreach (var drop in drops)
+                {
+                    AddOfflineInventory(drop.Key, drop.Value);
+                    var item = FindOfflineItem(drop.Key);
+                    description.Add((item?.name ?? drop.Key) + " ×" + drop.Value);
+                    var icon = new GameObject("LootPixel_" + drop.Key, typeof(RectTransform), typeof(Image)); icon.transform.SetParent(offlineBattleRoot.transform, false);
+                    Place(icon.GetComponent<RectTransform>(), new Vector2(.40f + (description.Count - 1) * .065f, .39f), new Vector2(.45f + (description.Count - 1) * .065f, .48f));
+                    icon.GetComponent<Image>().sprite = LoadPixelIcon("PixelArt/Items/" + drop.Key); icon.GetComponent<Image>().preserveAspect = true;
+                }
+                offlineBattleTitle.text = "CHIẾN THẮNG  ·  " + activeOfflineMonster.name;
+                offlineBattleMessage.text = "RƠI ĐỒ  ·  " + string.Join("   ·   ", description);
+                SetOfflineButtonLabel(offlineLeaveButton, "NHẶT ĐỒ  ·  VỀ MAP");
+                SaveOfflineProgress();
+                ShowOfflineBattleVitals();
+            }
+            else
+            {
+                offlineBattleMessage.text = skill ? "Kiếm khí xé gió · gây " + damage + " sát thương." : "Một đòn kiếm trúng yêu thú · " + damage + " sát thương.";
+                yield return new WaitForSeconds(.38f);
+                var incoming = 13 + (activeOfflineMonster.realm * 2) + UnityEngine.Random.Range(0, 7);
+                offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - incoming);
+                offlineBattleMessage.text = activeOfflineMonster.name + " phản kích · mất " + incoming + " khí huyết.";
+                if (offlineProgress.hp <= 0)
+                {
+                    offlineProgress.hp = OfflineMaxHp / 2;
+                    offlineBattleOver = true;
+                    offlineBattleTitle.text = "TRỌNG THƯƠNG  ·  ĐƯỢC CỨU VỀ THÀNH";
+                    offlineBattleMessage.text = "Chưa nhận được chiến lợi phẩm. Khí huyết đã hồi một nửa.";
+                    SetOfflineButtonLabel(offlineLeaveButton, "HỒI THÀNH  ·  VỀ MAP");
+                }
+                SaveOfflineProgress();
+                ShowOfflineBattleVitals();
+            }
+            offlineActionRunning = false;
+        }
+
+        private IEnumerator AnimateOfflineSwordEffect(bool skill)
+        {
+            var rootRect = offlineBattleRoot.GetComponent<RectTransform>();
+            var effectObject = new GameObject("AnimatedPixelSwordQi", typeof(RectTransform), typeof(Image));
+            effectObject.transform.SetParent(offlineBattleRoot.transform, false);
+            var rect = effectObject.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .49f);
+            rect.sizeDelta = new Vector2(skill ? 112 : 84, skill ? 112 : 84);
+            var image = effectObject.GetComponent<Image>();
+            image.raycastTarget = false;
+            var artId = skill ? "thanh_phong_kiem_khi" : "kiem_phap_co_ban";
+            var artName = skill ? "Thanh Phong Kiếm Khí" : "Đánh thường";
+            image.sprite = PixelSkillArt.Frames(artId, artName, "kiem", false)[0];
+            PixelSkillArt.Animate(image, artId, artName, "kiem", false);
+            var canvasSize = rootRect.rect.size;
+            var start = new Vector2(-canvasSize.x * .10f, 0);
+            var end = new Vector2(canvasSize.x * .12f, canvasSize.y * .015f);
+            var duration = skill ? .29f : .20f;
+            for (var t = 0f; t < duration; t += Time.deltaTime)
+            {
+                var progress = t / duration;
+                rect.anchoredPosition = Vector2.Lerp(start, end, progress);
+                rect.localRotation = Quaternion.Euler(0, 0, Mathf.Lerp(-28, 24, progress));
+                image.color = new Color(1, 1, 1, Mathf.Sin(progress * Mathf.PI));
+                yield return null;
+            }
+            Destroy(effectObject);
+        }
+
+        private Dictionary<string, int> RollOfflineDrops(OfflineMonsterData monster)
+        {
+            var result = new Dictionary<string, int>(StringComparer.OrdinalIgnoreCase);
+            foreach (var drop in monster.drops ?? Array.Empty<OfflineDropData>())
+            {
+                if (drop == null || UnityEngine.Random.value > Mathf.Clamp01(drop.rate)) continue;
+                var count = drop.qty > 0 ? drop.qty : UnityEngine.Random.Range(Mathf.Max(1, drop.min), Mathf.Max(Mathf.Max(1, drop.min) + 1, drop.max + 1));
+                if (result.ContainsKey(drop.id)) result[drop.id] += count; else result[drop.id] = count;
+            }
+            if (result.Count == 0) result["mat_yeu_dan"] = 1;
+            return result;
+        }
+
+        private void UseOfflineHealingPill()
+        {
+            if (offlineActionRunning || offlineBattleOver) return;
+            if (!RemoveOfflineInventory("hoi_xuan_dan", 1)) { offlineBattleMessage.text = "Túi không còn Hồi Xuân Đan."; return; }
+            if (offlineProgress.hp >= OfflineMaxHp) { AddOfflineInventory("hoi_xuan_dan", 1); offlineBattleMessage.text = "Khí huyết đã đầy."; return; }
+            offlineProgress.hp = Mathf.Min(OfflineMaxHp, offlineProgress.hp + 82);
+            SaveOfflineProgress(); ShowOfflineBattleVitals();
+            OfflineBattleAction(false);
+        }
+
+        private void FinishOfflineBattle()
+        {
+            if (offlineActionRunning) return;
+            if (offlineBattleRoot != null) Destroy(offlineBattleRoot);
+            if (offlineBattleTexture != null) Destroy(offlineBattleTexture);
+            offlineBattleTexture = null;
+            offlineBattleRoot = null; activeOfflineMonster = null; offlineLeaveButton = null;
+            offlineBattleOver = false; offlineActionRunning = false; offlineSkillButton = null;
+            offlineBattleMoveInput = Vector2.zero;
+            SaveOfflineProgress();
+            RenderExplorationMap(offlinePreviewState);
+            ShowStatus($"Ngoại tuyến · {offlineProgress.kills} trận thắng · {OfflineInventoryCount()} vật phẩm trong túi.");
+        }
+
+        private static void SetOfflineButtonLabel(Button button, string value)
+        {
+            var label = button == null ? null : button.GetComponentInChildren<Text>();
+            if (label != null) label.text = value;
         }
 
         private void RenderWorldAtlas(GameState state)
@@ -1481,9 +2051,13 @@ namespace IOSVN.TuTien.Core
                 atlasMapRoot = null;
                 atlasLayer = null;
             }
-            Screen.orientation = landscape ? ScreenOrientation.LandscapeLeft : ScreenOrientation.Portrait;
-            if (canvasScaler != null) canvasScaler.referenceResolution = landscape ? new Vector2(1920, 1080) : new Vector2(1080, 1920);
-            buttonFontSize = landscape ? 20 : 20;
+            Screen.autorotateToPortrait = false;
+            Screen.autorotateToPortraitUpsideDown = false;
+            Screen.autorotateToLandscapeLeft = true;
+            Screen.autorotateToLandscapeRight = true;
+            Screen.orientation = ScreenOrientation.LandscapeLeft;
+            if (canvasScaler != null) canvasScaler.referenceResolution = new Vector2(1920, 1080);
+            buttonFontSize = 20;
         }
 
         private MapInfo[] AtlasMaps(bool immortal)
@@ -2188,9 +2762,9 @@ namespace IOSVN.TuTien.Core
             aspect.aspectRatio = (float)texture.width / texture.height;
         }
 
-        private InputField Input(string label, string placeholder, Vector2 min, Vector2 max, bool secret)
+        private InputField Input(string label, string placeholder, Vector2 min, Vector2 max, bool secret, Transform parent = null)
         {
-            var root = PanelObject(label, content.transform, min, max, Vector2.zero, Vector2.zero, Panel);
+            var root = PanelObject(label, parent ?? content.transform, min, max, Vector2.zero, Vector2.zero, Panel);
             var valueText = ChildText(root.transform, "Value", 22, Cream, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             var hint = ChildText(root.transform, "Placeholder", 21, Muted, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             hint.text = placeholder;
