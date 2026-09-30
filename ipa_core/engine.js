@@ -5,6 +5,22 @@
 const crypto = require('crypto');
 const C = require('./catalog');
 const MAX_BOSS_HP = 100_000_000;
+const CREATION_TALENT_BONUSES = Object.freeze({
+    dao_the: { hp: 1.08 },
+    kiem_tam: { atk: 1.08 },
+    tu_linh: { mp: 1.08 },
+    son_nhac: { def: 1.08 },
+    phong_hanh: { spd: 1.08 },
+    than_thuc: { sense: 1.08 },
+    phuong_hoang: { hp: 1.05, def: 1.03 },
+    van_thu: { hp: 1.03, sense: 1.05 },
+    ky_duyen: { hp: 1.02, mp: 1.02, atk: 1.02, def: 1.02, spd: 1.02, sense: 1.02 },
+});
+const CREATION_APPEARANCES = Object.freeze({
+    thanh_ngoc: { gender: null, hair: 'Tóc đen', outfit: 'Áo xanh ngọc', eyes: 'Mắt lục' },
+    bach_van: { gender: 'nam', hair: 'Tóc nâu', outfit: 'Áo bạch lam', eyes: 'Mắt lam' },
+    xich_lien: { gender: 'nu', hair: 'Tóc bạc', outfit: 'Áo xích hắc', eyes: 'Mắt hổ phách' },
+});
 
 // Giữ nguyên dàn NPC hiện có; chỉ tự bổ sung những role còn thiếu để mỗi
 // đường tu của người chơi có xấp xỉ 10 NPC đại diện.
@@ -2331,6 +2347,12 @@ class Game {
         const mon = C.MON[choice?.mon];
         const he = C.HE[choice?.he];
         if (!gender || !mon || !he) fail('Hãy chọn đủ giới tính, môn võ học và hệ.');
+        const appearanceId = String(choice?.appearance || 'thanh_ngoc');
+        const appearance = CREATION_APPEARANCES[appearanceId];
+        if (!appearance || (appearance.gender && appearance.gender !== gender)) fail('Diện mạo không hợp lệ với giới tính đã chọn.');
+        const requestedTalents = Array.isArray(choice?.talents) ? choice.talents : ['dao_the', 'kiem_tam', 'tu_linh'];
+        const talents = [...new Set(requestedTalents.map(id => String(id || '')).filter(id => Object.prototype.hasOwnProperty.call(CREATION_TALENT_BONUSES, id)))].slice(0, 3);
+        if (talents.length !== 3) fail('Hãy chọn đúng 3 tiên thiên khí vận hợp lệ.');
 
         const fullName = [user.first_name, user.last_name].filter(Boolean).join(' ').trim() || user.username || 'Đạo hữu';
         const existing = this.player(userId);
@@ -2348,6 +2370,9 @@ class Game {
         p.username = user.username || null;
         if (user.photo_url) p.photoUrl = user.photo_url;
         p.gender = gender;
+        p.appearanceId = appearanceId;
+        p.appearanceColors = { hair: appearance.hair, outfit: appearance.outfit, eyes: appearance.eyes };
+        p.talents = talents;
         p.mon = mon.id;
         p.roleStats ||= {};
         for (const monId of Object.keys(C.MON)) p.roleStats[monId] ??= 0;
@@ -2585,6 +2610,11 @@ class Game {
                 else s[key] = (s[key] || 0) + value * mul;
             }
             gear.push({ slot, name: def.name, refining, broken: (item.dur ?? 100) <= 0 });
+        }
+        for (const talentId of p.talents || []) {
+            const bonuses = CREATION_TALENT_BONUSES[talentId];
+            if (!bonuses) continue;
+            for (const [key, multiplier] of Object.entries(bonuses)) s[key] = (s[key] || 0) * multiplier;
         }
         const daoScore = Number(p.daoScore ?? p.daoTam ?? 100);
         const maScore = Math.max(0, Number(p.maScore) || 0);
@@ -5109,7 +5139,8 @@ class Game {
             npcs: this.getNpcList(userId, false),
             player: {
                 userId: p.userId, name: p.name, fullName: p.fullName || p.name, photoUrl: p.photoUrl || null,
-                gender: p.gender, mon: p.mon, monName: C.MON[p.mon].name, weaponType: C.MON[p.mon].weapon,
+                gender: p.gender, appearanceId: p.appearanceId || 'thanh_ngoc', appearanceColors: p.appearanceColors || null,
+                talents: p.talents || [], mon: p.mon, monName: C.MON[p.mon].name, weaponType: C.MON[p.mon].weapon,
                 roleStat: (() => {
                     const value = clamp(Number(p.roleStats?.[p.mon]) || 0, 0, 200);
                     const weaponType = C.MON[p.mon]?.weapon;

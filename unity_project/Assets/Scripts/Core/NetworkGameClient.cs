@@ -20,7 +20,8 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class BattleMapRealmSet { public string id; public string name; public bool requiresAscension; public int realmMin; public int realmMax; public BattleMapMode[] modes; }
     [Serializable] public class MapCatalog { public MapInfo[] maps; public TownInfo[] towns; public DungeonInfo[] dungeons; public MonsterInfo[] monsters; public BattleMapRealmSet[] battleMapSets; }
     [Serializable] public class PlayerTitle { public string id; public string name; public bool active; public string requirement; public string maintain; public string buff; public int rank; }
-    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public PlayerTitle[] titles; }
+    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; }
+    [Serializable] public class AppearanceColors { public string hair; public string outfit; public string eyes; }
     [Serializable] public class WorldMonster { public string uid; public string monsterId; public string name; public string townId; public long hp; public long maxHp; public bool isBoss; }
     [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public TownInfo[] allTowns; public MapInfo[] allMaps; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }
     [Serializable] public class TravelChoice { public string toTownId; }
@@ -31,7 +32,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class EmailCredentials { public string email; public string password; }
     [Serializable] public class EmailVerificationChoice { public string email; public string code; }
     [Serializable] public class EmptyPayload { }
-    [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; }
+    [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; public string appearance; public string[] talents; }
     [Serializable] public class HuntChoice { public string monsterUid; }
     [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; }
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }

@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
@@ -39,14 +40,29 @@ namespace IOSVN.TuTien.Core
         private string pendingVerificationEmail;
         private bool offlinePreview;
         private GameState offlinePreviewState;
+        private bool offlineCreationPreview;
         private string[] sectNames;
         private string[] elementNames;
         private string gender = "nam";
         private int sectIndex;
         private int elementIndex;
+        private int appearanceIndex;
         private Text genderChoice;
         private Text sectChoice;
         private Text elementChoice;
+        private Text appearanceTitle;
+        private Text appearanceDetails;
+        private Image characterPortrait;
+        private static Sprite[,] characterCreationSprites;
+        private readonly HashSet<string> selectedTalents = new HashSet<string>();
+        private static readonly string[] CreationTalentIds =
+        {
+            "dao_the", "kiem_tam", "tu_linh", "son_nhac", "phong_hanh", "than_thuc", "phuong_hoang", "van_thu", "ky_duyen"
+        };
+        private static readonly string[] CreationTalentNames =
+        {
+            "Thiên sinh đạo thể", "Kiếm tâm thông minh", "Tụ linh kỳ tài", "Bất động như sơn", "Tật phong bộ", "Thần thức vượt trội", "Phượng hoàng niết bàn", "Vạn thú thân hòa", "Tán tu kỳ duyên"
+        };
         private bool atlasRealmInitialized;
         private bool atlasImmortalRealm;
         private bool atlasShowTowns = true;
@@ -120,16 +136,17 @@ namespace IOSVN.TuTien.Core
 
         private void ShowLogin(string patchMessage = null)
         {
-            statusMin = new Vector2(0.02f, 0.015f); statusMax = new Vector2(0.98f, 0.075f);
             ClearContent();
+            statusMin = new Vector2(0.02f, 0.005f); statusMax = new Vector2(0.98f, 0.035f);
             GameLogo(new Vector2(0.12f, 0.71f), new Vector2(0.88f, 0.96f));
             Label("Đăng nhập để tiếp tục hành trình", 22, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.64f), new Vector2(0.96f, 0.70f));
 
-            emailInput = Input("Email", "email", new Vector2(0.06f, 0.54f), new Vector2(0.94f, 0.62f), false);
-            passwordInput = Input("Mật khẩu", "password", new Vector2(0.06f, 0.44f), new Vector2(0.94f, 0.52f), true);
-            Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.33f), new Vector2(0.94f, 0.41f), Gold, () => SubmitAuth(false));
-            Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.30f), Panel, () => SubmitAuth(true));
-            Button("XEM BẢN ĐỒ NGOẠI TUYẾN", new Vector2(0.06f, 0.105f), new Vector2(0.94f, 0.185f), Panel, EnterOfflinePreview);
+            emailInput = Input("email", "Email", new Vector2(0.06f, 0.52f), new Vector2(0.94f, 0.60f), false);
+            passwordInput = Input("password", "Mật khẩu", new Vector2(0.06f, 0.42f), new Vector2(0.94f, 0.50f), true);
+            Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.32f), new Vector2(0.94f, 0.40f), Gold, () => SubmitAuth(false));
+            Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.23f), new Vector2(0.94f, 0.30f), Panel, () => SubmitAuth(true));
+            Button("XEM BẢN ĐỒ NGOẠI TUYẾN", new Vector2(0.06f, 0.14f), new Vector2(0.94f, 0.21f), Panel, EnterOfflinePreview);
+            Button("XEM THỬ TẠO NHÂN VẬT", new Vector2(0.06f, 0.045f), new Vector2(0.94f, 0.115f), Panel, EnterOfflineCharacterCreationPreview);
             ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
         }
 
@@ -279,16 +296,100 @@ namespace IOSVN.TuTien.Core
 
         private void ShowCharacterCreation()
         {
+            SetAtlasOrientation(true);
+            offlineCreationPreview = false;
+            ShowCharacterCreationForm(resetSelection: true);
+        }
+
+        private void EnterOfflineCharacterCreationPreview()
+        {
+            var catalogAsset = Resources.Load<TextAsset>("CharacterCatalog");
+            if (catalogAsset == null)
+            {
+                ShowStatus("Thiếu danh mục nhân vật ngoại tuyến trong bản cài.");
+                return;
+            }
+            currentCatalog = JsonUtility.FromJson<GameCatalog>(catalogAsset.text);
+            if (currentCatalog?.mon == null || currentCatalog.he == null || currentCatalog.mon.Length == 0 || currentCatalog.he.Length == 0)
+            {
+                ShowStatus("Danh mục nhân vật ngoại tuyến không hợp lệ.");
+                return;
+            }
+            offlineCreationPreview = true;
+            SetAtlasOrientation(true);
+            ShowCharacterCreationForm(resetSelection: true);
+            ShowStatus("Bản thử ngoại tuyến: lựa chọn chỉ lưu trên thiết bị.");
+        }
+
+        private void ShowCharacterCreationForm(bool resetSelection)
+        {
+            var savedName = resetSelection ? "" : nameInput?.text;
+            var savedSectIndex = resetSelection ? 0 : sectIndex;
+            var savedElementIndex = resetSelection ? 0 : elementIndex;
+            if (resetSelection)
+            {
+                gender = "nam";
+                appearanceIndex = 0;
+                selectedTalents.Clear();
+            }
             ClearContent();
-            Label("KHAI MỞ ĐẠO ĐỒ", 34, Gold, TextAnchor.MiddleCenter, new Vector2(0.02f, 0.84f), new Vector2(0.98f, 0.92f));
-            nameInput = Input("Đạo hiệu", "Tên nhân vật", new Vector2(0.06f, 0.72f), new Vector2(0.94f, 0.80f), false);
-            gender = "nam"; sectIndex = 0; elementIndex = 0;
+            statusMin = new Vector2(0.02f, 0.002f); statusMax = new Vector2(0.98f, 0.035f);
+            PanelObject("CreationScroll", content.transform, new Vector2(0.005f, 0.035f), new Vector2(0.995f, 0.97f), Vector2.zero, Vector2.zero, new Color32(90, 68, 43, 255));
+            PanelObject("CreationParchment", content.transform, new Vector2(0.012f, 0.045f), new Vector2(0.988f, 0.96f), Vector2.zero, Vector2.zero, new Color32(220, 207, 178, 255));
+            Label(offlineCreationPreview ? "KHAI MỞ ĐẠO ĐỒ  ·  BẢN THỬ OFFLINE" : "KHAI MỞ ĐẠO ĐỒ", 27, new Color32(77, 52, 28, 255), TextAnchor.MiddleCenter, new Vector2(0.02f, 0.89f), new Vector2(0.98f, 0.96f));
+            PanelObject("PortraitFrame", content.transform, new Vector2(0.025f, 0.33f), new Vector2(0.275f, 0.87f), Vector2.zero, Vector2.zero, new Color32(82, 66, 49, 255));
+            var portrait = PanelObject("CharacterPortrait", content.transform, new Vector2(0.034f, 0.36f), new Vector2(0.266f, 0.84f), Vector2.zero, Vector2.zero, Cream);
+            characterPortrait = portrait.GetComponent<Image>();
+            characterPortrait.preserveAspect = true;
+            Label("ĐẠO ĐỒ CỦA BẠN", 16, new Color32(77, 52, 28, 255), TextAnchor.MiddleCenter, new Vector2(0.035f, 0.325f), new Vector2(0.265f, 0.36f));
+
+            Label("ĐẠO HIỆU", 15, new Color32(77, 52, 28, 255), TextAnchor.MiddleLeft, new Vector2(0.30f, 0.82f), new Vector2(0.63f, 0.87f));
+            nameInput = Input("Đạo hiệu", "Tên nhân vật (2–24 ký tự)", new Vector2(0.30f, 0.75f), new Vector2(0.63f, 0.82f), false);
+            nameInput.characterLimit = 24;
+            nameInput.text = savedName ?? "";
+            Label("GIỚI TÍNH", 15, new Color32(77, 52, 28, 255), TextAnchor.MiddleLeft, new Vector2(0.30f, 0.70f), new Vector2(0.63f, 0.75f));
+            Button("NAM", new Vector2(0.30f, 0.63f), new Vector2(0.46f, 0.70f), gender == "nam" ? Gold : Panel, () => SetCreationGender("nam"));
+            Button("NỮ", new Vector2(0.47f, 0.63f), new Vector2(0.63f, 0.70f), gender == "nu" ? Gold : Panel, () => SetCreationGender("nu"));
+            Label("TÓC · TRANG PHỤC · MÀU MẮT", 15, new Color32(77, 52, 28, 255), TextAnchor.MiddleLeft, new Vector2(0.30f, 0.58f), new Vector2(0.63f, 0.63f));
+            Button("‹  ĐỔI DIỆN MẠO  ›", new Vector2(0.30f, 0.51f), new Vector2(0.63f, 0.58f), Panel, CycleAppearance);
+            appearanceTitle = Label("", 17, new Color32(77, 52, 28, 255), TextAnchor.MiddleLeft, new Vector2(0.30f, 0.46f), new Vector2(0.63f, 0.51f));
+            appearanceDetails = Label("", 14, new Color32(94, 78, 58, 255), TextAnchor.MiddleLeft, new Vector2(0.30f, 0.415f), new Vector2(0.63f, 0.46f));
+
             sectNames = Names(currentCatalog?.mon); elementNames = Names(currentCatalog?.he);
-            genderChoice = ChoiceSelector("Giới tính", new[] { "Nam", "Nữ" }, new Vector2(0.06f, 0.61f), new Vector2(0.94f, 0.69f), value => { gender = value == 1 ? "nu" : "nam"; });
-            sectChoice = ChoiceSelector("Môn võ học", sectNames, new Vector2(0.06f, 0.50f), new Vector2(0.94f, 0.58f), value => sectIndex = value);
-            elementChoice = ChoiceSelector("Ngũ hành", elementNames, new Vector2(0.06f, 0.39f), new Vector2(0.94f, 0.47f), value => elementIndex = value);
-            Button("BẮT ĐẦU TU LUYỆN", new Vector2(0.06f, 0.25f), new Vector2(0.94f, 0.34f), Gold, CreateCharacter);
-            ShowStatus("Lựa chọn sẽ được lưu trên server.");
+            sectIndex = Mathf.Clamp(savedSectIndex, 0, Math.Max(0, sectNames.Length - 1));
+            elementIndex = Mathf.Clamp(savedElementIndex, 0, Math.Max(0, elementNames.Length - 1));
+            sectChoice = ChoiceSelector("Môn phái", sectNames, new Vector2(0.30f, 0.335f), new Vector2(0.63f, 0.405f), value => sectIndex = value, sectIndex);
+            elementChoice = ChoiceSelector("Ngũ hành", elementNames, new Vector2(0.30f, 0.255f), new Vector2(0.63f, 0.325f), value => elementIndex = value, elementIndex);
+
+            PanelObject("TalentPanel", content.transform, new Vector2(0.65f, 0.32f), new Vector2(0.975f, 0.87f), Vector2.zero, Vector2.zero, new Color32(51, 48, 43, 255));
+            Label("TIÊN THIÊN KHÍ VẬN", 18, Gold, TextAnchor.MiddleCenter, new Vector2(0.66f, 0.80f), new Vector2(0.965f, 0.86f));
+            Label("Chọn đúng 3 khí vận", 14, Cream, TextAnchor.MiddleCenter, new Vector2(0.66f, 0.76f), new Vector2(0.965f, 0.80f));
+            if (resetSelection) selectedTalents.Clear();
+            for (var i = 0; i < CreationTalentIds.Length; i++)
+            {
+                var column = i % 2;
+                var row = i / 2;
+                var x0 = column == 0 ? 0.665f : 0.815f;
+                var x1 = column == 0 ? 0.810f : 0.960f;
+                var y1 = 0.75f - row * 0.083f;
+                var y0 = y1 - 0.074f;
+                AddCreationTalentButton(i, new Vector2(x0, y0), new Vector2(x1, y1));
+            }
+
+            PanelObject("StartingStats", content.transform, new Vector2(0.025f, 0.12f), new Vector2(0.975f, 0.29f), Vector2.zero, Vector2.zero, new Color32(55, 49, 41, 255));
+            Label("CHỈ SỐ CĂN BẢN  ·  LINH CĂN SẼ ĐƯỢC XÁC ĐỊNH KHI VÀO GAME", 15, Gold, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.245f), new Vector2(0.96f, 0.285f));
+            var stats = new[] { "THỂ CHẤT   500", "LINH LỰC   200", "CÔNG KÍCH   50", "PHÒNG NGỰ   30", "TỐC ĐỘ   10", "THẦN THỨC   10" };
+            for (var i = 0; i < stats.Length; i++)
+            {
+                var x0 = 0.035f + i * 0.156f;
+                Label(stats[i], 15, Cream, TextAnchor.MiddleCenter, new Vector2(x0, 0.175f), new Vector2(x0 + 0.15f, 0.235f));
+            }
+            Label("Phàm Nhân  ·  30.000 linh thạch  ·  3 kỹ năng và trang bị nhập môn", 14, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.125f), new Vector2(0.96f, 0.17f));
+            Button("QUAY LẠI", new Vector2(0.025f, 0.045f), new Vector2(0.20f, 0.11f), Panel, BackFromCharacterCreation);
+            Button(offlineCreationPreview ? "LƯU BẢN DEMO OFFLINE" : "BẮT ĐẦU TU LUYỆN",
+                new Vector2(0.70f, 0.045f), new Vector2(0.975f, 0.11f), Gold, CreateCharacter);
+            RefreshCharacterPreview();
+            ShowStatus(offlineCreationPreview ? "Bản demo chỉ lưu trên thiết bị; vào game đầy đủ cần máy chủ online." : "Thông tin nhân vật và 3 khí vận sẽ được lưu trên máy chủ.");
         }
 
         private void CreateCharacter()
@@ -298,18 +399,119 @@ namespace IOSVN.TuTien.Core
                 ShowStatus("Server chưa trả danh sách môn phái và ngũ hành.");
                 return;
             }
+            if (string.IsNullOrWhiteSpace(nameInput?.text) || nameInput.text.Trim().Length < 2)
+            {
+                ShowStatus("Đạo hiệu cần có ít nhất 2 ký tự.");
+                return;
+            }
+            if (selectedTalents.Count != 3)
+            {
+                ShowStatus("Hãy chọn đúng 3 tiên thiên khí vận.");
+                return;
+            }
             var choice = new RegisterChoice
             {
                 name = nameInput.text.Trim(),
                 gender = gender,
                 mon = currentCatalog.mon[Mathf.Clamp(sectIndex, 0, currentCatalog.mon.Length - 1)].id,
-                he = currentCatalog.he[Mathf.Clamp(elementIndex, 0, currentCatalog.he.Length - 1)].id
+                he = currentCatalog.he[Mathf.Clamp(elementIndex, 0, currentCatalog.he.Length - 1)].id,
+                appearance = AppearanceId(),
+                talents = new List<string>(selectedTalents).ToArray()
             };
+            if (offlineCreationPreview)
+            {
+                PlayerPrefs.SetString("tutien_offline_character_demo", JsonUtility.ToJson(choice));
+                PlayerPrefs.Save();
+                ShowStatus($"Đã lưu bản demo ngoại tuyến cho {choice.name}. Dữ liệu này chưa đồng bộ lên server.");
+                return;
+            }
+            ShowStatus("Đang tạo nhân vật trên máy chủ...");
             client.RegisterCharacter(choice, (state, error) =>
             {
                 if (state == null) { ShowStatus(error); return; }
+                offlineCreationPreview = false;
+                SetAtlasOrientation(false);
                 ShowHome(state);
             });
+        }
+
+        private void BackFromCharacterCreation()
+        {
+            if (offlineCreationPreview)
+            {
+                offlineCreationPreview = false;
+                SetAtlasOrientation(false);
+                ShowLogin();
+                return;
+            }
+            client.Logout(_ =>
+            {
+                SetAtlasOrientation(false);
+                ShowLogin("Đã quay lại màn hình đăng nhập.");
+            });
+        }
+
+        private void SetCreationGender(string value)
+        {
+            gender = value == "nu" ? "nu" : "nam";
+            ShowCharacterCreationForm(resetSelection: false);
+        }
+
+        private void CycleAppearance()
+        {
+            appearanceIndex = (appearanceIndex + 1) % 2;
+            RefreshCharacterPreview();
+        }
+
+        private string AppearanceId()
+        {
+            if (gender == "nu") return appearanceIndex == 0 ? "thanh_ngoc" : "xich_lien";
+            return appearanceIndex == 0 ? "thanh_ngoc" : "bach_van";
+        }
+
+        private void RefreshCharacterPreview()
+        {
+            if (characterPortrait == null) return;
+            EnsureCharacterCreationSprites();
+            var row = gender == "nu" ? 1 : 0;
+            characterPortrait.sprite = characterCreationSprites[appearanceIndex, row];
+            var selected = appearanceIndex == 0
+                ? new[] { "Tóc đen", "Áo xanh ngọc", "Mắt lục" }
+                : gender == "nu" ? new[] { "Tóc bạc", "Áo xích hắc", "Mắt hổ phách" } : new[] { "Tóc nâu", "Áo bạch lam", "Mắt lam" };
+            if (appearanceTitle != null) appearanceTitle.text = selected[0] + "  ·  " + selected[1];
+            if (appearanceDetails != null) appearanceDetails.text = selected[2] + "  ·  Diện mạo " + (appearanceIndex + 1);
+        }
+
+        private static void EnsureCharacterCreationSprites()
+        {
+            if (characterCreationSprites != null) return;
+            characterCreationSprites = new Sprite[2, 2];
+            var texture = Resources.Load<Texture2D>("Characters/CharacterCreationAtlas");
+            if (texture == null) { characterCreationSprites = null; return; }
+            var width = texture.width / 2;
+            var height = texture.height / 2;
+            for (var row = 0; row < 2; row++)
+            for (var column = 0; column < 2; column++)
+            {
+                var y = row == 0 ? height : 0;
+                characterCreationSprites[column, row] = Sprite.Create(texture, new Rect(column * width, y, width, height), new Vector2(0.5f, 0.5f), 100f);
+            }
+        }
+
+        private void AddCreationTalentButton(int index, Vector2 min, Vector2 max)
+        {
+            var id = CreationTalentIds[index];
+            var selected = selectedTalents.Contains(id);
+            var color = selected ? Gold : new Color(84f / 255f, 74f / 255f, 59f / 255f, 1f);
+            var button = Button((selected ? "✓ " : "") + CreationTalentNames[index], min, max, color, () =>
+            {
+                if (selectedTalents.Contains(id)) selectedTalents.Remove(id);
+                else if (selectedTalents.Count >= 3) { ShowStatus("Chỉ chọn tối đa 3 khí vận."); return; }
+                else selectedTalents.Add(id);
+                ShowCharacterCreationForm(resetSelection: false);
+            });
+            var label = button.GetComponentInChildren<Text>();
+            if (label != null) { label.fontSize = 13; label.color = selected ? Ink : Cream; }
         }
 
         private void ShowHome(GameState state)
@@ -1339,13 +1541,14 @@ namespace IOSVN.TuTien.Core
             return input;
         }
 
-        private Text ChoiceSelector(string label, string[] choices, Vector2 min, Vector2 max, Action<int> selected)
+        private Text ChoiceSelector(string label, string[] choices, Vector2 min, Vector2 max, Action<int> selected, int initialIndex = 0)
         {
             var root = PanelObject(label, content.transform, min, max, Vector2.zero, Vector2.zero, Panel);
             var button = root.AddComponent<Button>();
             var text = ChildText(root.transform, "Selected", 20, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
-            var choiceIndex = 0;
+            var choiceIndex = choices == null || choices.Length == 0 ? 0 : Mathf.Clamp(initialIndex, 0, choices.Length - 1);
             text.text = choices != null && choices.Length > 0 ? $"{label}:  {choices[0]}   ‹ Chọn ›" : $"{label}: chưa có dữ liệu";
+            if (choices != null && choices.Length > 0) text.text = $"{label}:  {choices[choiceIndex]}   ‹ Chọn ›";
             button.onClick.AddListener(() =>
             {
                 if (choices == null || choices.Length == 0) return;
