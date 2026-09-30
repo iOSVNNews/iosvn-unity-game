@@ -1,0 +1,181 @@
+name: Unity iOS build
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'unity_project/**'
+      - 'ipa_server.js'
+      - 'email_auth_store.js'
+      - 'ipa_core/**'
+      - '.github/workflows/build-ios.yml'
+  pull_request:
+    paths:
+      - 'unity_project/**'
+      - 'ipa_server.js'
+      - 'email_auth_store.js'
+      - 'ipa_core/**'
+      - '.github/workflows/build-ios.yml'
+  workflow_dispatch:
+    inputs:
+      export_ipa:
+        description: 'Sign and export an installable IPA (requires Apple signing secrets)'
+        required: false
+        type: boolean
+        default: false
+      distribution:
+        description: 'Apple provisioning profile type'
+        required: true
+        type: choice
+        options:
+          - ad-hoc
+          - development
+          - app-store-connect
+        default: ad-hoc
+
+permissions:
+  contents: read
+
+jobs:
+  license-check:
+    name: Check Unity license
+    runs-on: ubuntu-latest
+    outputs:
+      configured: ${{ steps.license.outputs.configured }}
+    steps:
+      - id: license
+        shell: bash
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        run: |
+          if [[ -n "$UNITY_LICENSE" ]]; then
+            echo "configured=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "configured=false" >> "$GITHUB_OUTPUT"
+            echo "::notice::Unity build skipped. Add the UNITY_LICENSE Actions secret to enable it."
+          fi
+
+  unity-xcode-project:
+    name: Export Unity iOS project
+    needs: license-check
+    if: needs.license-check.outputs.configured == 'true'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/cache@v4
+        with:
+          path: unity_project/Library
+          key: unity-library-${{ hashFiles('unity_project/ProjectSettings/ProjectVersion.txt', 'unity_project/Packages/manifest.json') }}-ios
+          restore-keys: unity-library-
+
+      - uses: game-ci/unity-builder@v5.0.0
+        env:
+          UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
+        with:
+          projectPath: unity_project
+          targetPlatform: iOS
+          unityVersion: auto
+          buildsPath: build
+          buildName: iOS
+          buildMethod: IOSVN.TuTien.Editor.IOSBuild.Build
+          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.example.iosvn' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -iosBuildPath ../build/iOS
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: unity-ios-xcode-project
+          path: build/iOS
+          if-no-files-found: error
+          retention-days: 7
+
+  signed-ipa:
+    name: Sign and export IPA
+    if: github.event_name == 'workflow_dispatch' && inputs.export_ipa && needs.license-check.outputs.configured == 'true'
+    needs: [license-check, unity-xcode-project]
+    runs-on: macos-15
+    env:
+      IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+      IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
+      IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
+      IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
+      IOS_PROFILE_BASE64: ${{ secrets.IOS_PROFILE_BASE64 }}
+      IOS_DISTRIBUTION: ${{ inputs.distribution }}
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          name: unity-ios-xcode-project
+          path: ${{ runner.temp }}/ios-project
+
+      - name: Check signing configuration
+        shell: bash
+        run: |
+          for key in IOS_BUNDLE_ID IOS_TEAM_ID IOS_CERTIFICATE_P12_BASE64 IOS_CERTIFICATE_PASSWORD IOS_PROFILE_BASE64; do
+            if [[ -z "${!key}" ]]; then echo "Missing GitHub variable/secret: $key" >&2; exit 1; fi
+          done
+
+      - name: Install Apple signing files
+        shell: bash
+        run: |
+          set -euo pipefail
+          KEYCHAIN_PATH="$RUNNER_TEMP/ios-signing.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          echo "KEYCHAIN_PATH=$KEYCHAIN_PATH" >> "$GITHUB_ENV"
+          echo "KEYCHAIN_PASSWORD=$KEYCHAIN_PASSWORD" >> "$GITHUB_ENV"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN_PATH"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          printf '%s' "$IOS_CERTIFICATE_P12_BASE64" | base64 --decode > "$RUNNER_TEMP/distribution.p12"
+          security import "$RUNNER_TEMP/distribution.p12" -P "$IOS_CERTIFICATE_PASSWORD" -A -t cert -f pkcs12 -k "$KEYCHAIN_PATH"
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN_PATH"
+          security list-keychains -d user -s "$KEYCHAIN_PATH" $(security list-keychains -d user | tr -d '"')
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          printf '%s' "$IOS_PROFILE_BASE64" | base64 --decode > "$RUNNER_TEMP/profile.mobileprovision"
+          security cms -D -i "$RUNNER_TEMP/profile.mobileprovision" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID=$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")
+          PROFILE_NAME=$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")
+          cp "$RUNNER_TEMP/profile.mobileprovision" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          echo "IOS_PROFILE_UUID=$PROFILE_UUID" >> "$GITHUB_ENV"
+          echo "IOS_PROFILE_NAME=$PROFILE_NAME" >> "$GITHUB_ENV"
+
+      - name: Archive and export IPA
+        shell: bash
+        run: |
+          set -euo pipefail
+          PROJECT_PATH="$(find "$RUNNER_TEMP/ios-project" -maxdepth 3 -name Unity-iPhone.xcodeproj -print -quit)"
+          if [[ -z "$PROJECT_PATH" ]]; then echo 'Unity-iPhone.xcodeproj was not found in the Unity build artifact.' >&2; exit 1; fi
+          if [[ "$IOS_DISTRIBUTION" == development ]]; then SIGN_IDENTITY='Apple Development'; else SIGN_IDENTITY='Apple Distribution'; fi
+          ARCHIVE_PATH="$RUNNER_TEMP/iOSVN.xcarchive"
+          sudo gem install fastlane --no-document
+          fastlane run update_code_signing_settings \
+            path:"$PROJECT_PATH" use_automatic_signing:false \
+            team_id:"$IOS_TEAM_ID" code_sign_identity:"$SIGN_IDENTITY" \
+            targets:Unity-iPhone profile_name:"$IOS_PROFILE_NAME" profile_uuid:"$IOS_PROFILE_UUID"
+          xcodebuild -project "$PROJECT_PATH" -scheme Unity-iPhone -configuration Release \
+            -archivePath "$ARCHIVE_PATH" CODE_SIGNING_ALLOWED=NO archive
+          mkdir -p "$RUNNER_TEMP/ipa-output"
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<PLIST
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>$IOS_DISTRIBUTION</string>
+            <key>teamID</key><string>$IOS_TEAM_ID</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>provisioningProfiles</key><dict><key>$IOS_BUNDLE_ID</key><string>$IOS_PROFILE_NAME</string></dict>
+          </dict></plist>
+          PLIST
+          xcodebuild -exportArchive -archivePath "$ARCHIVE_PATH" \
+            -exportPath "$RUNNER_TEMP/ipa-output" -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: iosvn-ipa-${{ inputs.distribution }}
+          path: ${{ runner.temp }}/ipa-output/*.ipa
+          if-no-files-found: error
+          retention-days: 14
+
+      - name: Remove temporary signing assets
+        if: always()
+        shell: bash
+        run: |
+          security delete-keychain "$RUNNER_TEMP/ios-signing.keychain-db" 2>/dev/null || true
+          rm -f "$RUNNER_TEMP/distribution.p12" "$RUNNER_TEMP/profile.mobileprovision"
