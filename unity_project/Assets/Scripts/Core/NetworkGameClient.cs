@@ -10,10 +10,19 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class ChoiceInfo { public string id; public string name; }
     [Serializable] public class GameCatalog { public ChoiceInfo[] mon; public ChoiceInfo[] he; }
     [Serializable] public class RealmInfo { public int index; public string name; public int sub; public long experience; }
-    [Serializable] public class TownInfo { public string id; public string name; public string mapId; }
-    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; }
+    [Serializable] public class MapInfo { public string id; public string name; public string provinceName; public string desc; public int realmMin; public int realmMax; public bool ascensionRequired; public string realmMinName; public string realmMaxName; public string[] townIds; }
+    [Serializable] public class TownInfo { public string id; public string name; public string mapId; public string icon; public string desc; public int realmMin; public string realmMinName; public string[] monsterPool; }
+    [Serializable] public class DungeonInfo { public string id; public string name; public string icon; public string townId; public int realmMin; public int stamina; public string desc; }
+    [Serializable] public class MonsterInfo { public string id; public string name; public string icon; public int realm; public string element; }
+    [Serializable] public class MapCatalog { public MapInfo[] maps; public TownInfo[] towns; public DungeonInfo[] dungeons; public MonsterInfo[] monsters; }
+    [Serializable] public class PlayerTitle { public string id; public string name; public bool active; public string requirement; public string maintain; public string buff; public int rank; }
+    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public PlayerTitle[] titles; }
     [Serializable] public class WorldMonster { public string uid; public string monsterId; public string name; public string townId; public long hp; public long maxHp; public bool isBoss; }
-    [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }
+    [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public TownInfo[] allTowns; public MapInfo[] allMaps; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }
+    [Serializable] public class TravelChoice { public string toTownId; }
+    [Serializable] public class TravelResult { public string fromTownName; public string toTownName; public int durationSec; public long arriveAt; }
+    [Serializable] public class TravelEnvelope { public TravelResult travel; public GameState state; }
+    [Serializable] public class MapCatalogEnvelope { public MapCatalog catalog; }
     [Serializable] public class MonsterList { public WorldMonster[] list; }
     [Serializable] public class EmailCredentials { public string email; public string password; }
     [Serializable] public class EmptyPayload { }
@@ -23,11 +32,27 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }
     [Serializable] public class BattleMonsterView { public string name; public string icon; public long hp; public long maxHp; public BattleWarning warn; }
     [Serializable] public class BattleLogLine { public string text; public long t; }
-    [Serializable] public class BattleView { public string id; public bool over; public string result; public BattlePlayerView p; public BattleMonsterView m; public BattleLogLine[] log; }
+    [Serializable] public class BattleSkill { public int i; public string id; public string name; public string icon; public string kind; public bool locked; public long readyAt; public long mp; }
+    [Serializable] public class BattleView { public string id; public bool over; public string result; public string dungeonLeaderId; public BattlePlayerView p; public BattleMonsterView m; public BattleSkill[] skills; public BattleLogLine[] log; }
     [Serializable] public class BattleEnvelope { public BattleView battle; }
-    [Serializable] public class BattleAction { public string a; }
+    [Serializable] public class BattleAction { public string a; public int i; }
     [Serializable] public class BattleActionOutcome { public bool ok; public string msg; }
     [Serializable] public class BattleActionResult { public BattleActionOutcome result; public BattleView battle; public GameState state; }
+    [Serializable] public class DungeonChoice { public string dungeonId; }
+    [Serializable] public class DungeonEnvelope { public bool success; public bool completed; public BattleView battle; public string message; }
+    [Serializable] public class PvpOpponent { public string userId; public string name; public string fullName; public string realmName; public string town; public string townName; public long power; public int points; public int wins; public int losses; public bool isSameTown; public bool isDemon; }
+    [Serializable] public class PvpChallenge { public string id; public string fromId; public string fromName; public string toName; public long challengedAt; }
+    [Serializable] public class PvpChallengeGroup { public PvpChallenge[] received; public PvpChallenge[] sent; }
+    [Serializable] public class PvpMe { public int points; public int wins; public int losses; public int dailyPvpRemaining; public string townName; }
+    [Serializable] public class PvpList { public PvpMe me; public PvpOpponent[] sameTownPlayers; public PvpOpponent[] opponents; public PvpChallengeGroup challenges; }
+    [Serializable] public class PvpSide { public string name; public long hp; public long maxHp; public long mp; public long maxMp; public long power; public PvpSkill[] skills; }
+    [Serializable] public class PvpSkill { public string id; public string name; public string icon; public string kind; public int mp; public int cdLeft; public bool canUse; }
+    [Serializable] public class PvpLogLine { public string text; public long t; }
+    [Serializable] public class PvpBattle { public string id; public bool none; public bool over; public bool isWin; public bool myTurn; public int round; public PvpSide me; public PvpSide opponent; public PvpLogLine[] log; public string result; }
+    [Serializable] public class PvpBattleEnvelope { public PvpBattle battle; }
+    [Serializable] public class PvpFightChoice { public string targetId; }
+    [Serializable] public class PvpAction { public string battleId; public string act; public string skillId; }
+    [Serializable] public class PvpFightResult { public bool success; public PvpBattle battle; public string message; }
 
     /// <summary>
     /// Thin client for the dedicated IPA authoritative game API. The game server decides all
@@ -82,6 +107,17 @@ namespace IOSVN.TuTien.Core
             done?.Invoke(response.ok ? Parse<GameState>(response) : null, response.error);
         }));
 
+        public void LoadMapCatalog(Action<MapCatalog, string> done) => StartCoroutine(GetJson("/map/catalog", response =>
+        {
+            var envelope = response.ok ? Parse<MapCatalog>(response) : null;
+            done?.Invoke(envelope, response.error);
+        }));
+
+        public void TravelTo(string townId, Action<TravelEnvelope, string> done) => StartCoroutine(PostJson("/travel", new TravelChoice { toTownId = townId }, response =>
+        {
+            done?.Invoke(response.ok ? Parse<TravelEnvelope>(response) : null, response.error);
+        }));
+
         public void RegisterCharacter(RegisterChoice choice, Action<GameState, string> done) => StartCoroutine(PostJson("/register", choice, response =>
         {
             done?.Invoke(response.ok ? Parse<GameState>(response) : null, response.error);
@@ -104,9 +140,43 @@ namespace IOSVN.TuTien.Core
             done?.Invoke(envelope?.battle, response.error);
         }));
 
-        public void BattleAct(string action, Action<BattleActionResult, string> done) => StartCoroutine(PostJson("/battle/act", new BattleAction { a = action }, response =>
+        public void BattleAct(string action, Action<BattleActionResult, string> done) => BattleAct(action, -1, done);
+
+        public void BattleAct(string action, int slot, Action<BattleActionResult, string> done) => StartCoroutine(PostJson("/battle/act", new BattleAction { a = action, i = slot }, response =>
         {
             done?.Invoke(response.ok ? Parse<BattleActionResult>(response) : null, response.error);
+        }));
+
+        public void EnterDungeon(string dungeonId, Action<DungeonEnvelope, string> done) => StartCoroutine(PostJson("/dungeon/enter", new DungeonChoice { dungeonId = dungeonId }, response =>
+        {
+            done?.Invoke(response.ok ? Parse<DungeonEnvelope>(response) : null, response.error);
+        }));
+
+        public void NextDungeonStage(Action<DungeonEnvelope, string> done) => StartCoroutine(PostJson("/dungeon/next-stage", new EmptyPayload(), response =>
+        {
+            done?.Invoke(response.ok ? Parse<DungeonEnvelope>(response) : null, response.error);
+        }));
+
+        public void LoadPvp(Action<PvpList, string> done) => StartCoroutine(GetJson("/pvp", response =>
+        {
+            done?.Invoke(response.ok ? Parse<PvpList>(response) : null, response.error);
+        }));
+
+        public void StartPvp(string targetId, Action<PvpFightResult, string> done) => StartCoroutine(PostJson("/pvp/fight", new PvpFightChoice { targetId = targetId }, response =>
+        {
+            done?.Invoke(response.ok ? Parse<PvpFightResult>(response) : null, response.error);
+        }));
+
+        public void LoadPvpBattle(Action<PvpBattle, string> done) => StartCoroutine(GetJson("/pvp/battle", response =>
+        {
+            var envelope = response.ok ? Parse<PvpBattleEnvelope>(response) : null;
+            done?.Invoke(envelope?.battle, response.error);
+        }));
+
+        public void PvpAct(string battleId, string action, string skillId, Action<PvpBattle, string> done) => StartCoroutine(PostJson("/pvp/action", new PvpAction { battleId = battleId, act = action, skillId = skillId }, response =>
+        {
+            var result = response.ok ? Parse<PvpActionResult>(response) : null;
+            done?.Invoke(result?.battle, response.error);
         }));
 
         private IEnumerator GetJson(string route, Action<Response> done)
@@ -184,4 +254,6 @@ namespace IOSVN.TuTien.Core
 
         private sealed class Response { public bool ok; public string body; public string error; }
     }
+
+    [Serializable] internal class PvpActionResult { public PvpBattle battle; }
 }
