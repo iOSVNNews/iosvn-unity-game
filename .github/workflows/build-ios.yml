@@ -181,6 +181,10 @@ jobs:
                   "#import <UnityFramework/LifeCycleListener.h>",
                   '#import "LifeCycleListener.h"',
               ),
+              Path("build/iOS/UnityFramework/UnityFramework.h"): (
+                  "#import <UnityFramework/UnityAppController.h>",
+                  '#import "../Classes/UnityAppController.h"',
+              ),
           }
           for path, (old, new) in replacements.items():
               source = path.read_text(encoding="utf-8")
