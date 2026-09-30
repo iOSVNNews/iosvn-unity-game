@@ -4,18 +4,39 @@ Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản
 
 ## Build trên GitHub
 
-Mở tab **Actions** → **Unity iOS build**. Build dùng Unity Builder và runner macOS của GitHub để xuất, biên dịch project iOS bằng Xcode. Kết quả Xcode được lưu thành artifact; chọn `export_ipa=true` để ký và xuất IPA.
+Mở **Actions** → **Unity iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS.
+
+Để xuất bản thử nghiệm chưa ký từ Xcode export có sẵn, chạy workflow thủ công với:
+
+- `use_prebuilt_xcode=true`
+- `xcode_export_tag=iosvn-xcode-bootstrap`
+- `export_ipa=true`
+- `publish_release=true`
+- `release_tag=iosvn-unsigned-test`
+- `publish_container=true` nếu muốn phát hành server lên GitHub Packages
+
+IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Bản này kiểm tra được gói build; cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
 
 ### Cấu hình bắt buộc
 
-- Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp license `.ulf` đã kích hoạt trong Unity Hub.
+- Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
 - Variables `IOS_BUNDLE_ID` và `IPA_SERVER_URL`.
 - Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
 - Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
 
 Thiếu Unity license thì workflow ghi thông báo và bỏ qua build. Runner macOS của repo private dùng quota phút GitHub Actions và có thể bị tính phí theo gói.
 
-Trên Windows, Unity Hub tạo license file khi vào **Preferences > Licenses > Add > Get a free personal license**. Sau đó thêm nội dung `C:\ProgramData\Unity\Unity_lic.ulf` cùng email và mật khẩu tài khoản Unity vào GitHub **Settings > Secrets and variables > Actions**. Không gửi mật khẩu qua chat.
+Trên Windows, vào **Unity Hub > Preferences > Licenses > Add > Get a free personal license** để Hub kích hoạt license. Với Personal license, tạo `.ulf` qua Hub; quy trình manual activation `.alf` của Unity chỉ hỗ trợ license ngoài Personal. Khi đã có `.ulf`, thêm nội dung file vào GitHub Actions secret `UNITY_LICENSE`, rồi đặt `UNITY_EMAIL` và `UNITY_PASSWORD` làm secrets riêng. Không gửi mật khẩu qua chat và không đưa file `.ulf` vào Release hoặc Packages.
+
+## GitHub Packages: IPA server
+
+Workflow có thể đóng gói server email riêng trong container và đẩy lên `ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test`. Container lắng nghe cổng `8788`; gắn volume vào `/data` để giữ tài khoản và nhân vật qua lần khởi động lại. Ví dụ chạy:
+
+```sh
+docker run --name iosvn-ipa-server -p 8788:8788 -v iosvn-ipa-data:/data ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test
+```
+
+Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA.
 
 ## Hiện trạng
 
