@@ -190,9 +190,9 @@ jobs:
                   filename = entry.get("filename")
                   if not filename:
                       continue
-                  points = int(entry["size"].split("x")[0])
+                  points = float(entry["size"].split("x")[0])
                   scale = int(entry.get("scale", "1x").removesuffix("x"))
-                  pixels = points * scale
+                  pixels = round(points * scale)
                   destination = iconset / filename
                   subprocess.run(
                       ["/usr/bin/sips", "-s", "format", "png", "-z", str(pixels), str(pixels), str(source), "--out", str(destination)],
