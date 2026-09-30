@@ -189,6 +189,10 @@ jobs:
                   "#import <UnityFramework/UnityFramework.h>",
                   '#import "../UnityFramework/UnityFramework.h"',
               ),
+              root / "main.mm": (
+                  "#import <UnityFramework/UnityFramework.h>",
+                  '#import "../UnityFramework/UnityFramework.h"',
+              ),
           }
           for path, (old, new) in replacements.items():
               source = path.read_text(encoding="utf-8")
