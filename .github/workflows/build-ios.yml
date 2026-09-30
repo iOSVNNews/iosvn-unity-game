@@ -163,6 +163,33 @@ jobs:
           if [[ -z "$PROJECT_PATH" ]]; then echo 'Unity-iPhone.xcodeproj was not found.' >&2; exit 1; fi
           echo "IOS_PROJECT_PATH=$PROJECT_PATH" >> "$GITHUB_ENV"
 
+      - name: Fix Unity framework local header imports
+        if: ${{ inputs.use_prebuilt_xcode == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          root = Path("build/iOS/Classes")
+          replacements = {
+              root / "UnityAppController.h": (
+                  "#import <UnityFramework/RenderPluginDelegate.h>",
+                  '#import "PluginBase/RenderPluginDelegate.h"',
+              ),
+              root / "PluginBase/RenderPluginDelegate.h": (
+                  "#import <UnityFramework/LifeCycleListener.h>",
+                  '#import "LifeCycleListener.h"',
+              ),
+          }
+          for path, (old, new) in replacements.items():
+              source = path.read_text(encoding="utf-8")
+              if old not in source:
+                  raise SystemExit(f"Expected Unity generated import was not found in {path}.")
+              path.write_text(source.replace(old, new), encoding="utf-8")
+          print("Rewrote two Unity framework self-imports to local header paths.")
+          PY
+
       - name: Apply Tu Tiên Giới app icon to Xcode project
         shell: bash
         env:
