@@ -25,15 +25,20 @@ on:
   workflow_dispatch:
     inputs:
       use_prebuilt_xcode:
-        description: 'Use an Xcode export stored in a GitHub Release (does not need a Unity CI license)'
+        description: 'Use a cached Unity Xcode export (does not need a Unity CI license)'
         required: false
         type: boolean
         default: false
       xcode_export_tag:
-        description: 'Release tag containing ios-xcode-export.zip'
+        description: 'Fallback release tag containing ios-xcode-export.zip'
         required: false
         type: string
         default: iosvn-xcode-bootstrap
+      xcode_export_run_id:
+        description: 'Actions run ID containing the cached Xcode export artifact'
+        required: false
+        type: string
+        default: ''
       export_ipa:
         description: 'Build and package an unsigned IPA for testing'
         required: false
@@ -66,6 +71,7 @@ on:
         default: false
 
 permissions:
+  actions: read
   contents: read
 
 jobs:
@@ -121,7 +127,7 @@ jobs:
           restore-keys: unity-library-macos-
 
       - name: Download existing Unity Xcode export
-        if: ${{ inputs.use_prebuilt_xcode == true }}
+        if: ${{ inputs.use_prebuilt_xcode == true && inputs.xcode_export_run_id == '' }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -139,9 +145,35 @@ jobs:
           gh api -H 'Accept: application/octet-stream' \
             "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
             > "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
-          unzip -tq "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+
+      - name: Download Unity Xcode export from Actions artifact
+        if: ${{ inputs.use_prebuilt_xcode == true && inputs.xcode_export_run_id != '' }}
+        uses: actions/download-artifact@v4
+        with:
+          name: TuTienGioi-ios-xcode-export
+          run-id: ${{ inputs.xcode_export_run_id }}
+          github-token: ${{ github.token }}
+          path: ${{ runner.temp }}/xcode-export
+
+      - name: Validate and extract Unity Xcode export
+        if: ${{ inputs.use_prebuilt_xcode == true }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          ARCHIVE="$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+          test -f "$ARCHIVE"
+          unzip -tq "$ARCHIVE"
           mkdir -p "$GITHUB_WORKSPACE/build/iOS"
-          unzip -q "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip" -d "$GITHUB_WORKSPACE/build/iOS"
+          unzip -q "$ARCHIVE" -d "$GITHUB_WORKSPACE/build/iOS"
+
+      - name: Keep Xcode export available for future IPA builds
+        if: ${{ inputs.use_prebuilt_xcode == true }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: TuTienGioi-ios-xcode-export
+          path: ${{ runner.temp }}/xcode-export/ios-xcode-export.zip
+          if-no-files-found: error
+          retention-days: 90
 
       - uses: game-ci/unity-builder@v5.0.0
         if: ${{ inputs.use_prebuilt_xcode != true }}

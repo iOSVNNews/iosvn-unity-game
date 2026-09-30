@@ -4,18 +4,17 @@ Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản
 
 ## Build trên GitHub
 
-Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS.
+Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS. Khi dùng Xcode export dựng sẵn, workflow giữ bản export thành Actions artifact trong 90 ngày để không cần công khai release kỹ thuật.
 
-Để xuất bản thử nghiệm chưa ký từ Xcode export có sẵn, chạy workflow thủ công với:
+Để khởi tạo artifact Xcode lần đầu, chạy **Cache Unity iOS Xcode export** và chọn release nguồn. Sau đó mở run vừa chạy, sao chép run ID, rồi chạy **Tu Tiên Giới iOS build** với:
 
 - `use_prebuilt_xcode=true`
-- `xcode_export_tag=iosvn-xcode-bootstrap`
+- `xcode_export_run_id=<run ID của workflow cache>`
 - `export_ipa=true`
 - `publish_release=true`
-- `release_tag=iosvn-unsigned-test`
 - `publish_container=true` nếu muốn phát hành server lên GitHub Packages
 
-IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Bản này kiểm tra được gói build; cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
+Mỗi lần build từ artifact sẽ lưu lại Xcode export để làm nguồn cho lần build tiếp theo. IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
 
 ### Cấu hình bắt buộc
 
