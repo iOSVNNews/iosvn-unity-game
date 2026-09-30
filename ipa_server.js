@@ -261,6 +261,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             const travel = game.travel(user.id, townId);
             return { travel, state: game.view(user.id) };
         },
+        'POST /api/world/move': ({ user, body }) => ({ ok: true, position: game.moveWorldPosition(user.id, body) }),
         'POST /api/register': ({ user, body }) => {
             const profile = { ...user, first_name: String(body.name || user.first_name).slice(0, 40) };
             const result = game.register(profile, body);

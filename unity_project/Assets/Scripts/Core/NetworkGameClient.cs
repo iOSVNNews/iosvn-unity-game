@@ -20,7 +20,9 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class BattleMapRealmSet { public string id; public string name; public bool requiresAscension; public int realmMin; public int realmMax; public BattleMapMode[] modes; }
     [Serializable] public class MapCatalog { public MapInfo[] maps; public TownInfo[] towns; public DungeonInfo[] dungeons; public MonsterInfo[] monsters; public BattleMapRealmSet[] battleMapSets; }
     [Serializable] public class PlayerTitle { public string id; public string name; public bool active; public string requirement; public string maintain; public string buff; public int rank; }
-    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; }
+    [Serializable] public class WorldMapPosition { public string mapId; public int x; public int y; }
+    [Serializable] public class WorldMoveChoice { public string mapId; public int x; public int y; }
+    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; public WorldMapPosition worldPosition; }
     [Serializable] public class AppearanceColors { public string hair; public string outfit; public string eyes; }
     [Serializable] public class WorldMonster { public string uid; public string monsterId; public string name; public string townId; public long hp; public long maxHp; public bool isBoss; }
     [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public TownInfo[] allTowns; public MapInfo[] allMaps; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }
@@ -137,6 +139,11 @@ namespace IOSVN.TuTien.Core
         public void TravelTo(string townId, Action<TravelEnvelope, string> done) => StartCoroutine(PostJson("/travel", new TravelChoice { toTownId = townId }, response =>
         {
             done?.Invoke(response.ok ? Parse<TravelEnvelope>(response) : null, response.error);
+        }));
+
+        public void SaveWorldPosition(string mapId, int x, int y, Action<bool, string> done) => StartCoroutine(PostJson("/world/move", new WorldMoveChoice { mapId = mapId, x = x, y = y }, response =>
+        {
+            done?.Invoke(response.ok, response.error);
         }));
 
         public void RegisterCharacter(RegisterChoice choice, Action<GameState, string> done) => StartCoroutine(PostJson("/register", choice, response =>

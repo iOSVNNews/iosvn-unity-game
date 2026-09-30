@@ -505,10 +505,26 @@ jobs:
             gh release upload "$TAG" release-assets/TuTienGioi-unsigned.ipa --repo "$GITHUB_REPOSITORY" --clobber
           else
             gh release create "$TAG" release-assets/TuTienGioi-unsigned.ipa \
-              --repo "$GITHUB_REPOSITORY" --prerelease \
+              --repo "$GITHUB_REPOSITORY" \
+              --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
               --notes "IPA kiểm thử của Tu Tiên Giới. Cần cài qua công cụ ký như ESign; IPA chưa ký không thể cài trực tiếp."
           fi
+
+      - name: Keep only the two newest unsigned test releases
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          OLD_TAGS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
+            --jq '.[] | select((.tag_name | startswith("tutiengioi-unsigned-")) or .tag_name == "iosvn-unsigned-test") | [.tag_name, .published_at] | @tsv' \
+            | sort -k2,2r | tail -n +3 | cut -f1)"
+          while IFS= read -r tag; do
+            [[ -z "$tag" ]] && continue
+            echo "Removing superseded unsigned IPA release: $tag"
+            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
+          done <<< "$OLD_TAGS"
 
   publish-signed-ipa-release:
     name: Attach signed IPA to GitHub Release
@@ -541,6 +557,7 @@ jobs:
           else
             gh release create "$TAG" release-assets/TuTienGioi-signed.ipa \
               --repo "$GITHUB_REPOSITORY" --prerelease \
+              --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
               --notes "IPA ký phát triển của Tu Tiên Giới; provisioning profile phải có thiết bị đã đăng ký."
           fi

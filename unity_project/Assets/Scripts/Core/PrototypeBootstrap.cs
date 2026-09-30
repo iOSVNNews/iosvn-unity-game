@@ -1,4 +1,5 @@
 using System;
+using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.EventSystems;
@@ -14,6 +15,16 @@ namespace IOSVN.TuTien.Core
     /// </summary>
     public sealed class PrototypeBootstrap : MonoBehaviour
     {
+        private enum WorldPointKind { Town, Dungeon, MonsterZone }
+        private sealed class WorldMapPoint
+        {
+            public WorldPointKind kind;
+            public string title;
+            public TownInfo town;
+            public DungeonInfo dungeon;
+            public Vector2Int cell;
+        }
+
         private static readonly Color Ink = new Color32(13, 18, 27, 255);
         private static readonly Color Panel = new Color32(25, 33, 43, 255);
         private static readonly Color Gold = new Color32(225, 185, 104, 255);
@@ -25,6 +36,30 @@ namespace IOSVN.TuTien.Core
         private CanvasScaler canvasScaler;
         private Transform backgroundRoot;
         private GameObject atlasMapRoot;
+        private GameObject explorationMapRoot;
+        private RectTransform explorationViewport;
+        private RectTransform explorationLayer;
+        private RectTransform explorationMapRect;
+        private RawImage explorationMiniMap;
+        private RectTransform explorationMiniPlayer;
+        private Image explorationPlayerMarker;
+        private Text explorationLocationText;
+        private Text explorationPoiText;
+        private RectTransform explorationMiniPlayerRect;
+        private WorldMapPoint explorationSelectedPoint;
+        private MapInfo explorationMap;
+        private Texture2D explorationTexture;
+        private bool[,] explorationBlocked;
+        private readonly List<WorldMapPoint> explorationPoints = new List<WorldMapPoint>();
+        private Vector2Int explorationCell;
+        private Vector2Int explorationMoveTarget;
+        private Coroutine explorationMovement;
+        private float explorationZoom = 1f;
+        private bool atlasFromExploration;
+        private const int ExplorationMapWidth = 144;
+        private const int ExplorationMapHeight = 64;
+        private const int ExplorationTilePixels = 12;
+        private const float ExplorationDefaultZoom = 1.12f;
         private Text status;
         private Text patchStatus;
         private GameObject content;
@@ -263,6 +298,12 @@ namespace IOSVN.TuTien.Core
 
         private void ReturnFromWorldAtlas(GameState state)
         {
+            if (atlasFromExploration)
+            {
+                atlasFromExploration = false;
+                RenderExplorationMap(state);
+                return;
+            }
             if (!offlinePreview) { LoadState(); return; }
             offlinePreview = false;
             offlinePreviewState = null;
@@ -554,19 +595,518 @@ namespace IOSVN.TuTien.Core
                 });
                 return;
             }
+            SetAtlasOrientation(true);
+            atlasFromExploration = false;
+            RenderExplorationMap(state);
+        }
+
+        private void OpenWorldAtlas(GameState state)
+        {
             if (!atlasRealmInitialized)
             {
                 atlasImmortalRealm = IsImmortalRealm(state);
                 atlasRealmInitialized = true;
             }
-            SetAtlasOrientation(true);
+            if (explorationMapRoot != null) Destroy(explorationMapRoot);
+            explorationMapRoot = null;
+            if (explorationTexture != null) Destroy(explorationTexture);
+            explorationTexture = null;
+            explorationLayer = null;
+            explorationViewport = null;
             if (atlasSelectedTown == null || !IsTownInAtlas(atlasSelectedTown, atlasImmortalRealm))
             {
                 atlasSelectedTown = IsTownInAtlas(state.town, atlasImmortalRealm) ? state.town : FirstTownInAtlas(atlasImmortalRealm);
                 atlasSelectedDungeon = null;
                 atlasSelectionKind = "town";
             }
+            atlasFromExploration = true;
             RenderWorldAtlas(state);
+        }
+
+        private void RenderExplorationMap(GameState state)
+        {
+            latestState = state;
+            if (atlasMapRoot != null) { Destroy(atlasMapRoot); atlasMapRoot = null; atlasLayer = null; }
+            if (explorationMapRoot != null) Destroy(explorationMapRoot);
+            if (explorationTexture != null) Destroy(explorationTexture);
+            explorationPoints.Clear();
+            explorationSelectedPoint = null;
+            explorationMiniPlayerRect = null;
+            explorationPlayerMarker = null;
+            explorationMovement = null;
+            ClearContent();
+            statusMin = new Vector2(.36f, .005f); statusMax = new Vector2(.64f, .042f);
+            explorationZoom = ExplorationDefaultZoom;
+
+            explorationMap = FindMap(state?.town?.mapId);
+            if (explorationMap == null)
+                foreach (var candidate in mapCatalog?.maps ?? Array.Empty<MapInfo>())
+                    if (candidate != null && candidate.ascensionRequired == (state?.player?.ascended ?? false)) { explorationMap = candidate; break; }
+            if (explorationMap == null)
+            {
+                ShowStatus("Không tìm thấy châu hiện tại trong danh mục bản đồ.");
+                return;
+            }
+
+            explorationMapRoot = PanelObject("ExplorationMapRoot", backgroundRoot, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
+            explorationMapRoot.transform.SetAsFirstSibling();
+            explorationMapRoot.GetComponent<Image>().raycastTarget = false;
+            var viewportObject = PanelObject("ExplorationViewport", explorationMapRoot.transform,
+                new Vector2(0f, .095f), new Vector2(1f, .915f), Vector2.zero, Vector2.zero, new Color32(20, 24, 27, 255));
+            explorationViewport = viewportObject.GetComponent<RectTransform>();
+            viewportObject.AddComponent<RectMask2D>();
+            var touch = viewportObject.AddComponent<ExplorationMapTouch>();
+            touch.Initialize(HandleExplorationTap, PanExplorationMap);
+            var mapObject = new GameObject("PixelProvinceMap", typeof(RectTransform), typeof(RawImage));
+            mapObject.transform.SetParent(viewportObject.transform, false);
+            explorationMapRect = mapObject.GetComponent<RectTransform>();
+            explorationMapRect.anchorMin = explorationMapRect.anchorMax = new Vector2(.5f, .5f);
+            explorationMapRect.pivot = new Vector2(.5f, .5f);
+            explorationMapRect.sizeDelta = new Vector2(ExplorationMapWidth * ExplorationTilePixels, ExplorationMapHeight * ExplorationTilePixels);
+            explorationMapRect.localScale = Vector3.one * explorationZoom;
+            explorationMapRect.anchoredPosition = Vector2.zero;
+            var mapImage = mapObject.GetComponent<RawImage>();
+            mapImage.texture = BuildExplorationTexture(explorationMap);
+            mapImage.raycastTarget = false;
+            BuildExplorationPoints(state);
+            foreach (var point in explorationPoints) AddExplorationMarker(point);
+
+            var top = PanelObject("ExplorationTopBar", content.transform, new Vector2(.008f, .915f), new Vector2(.992f, .99f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 230));
+            Button("‹ THIÊN HẠ", new Vector2(.008f, .06f), new Vector2(.13f, .94f), Panel, () => OpenWorldAtlas(state), top.transform);
+            var mapName = string.IsNullOrWhiteSpace(explorationMap.provinceName) ? explorationMap.name : explorationMap.provinceName;
+            Label($"{(explorationMap.ascensionRequired ? "TIÊN GIỚI" : "PHÀM GIỚI")}  ·  {mapName}", 23, Gold, TextAnchor.MiddleLeft,
+                new Vector2(.15f, .08f), new Vector2(.56f, .92f), top.transform);
+            explorationLocationText = Label("", 17, Cream, TextAnchor.MiddleRight, new Vector2(.57f, .08f), new Vector2(.83f, .92f), top.transform);
+            Button("VỀ GAME", new Vector2(.85f, .06f), new Vector2(.992f, .94f), Panel,
+                () => { if (offlinePreview) ShowStatus("Đang ở chế độ xem bản đồ offline."); else LoadState(); }, top.transform);
+
+            var miniFrame = PanelObject("MinimapFrame", content.transform, new Vector2(.80f, .755f), new Vector2(.98f, .89f), Vector2.zero, Vector2.zero, new Color32(17, 22, 28, 235));
+            var miniObject = new GameObject("Minimap", typeof(RectTransform), typeof(RawImage));
+            miniObject.transform.SetParent(miniFrame.transform, false);
+            Place(miniObject.GetComponent<RectTransform>(), new Vector2(.035f, .08f), new Vector2(.965f, .92f));
+            explorationMiniMap = miniObject.GetComponent<RawImage>(); explorationMiniMap.texture = explorationTexture; explorationMiniMap.raycastTarget = false;
+            var miniPlayer = new GameObject("MinimapPlayer", typeof(RectTransform), typeof(Image));
+            miniPlayer.transform.SetParent(miniFrame.transform, false);
+            explorationMiniPlayerRect = miniPlayer.GetComponent<RectTransform>();
+            explorationMiniPlayerRect.anchorMin = explorationMiniPlayerRect.anchorMax = new Vector2(.5f, .5f);
+            explorationMiniPlayerRect.sizeDelta = new Vector2(8, 8);
+            miniPlayer.GetComponent<Image>().color = new Color32(255, 84, 68, 255);
+
+            var poiPanel = PanelObject("ExplorationPoiPanel", content.transform, new Vector2(.015f, .755f), new Vector2(.77f, .89f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 220));
+            explorationPoiText = ChildText(poiPanel.transform, "SelectedPoint", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .06f), new Vector2(.97f, .94f));
+            explorationPoiText.text = "Chạm một ô trên bản đồ để nhân vật đi tới; chạm biểu tượng để xem thành trấn, cổ động hoặc bãi yêu.";
+
+            Button("↑", new Vector2(.075f, .135f), new Vector2(.125f, .195f), Panel, () => MoveExplorationBy(Vector2Int.up));
+            Button("←", new Vector2(.025f, .075f), new Vector2(.075f, .135f), Panel, () => MoveExplorationBy(Vector2Int.left));
+            Button("↓", new Vector2(.075f, .075f), new Vector2(.125f, .135f), Panel, () => MoveExplorationBy(Vector2Int.down));
+            Button("→", new Vector2(.125f, .075f), new Vector2(.175f, .135f), Panel, () => MoveExplorationBy(Vector2Int.right));
+            Button("THÀNH / ĐIỂM ĐẾN", new Vector2(.77f, .075f), new Vector2(.98f, .145f), Gold, () => ActivateSelectedExplorationPoint(state));
+            Button("−", new Vector2(.38f, .075f), new Vector2(.425f, .13f), Panel, () => SetExplorationZoom(explorationZoom - .15f));
+            var zoomTrack = PanelObject("ExplorationZoomTrack", content.transform, new Vector2(.435f, .091f), new Vector2(.625f, .112f), Vector2.zero, Vector2.zero, new Color32(38, 42, 47, 245));
+            var zoomHandle = PanelObject("ExplorationZoomHandle", zoomTrack.transform, new Vector2(0f, -1f), new Vector2(.12f, 2f), Vector2.zero, Vector2.zero, Gold);
+            var zoomSlider = zoomTrack.AddComponent<Slider>(); zoomSlider.minValue = 1f; zoomSlider.maxValue = 2f; zoomSlider.value = explorationZoom;
+            zoomSlider.direction = Slider.Direction.LeftToRight; zoomSlider.targetGraphic = zoomHandle.GetComponent<Image>(); zoomSlider.handleRect = zoomHandle.GetComponent<RectTransform>();
+            zoomSlider.onValueChanged.AddListener(SetExplorationZoom);
+            Button("+", new Vector2(.635f, .075f), new Vector2(.68f, .13f), Panel, () => SetExplorationZoom(explorationZoom + .15f));
+
+            var start = FindPointForTown(state?.town?.id);
+            explorationCell = start != null ? start.cell : new Vector2Int(ExplorationMapWidth / 2, ExplorationMapHeight / 2);
+            if (!offlinePreview && state?.player?.worldPosition != null && state.player.worldPosition.mapId == explorationMap.id)
+                explorationCell = new Vector2Int(Mathf.Clamp(state.player.worldPosition.x, 2, ExplorationMapWidth - 3), Mathf.Clamp(state.player.worldPosition.y, 2, ExplorationMapHeight - 3));
+            else
+            {
+                var saved = PlayerPrefs.GetString(ExplorationSaveKey(state, explorationMap), "");
+                var values = saved.Split(',');
+                if (values.Length == 2 && int.TryParse(values[0], out var savedX) && int.TryParse(values[1], out var savedY))
+                    explorationCell = new Vector2Int(Mathf.Clamp(savedX, 2, ExplorationMapWidth - 3), Mathf.Clamp(savedY, 2, ExplorationMapHeight - 3));
+            }
+            explorationSelectedPoint = start;
+            explorationPlayerMarker = AddExplorationPlayerMarker(state);
+            UpdateExplorationPlayerPosition();
+            UpdateExplorationLabels();
+            ShowStatus(offlinePreview ? "Bản đồ đi lại ngoại tuyến · vị trí được lưu trên máy." : "Bản đồ đi lại · vị trí nhân vật được đồng bộ với hồ sơ online.");
+        }
+
+        private Texture2D BuildExplorationTexture(MapInfo map)
+        {
+            const int w = ExplorationMapWidth, h = ExplorationMapHeight, tile = ExplorationTilePixels;
+            var kinds = new byte[w, h];
+            explorationBlocked = new bool[w, h];
+            var ordinal = AtlasMapOrdinal(map);
+            var seed = ordinal * 9137 + (map.ascensionRequired ? 517 : 31);
+            var oldRandom = UnityEngine.Random.state;
+            UnityEngine.Random.InitState(seed);
+            var land = ordinal >= 9 ? new Color32(83, 111, 102, 255) : ordinal == 4 ? new Color32(91, 125, 119, 255) : new Color32(104, 119, 77, 255);
+            var mountain = ordinal >= 9 ? new Color32(107, 115, 122, 255) : ordinal == 6 ? new Color32(110, 72, 57, 255) : new Color32(104, 96, 80, 255);
+            var water = ordinal == 4 ? new Color32(57, 106, 124, 255) : ordinal >= 9 ? new Color32(71, 124, 139, 255) : new Color32(70, 110, 117, 255);
+            var shore = new Color32(162, 147, 105, 255);
+            var mountainNoise = new float[w, h]; var forestNoise = new float[w, h];
+            for (var y = 0; y < h; y++) for (var x = 0; x < w; x++)
+            {
+                var noise = Mathf.PerlinNoise((x + seed) * .083f, (y - seed) * .079f);
+                var ridge = Mathf.PerlinNoise((x + seed) * .044f, (y + seed) * .13f);
+                mountainNoise[x, y] = noise * .62f + ridge * .38f;
+                forestNoise[x, y] = Mathf.PerlinNoise((x - seed) * .15f, (y + seed) * .16f);
+                var edge = Mathf.Min(Mathf.Min(x, w - 1 - x), Mathf.Min(y, h - 1 - y));
+                var rim = edge < 2 || (edge == 2 && noise > .32f);
+                var longRidge = Mathf.Abs(y - (int)(h * .62f + Mathf.Sin((x + seed) * .08f) * 6f)) <= 1 && x > 10 && x < w - 10 && ridge > .52f;
+                var innerRidge = Mathf.Abs((int)(y - (h * .28f + x * .24f + Mathf.Sin(x * .12f) * 4f))) <= 1 && noise > .73f && x > 15 && x < w - 12;
+                if (rim || longRidge || innerRidge || (noise > .82f && x > 5 && x < w - 5 && y > 5 && y < h - 5)) { kinds[x, y] = 2; explorationBlocked[x, y] = true; }
+                else if ((ordinal == 4 || ordinal == 10 || ordinal == 17) && (Mathf.Abs(x - (w * .49f + Mathf.Sin(y * .11f) * 8f)) < 1.6f || (noise > .87f && forestNoise[x, y] > .5f))) { kinds[x, y] = 3; explorationBlocked[x, y] = true; }
+                else if (forestNoise[x, y] > .70f && noise < .69f) kinds[x, y] = 1;
+                else kinds[x, y] = noise < .19f ? (byte)5 : (byte)0;
+            }
+
+            BuildExplorationPointsData(map);
+            var startTown = explorationMap != null ? FindPointForTown(latestState?.town?.id) : null;
+            var start = startTown?.cell ?? new Vector2Int(w / 2, h / 2);
+            foreach (var point in explorationPoints)
+            {
+                CarveExplorationRoad(kinds, start, point.cell);
+                explorationBlocked[point.cell.x, point.cell.y] = false;
+            }
+
+            var pixels = new Color32[w * tile * h * tile];
+            for (var y = 0; y < h; y++) for (var x = 0; x < w; x++)
+            {
+                var k = kinds[x, y];
+                var variation = .86f + mountainNoise[x, y] * .27f;
+                var baseColor = k == 1 ? Color32.Lerp(land, new Color32(36, 70, 53, 255), .45f) :
+                    k == 2 ? Color32.Lerp(mountain, new Color32(169, 159, 139, 255), mountainNoise[x, y] > .67f ? .56f : .1f) :
+                    k == 3 ? Color32.Lerp(water, new Color32(119, 159, 161, 255), mountainNoise[x, y] * .3f) :
+                    k == 4 ? new Color32(156, 130, 83, 255) : k == 5 ? Color32.Lerp(land, shore, .55f) : land;
+                baseColor = ScalePixel(baseColor, variation);
+                FillExplorationTile(pixels, w * tile, x * tile, y * tile, k, baseColor, land, ordinal, x, y);
+            }
+            UnityEngine.Random.state = oldRandom;
+            explorationTexture = new Texture2D(w * tile, h * tile, TextureFormat.RGBA32, false)
+            { name = "PixelProvince_" + map.id, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            explorationTexture.SetPixels32(pixels); explorationTexture.Apply(false, true);
+            return explorationTexture;
+        }
+
+        private void BuildExplorationPoints(MapInfo map)
+        {
+            explorationPoints.Clear();
+            var towns = new List<TownInfo>();
+            foreach (var town in mapCatalog?.towns ?? Array.Empty<TownInfo>()) if (town != null && town.mapId == map.id) towns.Add(town);
+            if (towns.Count == 0) return;
+            var minX = int.MaxValue; var maxX = int.MinValue; var minY = int.MaxValue; var maxY = int.MinValue;
+            foreach (var town in towns) { minX = Mathf.Min(minX, town.x); maxX = Mathf.Max(maxX, town.x); minY = Mathf.Min(minY, town.y); maxY = Mathf.Max(maxY, town.y); }
+            var used = new HashSet<int>();
+            foreach (var town in towns)
+            {
+                var nx = maxX == minX ? .5f : Mathf.InverseLerp(minX, maxX, town.x);
+                var ny = maxY == minY ? .5f : Mathf.InverseLerp(minY, maxY, town.y);
+                var cell = new Vector2Int(Mathf.RoundToInt(Mathf.Lerp(14, ExplorationMapWidth - 15, nx)), Mathf.RoundToInt(Mathf.Lerp(10, ExplorationMapHeight - 11, ny)));
+                cell = FindOpenExplorationCell(cell, used); used.Add(cell.y * ExplorationMapWidth + cell.x);
+                explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.Town, title = town.name, town = town, cell = cell });
+                var caveIndex = 0;
+                foreach (var dungeon in mapCatalog.dungeons ?? Array.Empty<DungeonInfo>())
+                {
+                    if (dungeon == null || dungeon.townId != town.id) continue;
+                    var dir = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left }[caveIndex % 4];
+                    var caveCell = FindOpenExplorationCell(cell + dir * (4 + caveIndex / 4 * 3), used); used.Add(caveCell.y * ExplorationMapWidth + caveCell.x);
+                    explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.Dungeon, title = dungeon.name, town = town, dungeon = dungeon, cell = caveCell });
+                    caveIndex++;
+                }
+                if (town.monsterPool != null && town.monsterPool.Length > 0)
+                {
+                    var zoneCell = FindOpenExplorationCell(cell + new Vector2Int(-4, -3), used); used.Add(zoneCell.y * ExplorationMapWidth + zoneCell.x);
+                    explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.MonsterZone, title = "Bãi tiểu yêu · " + town.name, town = town, cell = zoneCell });
+                }
+            }
+        }
+
+        private void BuildExplorationPointsData(MapInfo map) => BuildExplorationPoints(map);
+        private void BuildExplorationPoints(GameState state) => BuildExplorationPoints(explorationMap);
+
+        private Vector2Int FindOpenExplorationCell(Vector2Int desired, HashSet<int> used)
+        {
+            for (var radius = 0; radius < 12; radius++)
+                for (var y = -radius; y <= radius; y++) for (var x = -radius; x <= radius; x++)
+                {
+                    if (Mathf.Max(Mathf.Abs(x), Mathf.Abs(y)) != radius) continue;
+                    var cell = new Vector2Int(Mathf.Clamp(desired.x + x, 4, ExplorationMapWidth - 5), Mathf.Clamp(desired.y + y, 4, ExplorationMapHeight - 5));
+                    var key = cell.y * ExplorationMapWidth + cell.x;
+                    if (!used.Contains(key)) return cell;
+                }
+            return new Vector2Int(Mathf.Clamp(desired.x, 4, ExplorationMapWidth - 5), Mathf.Clamp(desired.y, 4, ExplorationMapHeight - 5));
+        }
+
+        private void CarveExplorationRoad(byte[,] tiles, Vector2Int from, Vector2Int to)
+        {
+            var dx = Mathf.Abs(to.x - from.x); var sx = from.x < to.x ? 1 : -1;
+            var dy = -Mathf.Abs(to.y - from.y); var sy = from.y < to.y ? 1 : -1;
+            var error = dx + dy; var x = from.x; var y = from.y;
+            while (true)
+            {
+                if (x >= 2 && y >= 2 && x < ExplorationMapWidth - 2 && y < ExplorationMapHeight - 2)
+                {
+                    tiles[x, y] = 4;
+                    explorationBlocked[x, y] = false;
+                }
+                if (x == to.x && y == to.y) break;
+                var twice = error * 2;
+                if (twice >= dy) { error += dy; x += sx; }
+                if (twice <= dx) { error += dx; y += sy; }
+            }
+        }
+
+        private static Color32 ScalePixel(Color32 color, float scale) => new Color32((byte)Mathf.Clamp(color.r * scale, 0, 255), (byte)Mathf.Clamp(color.g * scale, 0, 255), (byte)Mathf.Clamp(color.b * scale, 0, 255), 255);
+
+        private static void FillExplorationTile(Color32[] pixels, int textureWidth, int ox, int oy, byte kind, Color32 color, Color32 land, int ordinal, int cellX, int cellY)
+        {
+            var tile = ExplorationTilePixels;
+            for (var y = 0; y < tile; y++) for (var x = 0; x < tile; x++)
+            {
+                var pixel = color;
+                var hash = (cellX * 73856093) ^ (cellY * 19349663) ^ (x * 83492791) ^ (y * 297121507);
+                var speckle = (hash & 15) == 0;
+                if (kind == 2)
+                {
+                    var peak = 5 + Mathf.Abs((cellX * 3 + cellY * 7) % 5);
+                    if (y > peak + x / 2 && y > peak + (tile - x) / 2) pixel = ScalePixel(color, .50f);
+                    else if ((x + y + cellX) % 5 == 0 || y == peak + x / 2 || y == peak + (tile - x) / 2) pixel = new Color32(201, 190, 164, 255);
+                    if (ordinal >= 9 && y >= peak + 2) pixel = new Color32(204, 214, 213, 255);
+                }
+                else if (kind == 1)
+                {
+                    if ((x >= 3 && x <= 9 && y >= 2 && y <= 8) || (x >= 1 && x <= 10 && y >= 5 && y <= 10)) pixel = new Color32((byte)Mathf.Clamp(color.r * .77f, 0, 255), (byte)Mathf.Clamp(color.g * 1.12f, 0, 255), (byte)Mathf.Clamp(color.b * .82f, 0, 255), 255);
+                    if (x == 6 && y >= 8 && y <= 11) pixel = new Color32(112, 83, 55, 255);
+                }
+                else if (kind == 3)
+                {
+                    if ((y + cellY) % 5 == 2 && x > 1 && x < 10) pixel = new Color32(120, 164, 159, 255);
+                }
+                else if (kind == 4)
+                {
+                    if (x == 0 || x == tile - 1 || y == 0 || y == tile - 1) pixel = Color32.Lerp(color, land, .42f);
+                    else if (speckle) pixel = new Color32(194, 164, 104, 255);
+                }
+                else if (kind == 0 && speckle) pixel = ScalePixel(color, (hash & 16) == 0 ? .90f : 1.08f);
+                if (x == 0 || y == 0) pixel = new Color32((byte)(pixel.r * .70f), (byte)(pixel.g * .70f), (byte)(pixel.b * .70f), 255);
+                pixels[(oy + y) * textureWidth + ox + x] = pixel;
+            }
+        }
+
+        private void AddExplorationMarker(WorldMapPoint point)
+        {
+            var size = point.kind == WorldPointKind.Town ? 24f : 19f;
+            var root = new GameObject("WorldPoint_" + point.kind + "_" + point.title, typeof(RectTransform), typeof(Image), typeof(Button));
+            root.transform.SetParent(explorationMapRect, false);
+            var rect = root.GetComponent<RectTransform>(); rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(size, size);
+            rect.anchoredPosition = ExplorationCellPosition(point.cell);
+            var image = root.GetComponent<Image>();
+            image.sprite = AtlasPixelSprite(point.kind == WorldPointKind.Town ? "T" : point.kind == WorldPointKind.Dungeon ? "D" : "Y");
+            image.color = point.kind == WorldPointKind.Town ? new Color32(255, 227, 165, 255) : Color.white;
+            image.preserveAspect = true;
+            root.GetComponent<Button>().onClick.AddListener(() => SelectExplorationPoint(point));
+            var labelObject = new GameObject("Name", typeof(RectTransform), typeof(Text)); labelObject.transform.SetParent(root.transform, false);
+            var labelRect = labelObject.GetComponent<RectTransform>(); Place(labelRect, new Vector2(-.8f, -1.8f), new Vector2(5f, -.72f));
+            var label = labelObject.GetComponent<Text>(); label.font = BuiltinFont(); label.fontSize = point.kind == WorldPointKind.Town ? 13 : 11;
+            label.color = point.kind == WorldPointKind.Town ? new Color32(250, 236, 198, 255) : new Color32(255, 211, 142, 255);
+            label.alignment = TextAnchor.MiddleLeft; label.horizontalOverflow = HorizontalWrapMode.Overflow; label.verticalOverflow = VerticalWrapMode.Overflow; label.text = point.title;
+            label.raycastTarget = false; label.enabled = point.kind == WorldPointKind.Town;
+        }
+
+        private Image AddExplorationPlayerMarker(GameState state)
+        {
+            var marker = new GameObject("Cultivator", typeof(RectTransform), typeof(Image)); marker.transform.SetParent(explorationMapRect, false);
+            var rect = marker.GetComponent<RectTransform>(); rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f); rect.sizeDelta = new Vector2(25, 36);
+            var image = marker.GetComponent<Image>(); image.sprite = CreateCultivatorSprite(state?.player?.appearanceColors); image.preserveAspect = true; image.raycastTarget = false;
+            return image;
+        }
+
+        private static Sprite CreateCultivatorSprite(AppearanceColors colors)
+        {
+            const int width = 16, height = 24;
+            var pixels = new Color32[width * height]; var clear = new Color32(0, 0, 0, 0);
+            for (var i = 0; i < pixels.Length; i++) pixels[i] = clear;
+            var hair = PixelColor(colors?.hair, new Color32(48, 35, 32, 255));
+            var robe = PixelColor(colors?.outfit, new Color32(64, 115, 117, 255));
+            var eyes = PixelColor(colors?.eyes, new Color32(61, 149, 135, 255));
+            Action<int, int, int, int, Color32> rect = (x, y, rw, rh, c) => { for (var py = y; py < y + rh; py++) for (var px = x; px < x + rw; px++) if (px >= 0 && px < width && py >= 0 && py < height) pixels[py * width + px] = c; };
+            rect(5, 18, 6, 4, hair); rect(4, 15, 8, 4, new Color32(220, 175, 137, 255)); rect(5, 16, 1, 1, eyes); rect(10, 16, 1, 1, eyes);
+            rect(3, 7, 10, 8, robe); rect(1, 2, 14, 5, robe); rect(6, 7, 4, 7, new Color32(220, 193, 133, 255));
+            rect(4, 3, 8, 2, new Color32(197, 166, 100, 255)); rect(6, 1, 4, 2, new Color32(42, 44, 46, 255)); rect(13, 10, 1, 12, new Color32(195, 197, 191, 255));
+            var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "PlayerPixelSprite", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels32(pixels); texture.Apply(false, true);
+            return Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(.5f, .1f), width);
+        }
+
+        private static Color32 PixelColor(string value, Color32 fallback)
+        {
+            if (!string.IsNullOrEmpty(value) && ColorUtility.TryParseHtmlString(value.StartsWith("#") ? value : "#" + value, out var parsed)) return parsed;
+            return fallback;
+        }
+
+        private Vector2 ExplorationCellPosition(Vector2Int cell) => new Vector2(cell.x * ExplorationTilePixels - explorationMapRect.sizeDelta.x * .5f + ExplorationTilePixels * .5f,
+            cell.y * ExplorationTilePixels - explorationMapRect.sizeDelta.y * .5f + ExplorationTilePixels * .5f);
+
+        private void HandleExplorationTap(Vector2 screenPoint)
+        {
+            if (explorationMapRect == null || !RectTransformUtility.ScreenPointToLocalPointInRectangle(explorationMapRect, screenPoint, null, out var local)) return;
+            var cell = new Vector2Int(Mathf.FloorToInt((local.x + explorationMapRect.sizeDelta.x * .5f) / ExplorationTilePixels),
+                Mathf.FloorToInt((local.y + explorationMapRect.sizeDelta.y * .5f) / ExplorationTilePixels));
+            if (cell.x < 0 || cell.y < 0 || cell.x >= ExplorationMapWidth || cell.y >= ExplorationMapHeight) return;
+            explorationSelectedPoint = ClosestExplorationPoint(cell, 2);
+            if (explorationSelectedPoint != null) UpdateExplorationLabels();
+            MoveExplorationTo(cell);
+        }
+
+        private void SelectExplorationPoint(WorldMapPoint point)
+        {
+            explorationSelectedPoint = point;
+            UpdateExplorationLabels();
+            MoveExplorationTo(point.cell);
+        }
+
+        private void MoveExplorationBy(Vector2Int delta) => MoveExplorationTo(explorationCell + delta);
+
+        private void MoveExplorationTo(Vector2Int destination)
+        {
+            if (explorationMovement != null) StopCoroutine(explorationMovement);
+            destination.x = Mathf.Clamp(destination.x, 3, ExplorationMapWidth - 4); destination.y = Mathf.Clamp(destination.y, 3, ExplorationMapHeight - 4);
+            var path = FindExplorationPath(explorationCell, destination);
+            if (path == null || path.Count == 0) { ShowStatus("Dãy núi hoặc vực nước chặn lối đi. Hãy chọn đường mòn khác."); return; }
+            explorationMovement = StartCoroutine(WalkExplorationPath(path));
+        }
+
+        private List<Vector2Int> FindExplorationPath(Vector2Int start, Vector2Int goal)
+        {
+            var total = ExplorationMapWidth * ExplorationMapHeight;
+            var previous = new int[total]; for (var i = 0; i < total; i++) previous[i] = -2;
+            var queue = new int[total]; var head = 0; var tail = 0;
+            var startIndex = start.y * ExplorationMapWidth + start.x; var goalIndex = goal.y * ExplorationMapWidth + goal.x;
+            previous[startIndex] = -1; queue[tail++] = startIndex;
+            var dirs = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+            while (head < tail && previous[goalIndex] == -2)
+            {
+                var current = queue[head++]; var cell = new Vector2Int(current % ExplorationMapWidth, current / ExplorationMapWidth);
+                foreach (var dir in dirs)
+                {
+                    var next = cell + dir;
+                    if (next.x < 0 || next.y < 0 || next.x >= ExplorationMapWidth || next.y >= ExplorationMapHeight || explorationBlocked[next.x, next.y]) continue;
+                    var index = next.y * ExplorationMapWidth + next.x;
+                    if (previous[index] != -2) continue;
+                    previous[index] = current; queue[tail++] = index;
+                }
+            }
+            if (previous[goalIndex] == -2) return null;
+            var path = new List<Vector2Int>();
+            for (var index = goalIndex; index != startIndex; index = previous[index]) path.Add(new Vector2Int(index % ExplorationMapWidth, index / ExplorationMapWidth));
+            path.Reverse(); return path;
+        }
+
+        private IEnumerator WalkExplorationPath(List<Vector2Int> path)
+        {
+            foreach (var cell in path)
+            {
+                explorationCell = cell; UpdateExplorationPlayerPosition();
+                yield return new WaitForSeconds(.075f);
+            }
+            explorationMovement = null;
+            SaveExplorationPosition();
+            var point = ClosestExplorationPoint(explorationCell, 2);
+            if (point != null) { explorationSelectedPoint = point; UpdateExplorationLabels(); }
+        }
+
+        private void SaveExplorationPosition()
+        {
+            if (offlinePreview)
+            {
+                PlayerPrefs.SetString(ExplorationSaveKey(latestState, explorationMap), explorationCell.x + "," + explorationCell.y); PlayerPrefs.Save();
+                return;
+            }
+            if (latestState?.player == null || explorationMap == null) return;
+            var savedCell = explorationCell;
+            var savedMapId = explorationMap.id;
+            PlayerPrefs.SetString(ExplorationSaveKey(latestState, explorationMap), savedCell.x + "," + savedCell.y); PlayerPrefs.Save();
+            client.SaveWorldPosition(savedMapId, savedCell.x, savedCell.y, (success, error) =>
+            {
+                if (success && latestState?.player != null) { if (latestState.player.worldPosition == null) latestState.player.worldPosition = new WorldMapPosition(); latestState.player.worldPosition.mapId = savedMapId; latestState.player.worldPosition.x = savedCell.x; latestState.player.worldPosition.y = savedCell.y; }
+                else ShowStatus("Vị trí đã đi được lưu trên máy; chưa đồng bộ được máy chủ: " + error);
+            });
+        }
+
+        private static string ExplorationSaveKey(GameState state, MapInfo map) => "tutien.world." + (state?.player?.userId ?? "guest") + "." + (map?.id ?? "unknown");
+
+        private void UpdateExplorationPlayerPosition()
+        {
+            if (explorationPlayerMarker != null)
+                explorationPlayerMarker.rectTransform.anchoredPosition = ExplorationCellPosition(explorationCell) + new Vector2(0, 7);
+            if (explorationMiniPlayerRect != null)
+            {
+                var miniSize = explorationMiniMap == null ? new Vector2(300, 110) : explorationMiniMap.rectTransform.rect.size;
+                explorationMiniPlayerRect.anchoredPosition = new Vector2((explorationCell.x / (float)ExplorationMapWidth - .5f) * miniSize.x,
+                    (explorationCell.y / (float)ExplorationMapHeight - .5f) * miniSize.y);
+            }
+            if (explorationLocationText != null) explorationLocationText.text = $"Ô {explorationCell.x + 1} : {explorationCell.y + 1}  ·  {latestState?.realm?.name ?? "Phàm Nhân"}";
+        }
+
+        private void UpdateExplorationLabels()
+        {
+            if (explorationPoiText == null) return;
+            if (explorationSelectedPoint == null) { explorationPoiText.text = "Đường núi · Chạm bản đồ để đi từng ô."; return; }
+            var point = explorationSelectedPoint;
+            var kind = point.kind == WorldPointKind.Town ? "THÀNH TRẤN" : point.kind == WorldPointKind.Dungeon ? "CỔ ĐỘNG" : "BÃI TIỂU YÊU";
+            explorationPoiText.text = $"{kind}  ·  {point.title}     ({point.cell.x + 1}, {point.cell.y + 1})\n{point.town?.realmMinName ?? explorationMap?.realmMinName ?? "Địa vực tu luyện"}  ·  {(point.town?.desc ?? point.dungeon?.desc ?? "Điểm thám hiểm trên bản đồ")}";
+        }
+
+        private void PanExplorationMap(Vector2 delta)
+        {
+            if (explorationMapRect == null) return;
+            var scale = canvasScaler == null ? 1f : canvasScaler.scaleFactor;
+            explorationMapRect.anchoredPosition += delta / Mathf.Max(.01f, scale);
+            ClampExplorationPan();
+        }
+
+        private void SetExplorationZoom(float value)
+        {
+            explorationZoom = Mathf.Clamp(value, 1f, 2f);
+            if (explorationMapRect == null) return;
+            explorationMapRect.localScale = Vector3.one * explorationZoom; ClampExplorationPan();
+        }
+
+        private void ClampExplorationPan()
+        {
+            if (explorationMapRect == null || explorationViewport == null) return;
+            var mapSize = explorationMapRect.sizeDelta * explorationZoom; var viewSize = explorationViewport.rect.size;
+            var limit = new Vector2(Mathf.Max(0, (mapSize.x - viewSize.x) * .5f), Mathf.Max(0, (mapSize.y - viewSize.y) * .5f));
+            explorationMapRect.anchoredPosition = new Vector2(Mathf.Clamp(explorationMapRect.anchoredPosition.x, -limit.x, limit.x), Mathf.Clamp(explorationMapRect.anchoredPosition.y, -limit.y, limit.y));
+        }
+
+        private WorldMapPoint FindPointForTown(string townId)
+        {
+            foreach (var point in explorationPoints) if (point.kind == WorldPointKind.Town && point.town?.id == townId) return point;
+            return null;
+        }
+
+        private WorldMapPoint ClosestExplorationPoint(Vector2Int cell, int range)
+        {
+            WorldMapPoint closest = null; var best = int.MaxValue;
+            foreach (var point in explorationPoints)
+            {
+                var d = Mathf.Abs(point.cell.x - cell.x) + Mathf.Abs(point.cell.y - cell.y);
+                if (d <= range && d < best) { best = d; closest = point; }
+            }
+            return closest;
+        }
+
+        private void ActivateSelectedExplorationPoint(GameState state)
+        {
+            var point = explorationSelectedPoint;
+            if (point == null) { ShowStatus("Hãy chọn một thành trấn, cổ động hoặc bãi yêu trước."); return; }
+            if (explorationCell != point.cell) { MoveExplorationTo(point.cell); return; }
+            if (offlinePreview) { ShowStatus("Bản đồ đã sẵn sàng offline; chiến đấu và ngự kiếm cần máy chủ online."); return; }
+            if (point.kind == WorldPointKind.Town)
+            {
+                if (state.town?.id == point.town.id) ShowHome(state); else TravelTo(point.town);
+            }
+            else if (state.town?.id != point.town?.id) TravelTo(point.town);
+            else if (point.kind == WorldPointKind.Dungeon) { SetAtlasOrientation(false); EnterDungeon(point.dungeon.id); }
+            else { SetAtlasOrientation(false); ShowPveTown(state, point.town); }
         }
 
         private void RenderWorldAtlas(GameState state)
@@ -829,6 +1369,13 @@ namespace IOSVN.TuTien.Core
 
         private void SetAtlasOrientation(bool landscape)
         {
+            if (!landscape)
+            {
+                if (explorationMovement != null) { StopCoroutine(explorationMovement); explorationMovement = null; }
+                if (explorationMapRoot != null) { Destroy(explorationMapRoot); explorationMapRoot = null; }
+                if (explorationTexture != null) { Destroy(explorationTexture); explorationTexture = null; }
+                explorationMapRect = null; explorationViewport = null; explorationMiniMap = null;
+            }
             if (!landscape && atlasMapRoot != null)
             {
                 Destroy(atlasMapRoot);
@@ -1598,6 +2145,30 @@ namespace IOSVN.TuTien.Core
         private static void Place(RectTransform rect, Vector2 min, Vector2 max, Vector2 offsetMin = default, Vector2 offsetMax = default)
         {
             rect.anchorMin = min; rect.anchorMax = max; rect.offsetMin = offsetMin; rect.offsetMax = offsetMax;
+        }
+    }
+
+    internal sealed class ExplorationMapTouch : MonoBehaviour, IPointerClickHandler, IDragHandler
+    {
+        private Action<Vector2> onTap;
+        private Action<Vector2> onDrag;
+
+        public void Initialize(Action<Vector2> tap, Action<Vector2> drag)
+        {
+            onTap = tap;
+            onDrag = drag;
+            var image = GetComponent<Image>();
+            if (image != null) image.raycastTarget = true;
+        }
+
+        public void OnPointerClick(PointerEventData eventData)
+        {
+            onTap?.Invoke(eventData.position);
+        }
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            onDrag?.Invoke(eventData.delta);
         }
     }
 

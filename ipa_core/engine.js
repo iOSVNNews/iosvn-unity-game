@@ -5171,6 +5171,7 @@ class Game {
                 townName: currentTown.name,
                 ascended: Boolean(p.ascended),
                 traveling: p.traveling || null,
+                worldPosition: p.worldPosition || null,
                 teleportCooldownUntil: p.teleportCooldownUntil || 0,
                 bounties: p.bounties || null,
                 equip: Object.fromEntries(Object.entries(p.equip).map(([slot, id]) => [slot, id ? ((slot === 'phiKiem' && p.beasts.some(beast => beast.id === id)) ? { uid: id, id: p.beasts.find(beast => beast.id === id).monsterId, name: p.beasts.find(beast => beast.id === id).name, icon: p.beasts.find(beast => beast.id === id).icon, kind: 'beast', slot: 'phi_kiem', place: 'equip', mount: true, desc: 'Linh thú đã thu phục.' } : describe(p.items.find(it => it.uid === id))) : null])),
@@ -8736,6 +8737,27 @@ class Game {
             mountSpeedBonus: p.traveling.mountSpeedBonus || p.traveling.flySpeedBonus || 0,
             flySpeedBonus: p.traveling.mountSpeedBonus || p.traveling.flySpeedBonus || 0,
         };
+    }
+
+    moveWorldPosition(userId, choice = {}) {
+        const p = this.requirePlayer(userId);
+        const now = this.now();
+        this.checkTravelArrival(p, now);
+        if (p.traveling) fail('Đang ngự kiếm phi hành, chưa thể đi bộ trên bản đồ.');
+        if (this.activeBattle(userId)) fail('Đang trong trận chiến, chưa thể di chuyển trên bản đồ.');
+
+        const town = C.TOWN_BY_ID.get(p.town || 'thanh_van');
+        const mapId = String(choice.mapId || '');
+        const x = Number(choice.x);
+        const y = Number(choice.y);
+        if (!town || mapId !== town.mapId) fail('Bản đồ di chuyển không khớp với thành trấn hiện tại.');
+        if (!Number.isInteger(x) || x < 0 || x >= 144 || !Number.isInteger(y) || y < 0 || y >= 64) {
+            fail('Tọa độ bản đồ không hợp lệ.');
+        }
+
+        p.worldPosition = { mapId, x, y, updatedAt: now };
+        this.touch();
+        return { mapId, x, y };
     }
 
     teleportWithRing(userId, toTownId) {
