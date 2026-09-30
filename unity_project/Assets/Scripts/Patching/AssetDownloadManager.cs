@@ -2,6 +2,9 @@ using System;
 using System.Collections;
 using System.Collections.Generic;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
+using System.Text.RegularExpressions;
 using UnityEngine;
 using UnityEngine.Networking;
 using UnityEngine.Events;
@@ -9,180 +12,360 @@ using UnityEngine.Events;
 namespace QuyCocBatHoang.Patching
 {
     /// <summary>
-    /// AssetDownloadManager: Quản lý tải tài nguyên động qua CDN (Addressables / AssetBundles).
-    /// Giúp file cài đặt .ipa khởi điểm siêu nhẹ chỉ 200 - 400 MB.
-    /// Toàn bộ 1.5 - 2.8 GB tài nguyên game (quái Sơn Hải Kinh, âm thanh, map HD, hiệu ứng) 
-    /// sẽ được tải ngầm hoặc tải ở màn hình cập nhật ban đầu.
+    /// Downloads versioned AssetBundles after startup so the initial iOS install
+    /// stays small. The CDN is optional until a content host is configured.
     /// </summary>
-    public class AssetDownloadManager : MonoBehaviour
+    public sealed class AssetDownloadManager : MonoBehaviour
     {
+        private static readonly Regex SafeBundleName = new Regex(@"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$", RegexOptions.Compiled);
+
         public static AssetDownloadManager Instance { get; private set; }
 
         [Header("CDN Configuration")]
-        [SerializeField] private string cdnBaseUrl = "https://cdn.tutien.iosvn.vn/game_assets/ios/";
+        [SerializeField] private string cdnBaseUrl = "";
         [SerializeField] private string versionManifestFile = "version_manifest.json";
 
         [Header("UI Events")]
-        public UnityEvent<float, string> OnDownloadProgress; // (0.0 to 1.0, "245 MB / 1850 MB (12.4 MB/s)")
-        public UnityEvent<string> OnStatusMessage;
-        public UnityEvent OnDownloadComplete;
-        public UnityEvent<string> OnDownloadFailed;
+        public UnityEvent<float, string> OnDownloadProgress = new UnityEvent<float, string>();
+        public UnityEvent<string> OnStatusMessage = new UnityEvent<string>();
+        public UnityEvent OnDownloadComplete = new UnityEvent();
+        public UnityEvent<string> OnDownloadFailed = new UnityEvent<string>();
 
-        [System.Serializable]
-        public class AssetManifest
+        [Serializable]
+        public sealed class AssetManifest
         {
             public int version;
             public long totalBytes;
-            public List<BundleInfo> bundles;
+            public List<BundleInfo> bundles = new List<BundleInfo>();
         }
 
-        [System.Serializable]
-        public class BundleInfo
+        [Serializable]
+        public sealed class BundleInfo
         {
             public string bundleName;
-            public string md5;
+            public string sha256;
             public long size;
-            public bool isRequired; // Bắt buộc tải trước khi vào game
+            public bool isRequired;
         }
 
-        private AssetManifest serverManifest;
+        private readonly Dictionary<string, AssetBundle> loadedBundles = new Dictionary<string, AssetBundle>(StringComparer.OrdinalIgnoreCase);
         private string localSavePath;
-        private long totalBytesToDownload = 0;
-        private long downloadedBytes = 0;
-        private bool isDownloading = false;
+        private bool isDownloading;
+        private bool patchCheckStarted;
 
         private void Awake()
         {
-            if (Instance == null)
-            {
-                Instance = this;
-                DontDestroyOnLoad(gameObject);
-                localSavePath = Path.Combine(Application.persistentDataPath, "AssetBundles");
-                if (!Directory.Exists(localSavePath)) Directory.CreateDirectory(localSavePath);
-            }
-            else
+            if (Instance != null && Instance != this)
             {
                 Destroy(gameObject);
+                return;
             }
+
+            Instance = this;
+            DontDestroyOnLoad(gameObject);
+            localSavePath = Path.Combine(Application.persistentDataPath, "AssetBundles");
+            Directory.CreateDirectory(localSavePath);
         }
 
-        public void StartPatchCheck()
+        private void OnDestroy()
         {
-            StartCoroutine(CheckVersionAndDownloadRoutine());
+            if (Instance == this) Instance = null;
+            foreach (var bundle in loadedBundles.Values)
+                if (bundle != null) bundle.Unload(false);
+            loadedBundles.Clear();
         }
 
-        private IEnumerator CheckVersionAndDownloadRoutine()
+        public void Configure(string assetCdnBaseUrl)
         {
-            OnStatusMessage?.Invoke("Đang kiểm tra phiên bản máy chủ...");
+            cdnBaseUrl = string.IsNullOrWhiteSpace(assetCdnBaseUrl) ? "" : assetCdnBaseUrl.Trim().TrimEnd('/') + "/";
+        }
 
-            // 1. Tải Manifest từ CDN
-            string manifestUrl = cdnBaseUrl + versionManifestFile + "?t=" + DateTime.UtcNow.Ticks;
-            using (UnityWebRequest req = UnityWebRequest.Get(manifestUrl))
+        public void StartPatchCheck(Action<bool, string> finished = null)
+        {
+            if (patchCheckStarted || isDownloading)
             {
-                req.timeout = 10;
-                yield return req.SendWebRequest();
-
-                if (req.result != UnityWebRequest.Result.Success)
-                {
-                    OnDownloadFailed?.Invoke("Không thể kết nối đến máy chủ cập nhật: " + req.error);
-                    yield break;
-                }
-
-                try
-                {
-                    serverManifest = JsonUtility.FromJson<AssetManifest>(req.downloadHandler.text);
-                }
-                catch (Exception ex)
-                {
-                    OnDownloadFailed?.Invoke("Lỗi định dạng tệp manifest: " + ex.Message);
-                    yield break;
-                }
+                finished?.Invoke(false, "Đang kiểm tra tài nguyên.");
+                return;
             }
+            patchCheckStarted = true;
+            StartCoroutine(CheckVersionAndDownloadRoutine(finished));
+        }
 
-            // 2. So sánh danh sách bundle cần tải
-            List<BundleInfo> queue = new List<BundleInfo>();
-            totalBytesToDownload = 0;
-
-            foreach (var b in serverManifest.bundles)
+        private IEnumerator CheckVersionAndDownloadRoutine(Action<bool, string> finished)
+        {
+            if (string.IsNullOrWhiteSpace(cdnBaseUrl))
             {
-                string localFile = Path.Combine(localSavePath, b.bundleName);
-                if (!File.Exists(localFile) || new FileInfo(localFile).Length != b.size)
-                {
-                    queue.Add(b);
-                    totalBytesToDownload += b.size;
-                }
-            }
-
-            // 3. Nếu không có gì cần tải -> Vào game luôn
-            if (queue.Count == 0 || totalBytesToDownload == 0)
-            {
-                OnStatusMessage?.Invoke("Tài nguyên đã là bản mới nhất!");
-                OnDownloadProgress?.Invoke(1.0f, "Hoàn tất kiểm tra");
-                yield return new WaitForSeconds(0.5f);
-                OnDownloadComplete?.Invoke();
+                const string noCdnMessage = "Máy chủ tài nguyên chưa được cấu hình; tiếp tục với nội dung trong bản cài.";
+                OnStatusMessage.Invoke(noCdnMessage);
+                OnDownloadProgress.Invoke(1f, "Bản thử nghiệm");
+                OnDownloadComplete.Invoke();
+                finished?.Invoke(true, noCdnMessage);
                 yield break;
             }
 
-            // 4. Kiểm tra dung lượng trống của thiết bị iOS
-            double totalMB = totalBytesToDownload / (1024.0 * 1024.0);
-            OnStatusMessage?.Invoke($"Phát hiện bản cập nhật mới ({totalMB:F1} MB). Đang tải gói tài nguyên...");
+            if (!Uri.TryCreate(cdnBaseUrl, UriKind.Absolute, out var cdnUri) || cdnUri.Scheme != Uri.UriSchemeHttps)
+            {
+                const string invalidUrlMessage = "Địa chỉ máy chủ tài nguyên phải dùng HTTPS.";
+                OnDownloadFailed.Invoke(invalidUrlMessage);
+                finished?.Invoke(false, invalidUrlMessage);
+                yield break;
+            }
 
-            // 5. Tiến hành tải tuần tự từng AssetBundle với cơ chế tiếp tục (Resume)
+            OnStatusMessage.Invoke("Đang kiểm tra phiên bản tài nguyên...");
+            AssetManifest manifest;
+            var manifestUrl = BuildUrl(cdnUri, versionManifestFile) + "?t=" + DateTime.UtcNow.Ticks;
+            using (var request = UnityWebRequest.Get(manifestUrl))
+            {
+                request.timeout = 15;
+                yield return request.SendWebRequest();
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    var message = "Không thể kết nối máy chủ tài nguyên: " + request.error;
+                    OnDownloadFailed.Invoke(message);
+                    finished?.Invoke(false, message);
+                    yield break;
+                }
+
+                try { manifest = JsonUtility.FromJson<AssetManifest>(request.downloadHandler.text); }
+                catch (Exception exception)
+                {
+                    var message = "Manifest tài nguyên không hợp lệ: " + exception.Message;
+                    OnDownloadFailed.Invoke(message);
+                    finished?.Invoke(false, message);
+                    yield break;
+                }
+            }
+
+            if (!ValidateManifest(manifest, out var validationError))
+            {
+                OnDownloadFailed.Invoke(validationError);
+                finished?.Invoke(false, validationError);
+                yield break;
+            }
+
+            var queue = new List<BundleInfo>();
+            long totalBytes = 0;
+            foreach (var bundle in manifest.bundles)
+            {
+                var localFile = Path.Combine(localSavePath, bundle.bundleName);
+                if (File.Exists(localFile) && new FileInfo(localFile).Length == bundle.size &&
+                    string.Equals(ComputeSha256(localFile), bundle.sha256, StringComparison.OrdinalIgnoreCase))
+                    continue;
+                queue.Add(bundle);
+                totalBytes += bundle.size;
+            }
+
+            if (queue.Count == 0)
+            {
+                PruneObsoleteBundles(manifest);
+                const string upToDateMessage = "Tài nguyên đã là bản mới nhất.";
+                OnStatusMessage.Invoke(upToDateMessage);
+                OnDownloadProgress.Invoke(1f, "Đã cập nhật");
+                OnDownloadComplete.Invoke();
+                finished?.Invoke(true, upToDateMessage);
+                yield break;
+            }
+
             isDownloading = true;
-            downloadedBytes = 0;
-            float startTime = Time.time;
+            long completedBytes = 0;
+            var startedAt = Time.realtimeSinceStartup;
+            OnStatusMessage.Invoke($"Đang tải tài nguyên bản {manifest.version} ({totalBytes / (1024f * 1024f):F1} MB)...");
 
             foreach (var bundle in queue)
             {
-                string bundleUrl = cdnBaseUrl + bundle.bundleName;
-                string destPath = Path.Combine(localSavePath, bundle.bundleName);
-                string tempPath = destPath + ".tmp";
+                var destination = Path.Combine(localSavePath, bundle.bundleName);
+                var temporary = destination + ".tmp";
+                var bundleUrl = BuildUrl(cdnUri, bundle.bundleName);
+                var attempt = 0;
+                var bundleReady = false;
 
-                long existingBytes = File.Exists(tempPath) ? new FileInfo(tempPath).Length : 0;
-
-                using (UnityWebRequest dlReq = UnityWebRequest.Get(bundleUrl))
+                while (!bundleReady && attempt < 2)
                 {
-                    dlReq.downloadHandler = new DownloadHandlerFile(tempPath, true); // Hỗ trợ resume
-                    if (existingBytes > 0)
+                    var existingBytes = File.Exists(temporary) ? new FileInfo(temporary).Length : 0;
+                    if (existingBytes >= bundle.size)
                     {
-                        dlReq.SetRequestHeader("Range", $"bytes={existingBytes}-");
+                        File.Delete(temporary);
+                        existingBytes = 0;
                     }
 
-                    var op = dlReq.SendWebRequest();
-                    long lastReported = existingBytes;
-
-                    while (!op.isDone)
+                    using (var request = UnityWebRequest.Get(bundleUrl))
                     {
-                        long currentPart = (long)(dlReq.downloadProgress * (bundle.size - existingBytes)) + existingBytes;
-                        long currentTotal = downloadedBytes + currentPart;
-                        float percent = (float)currentTotal / totalBytesToDownload;
-                        float elapsed = Mathf.Max(0.1f, Time.time - startTime);
-                        float speedMBps = (currentTotal / (1024f * 1024f)) / elapsed;
+                        request.timeout = 120;
+                        request.downloadHandler = new DownloadHandlerFile(temporary, existingBytes > 0);
+                        if (existingBytes > 0) request.SetRequestHeader("Range", "bytes=" + existingBytes + "-");
+                        var operation = request.SendWebRequest();
 
-                        string progressStr = $"{currentTotal / (1024 * 1024)} MB / {totalBytesToDownload / (1024 * 1024)} MB ({speedMBps:F1} MB/s)";
-                        OnDownloadProgress?.Invoke(percent, progressStr);
+                        while (!operation.isDone)
+                        {
+                            var currentPart = existingBytes + (long)(request.downloadProgress * Math.Max(0, bundle.size - existingBytes));
+                            var currentTotal = completedBytes + currentPart;
+                            var elapsed = Mathf.Max(0.1f, Time.realtimeSinceStartup - startedAt);
+                            var speed = currentTotal / (1024f * 1024f) / elapsed;
+                            var progress = totalBytes == 0 ? 1f : Mathf.Clamp01((float)currentTotal / totalBytes);
+                            OnDownloadProgress.Invoke(progress, $"{currentTotal / (1024 * 1024)} / {totalBytes / (1024 * 1024)} MB ({speed:F1} MB/s)");
+                            yield return null;
+                        }
 
-                        yield return null;
+                        if (request.result != UnityWebRequest.Result.Success)
+                        {
+                            isDownloading = false;
+                            var message = $"Tải gói {bundle.bundleName} thất bại: {request.error}";
+                            OnDownloadFailed.Invoke(message);
+                            finished?.Invoke(false, message);
+                            yield break;
+                        }
+
+                        // Some CDNs ignore Range and return the complete file (200). Restart once
+                        // without append so a resumed partial file cannot become corrupted.
+                        if (existingBytes > 0 && request.responseCode != 206)
+                        {
+                            File.Delete(temporary);
+                            attempt++;
+                            continue;
+                        }
                     }
 
-                    if (dlReq.result != UnityWebRequest.Result.Success)
+                    if (!File.Exists(temporary) || new FileInfo(temporary).Length != bundle.size ||
+                        !string.Equals(ComputeSha256(temporary), bundle.sha256, StringComparison.OrdinalIgnoreCase))
                     {
-                        OnDownloadFailed?.Invoke($"Tải thất bại gói [{bundle.bundleName}]: {dlReq.error}");
+                        File.Delete(temporary);
+                        isDownloading = false;
+                        var message = $"Gói {bundle.bundleName} sai kích thước hoặc SHA-256; đã xóa bản tải lỗi.";
+                        OnDownloadFailed.Invoke(message);
+                        finished?.Invoke(false, message);
                         yield break;
                     }
 
-                    if (File.Exists(destPath)) File.Delete(destPath);
-                    File.Move(tempPath, destPath);
+                    if (File.Exists(destination)) File.Delete(destination);
+                    File.Move(temporary, destination);
+                    completedBytes += bundle.size;
+                    bundleReady = true;
+                }
 
-                    downloadedBytes += bundle.size;
+                if (!bundleReady)
+                {
+                    isDownloading = false;
+                    const string rangeError = "Máy chủ không hỗ trợ tiếp tục tải gói tài nguyên.";
+                    OnDownloadFailed.Invoke(rangeError);
+                    finished?.Invoke(false, rangeError);
+                    yield break;
                 }
             }
 
             isDownloading = false;
-            OnStatusMessage?.Invoke("Giải nén và xác thực tài nguyên hoàn tất!");
-            OnDownloadProgress?.Invoke(1.0f, "100% Hoàn tất");
-            yield return new WaitForSeconds(0.8f);
-            OnDownloadComplete?.Invoke();
+            PruneObsoleteBundles(manifest);
+            const string completeMessage = "Đã tải và xác thực tài nguyên.";
+            OnStatusMessage.Invoke(completeMessage);
+            OnDownloadProgress.Invoke(1f, "100% Hoàn tất");
+            OnDownloadComplete.Invoke();
+            finished?.Invoke(true, completeMessage);
+        }
+
+        public void LoadBundleAsync(string bundleName, Action<AssetBundle, string> finished)
+        {
+            StartCoroutine(LoadBundleRoutine(bundleName, finished));
+        }
+
+        public void LoadAssetAsync<T>(string bundleName, string assetName, Action<T, string> finished) where T : UnityEngine.Object
+        {
+            StartCoroutine(LoadAssetRoutine<T>(bundleName, assetName, finished));
+        }
+
+        private IEnumerator LoadBundleRoutine(string bundleName, Action<AssetBundle, string> finished)
+        {
+            if (!IsSafeBundleName(bundleName))
+            {
+                finished?.Invoke(null, "Tên gói tài nguyên không hợp lệ.");
+                yield break;
+            }
+            if (loadedBundles.TryGetValue(bundleName, out var loaded) && loaded != null)
+            {
+                finished?.Invoke(loaded, null);
+                yield break;
+            }
+
+            var path = Path.Combine(localSavePath, bundleName);
+            if (!File.Exists(path))
+            {
+                finished?.Invoke(null, "Chưa có gói tài nguyên " + bundleName + ".");
+                yield break;
+            }
+            var request = AssetBundle.LoadFromFileAsync(path);
+            yield return request;
+            if (request.assetBundle == null)
+            {
+                finished?.Invoke(null, "Không thể mở gói tài nguyên " + bundleName + ".");
+                yield break;
+            }
+            loadedBundles[bundleName] = request.assetBundle;
+            finished?.Invoke(request.assetBundle, null);
+        }
+
+        private IEnumerator LoadAssetRoutine<T>(string bundleName, string assetName, Action<T, string> finished) where T : UnityEngine.Object
+        {
+            AssetBundle bundle = null;
+            string error = null;
+            yield return LoadBundleRoutine(bundleName, (loaded, message) => { bundle = loaded; error = message; });
+            if (bundle == null)
+            {
+                finished?.Invoke(null, error);
+                yield break;
+            }
+            var request = bundle.LoadAssetAsync<T>(assetName);
+            yield return request;
+            var asset = request.asset as T;
+            finished?.Invoke(asset, asset == null ? "Không tìm thấy tài nguyên " + assetName + "." : null);
+        }
+
+        private static bool ValidateManifest(AssetManifest manifest, out string error)
+        {
+            error = null;
+            if (manifest == null || manifest.version < 1 || manifest.bundles == null)
+            {
+                error = "Manifest thiếu phiên bản hoặc danh sách gói.";
+                return false;
+            }
+            var names = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bundle in manifest.bundles)
+            {
+                if (bundle == null || !IsSafeBundleName(bundle.bundleName) || bundle.size < 0 ||
+                    string.IsNullOrWhiteSpace(bundle.sha256) || bundle.sha256.Length != 64 || !names.Add(bundle.bundleName))
+                {
+                    error = "Manifest chứa tên gói, kích thước, SHA-256 không hợp lệ hoặc gói trùng tên.";
+                    return false;
+                }
+            }
+            return true;
+        }
+
+        private static bool IsSafeBundleName(string value) =>
+            !string.IsNullOrWhiteSpace(value) && SafeBundleName.IsMatch(value) && value != "." && value != "..";
+
+        private static string BuildUrl(Uri baseUri, string relativePath) =>
+            new Uri(baseUri, Uri.EscapeDataString(relativePath)).AbsoluteUri;
+
+        private static string ComputeSha256(string path)
+        {
+            using (var sha = SHA256.Create())
+            using (var stream = File.OpenRead(path))
+            {
+                var hash = sha.ComputeHash(stream);
+                var result = new StringBuilder(hash.Length * 2);
+                foreach (var value in hash) result.Append(value.ToString("x2"));
+                return result.ToString();
+            }
+        }
+
+        private void PruneObsoleteBundles(AssetManifest manifest)
+        {
+            var currentNames = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+            foreach (var bundle in manifest.bundles) currentNames.Add(bundle.bundleName);
+            foreach (var path in Directory.GetFiles(localSavePath))
+            {
+                var name = Path.GetFileName(path);
+                if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) || !currentNames.Contains(name))
+                    File.Delete(path);
+            }
         }
     }
 }

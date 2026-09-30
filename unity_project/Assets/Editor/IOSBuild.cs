@@ -5,6 +5,7 @@ using UnityEditor;
 using UnityEditor.Build;
 using UnityEditor.Build.Reporting;
 using UnityEngine;
+using IOSVN.TuTien.Core;
 
 namespace IOSVN.TuTien.Editor
 {
@@ -18,12 +19,16 @@ namespace IOSVN.TuTien.Editor
             var outputPath = Argument("-iosBuildPath", "../build/iOS");
             if (!IsValidBundleId(bundleId)) throw new BuildFailedException("IOS_BUNDLE_ID must be a reverse-DNS identifier, for example com.studio.game.");
 
-            PlayerSettings.SetApplicationIdentifier(BuildTargetGroup.iOS, bundleId);
+            PlayerSettings.companyName = "iOSVN";
+            PlayerSettings.productName = "Tu Tiên iOSVN";
+            PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
             var configuredUrl = Argument("-ipaServerUrl", null);
             var serverConfig = AssetDatabase.LoadAssetAtPath<GameServerConfig>("Assets/Resources/GameServerConfig.asset");
             if (serverConfig != null && configuredUrl != null)
             {
                 serverConfig.apiBaseUrl = configuredUrl.Trim().TrimEnd('/');
+                var assetCdnUrl = Argument("-assetCdnUrl", null);
+                if (assetCdnUrl != null) serverConfig.assetCdnBaseUrl = assetCdnUrl.Trim().TrimEnd('/');
                 EditorUtility.SetDirty(serverConfig);
                 AssetDatabase.SaveAssets();
             }

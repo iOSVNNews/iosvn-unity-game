@@ -3276,8 +3276,8 @@ function getTravelSec(fromTownId, toTownId) {
 function getTeleportCost(fromTownId, toTownId) {
     const travelSec = getTravelSec(fromTownId, toTownId);
     const distanceRatio = Math.max(0, Math.min(1, travelSec / 1800));
-    // Phí khởi điểm 5.000 LL, tăng đều theo khoảng cách tới tối đa 20.000 LL.
-    return Math.max(5000, Math.min(20_000, Math.round((5000 + distanceRatio * 15_000) / 100) * 100));
+    // Phí khởi điểm 500 LL, tăng đều theo khoảng cách tới tối đa 2.000 LL.
+    return Math.max(500, Math.min(2_000, Math.round((500 + distanceRatio * 1500) / 50) * 50));
 }
 
 // Đội ngũ NPC Phản Diện Ma Tu
@@ -3945,7 +3945,7 @@ const RULES = Object.freeze({
     staminaRegenMs: 2 * 60 * 1000,
     hpRegenMs: 60 * 1000,  // Tự hồi máu thụ động: 1 phút
     hpRegenPct: 0.01,      // Hồi 1% Khí Huyết tối đa mỗi phút
-    huntCost: 15,          // tăng thể lực đại yêu lên 15
+    huntCost: 8,           // giảm thể lực đại yêu/đại boss xuống còn 8
     smallCost: 3,          // tiểu yêu tốn ít thể lực để khuyến khích săn thường xuyên
     dungeonCost: 15,       // tăng thể lực cổ động lên 15
     pvpCost: 20,           // PvP tiêu hao gấp đôi thể lực

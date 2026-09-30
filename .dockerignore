@@ -1,0 +1,13 @@
+.git
+.github
+agent_bridge
+build
+node_modules
+server_data
+unity_project
+*.log
+*.ulf
+*.p12
+*.mobileprovision
+*.keystore
+*.jks

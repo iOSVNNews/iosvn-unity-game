@@ -212,6 +212,12 @@ const MONSTER_DROP_SOURCES_BY_ITEM = new Map();
 const MONSTER_DROP_ALLOWED_BY_ITEM = new Map();
 const MONSTER_DROP_RATE_BY_ITEM = new Map();
 function rawMonsterDropChance(drop) {
+    if (drop.kind === 'equip') {
+        const maxChance = 0.06; // tăng 50% trần rơi trang bị từ 0.04 lên 0.06
+        return drop.directChance
+            ? Math.min(0.075, (Number(drop.rate) || 0) * 1.5)
+            : Math.min(maxChance, (Number(drop.rate) || 0.1) * 0.08 * 1.5);
+    }
     const maxChance = drop.kind === 'mat' ? 0.12 : (drop.kind === 'cons' ? 0.08 : 0.04);
     return drop.directChance
         ? Math.min(0.05, Number(drop.rate) || 0)
@@ -277,6 +283,7 @@ const SUPPLEMENTAL_ITEM_DROPS_BY_MONSTER = new Map();
 function supplementalItemBaseRate(item, kind) {
     const rank = Math.max(0, Number(item.qualityRank) || 0, Number(C.TIER[item.tier]?.rank) || 0);
     if (kind === 'cons') return Math.max(0.00008, 0.004 / Math.pow(2.4, rank));
+    if (kind === 'equip') return Math.max(0.000015, (0.0005 / Math.pow(2, rank)) * 1.5);
     return Math.max(0.00001, 0.0005 / Math.pow(2, rank));
 }
 function assignSupplementalItemSources(item, kind, options = {}) {
@@ -331,7 +338,7 @@ for (const item of EQUIPMENT_DEFINITIONS.sort((a, b) => a.id.localeCompare(b.id)
     const fallbackRate = supplementalItemBaseRate(item, 'equip');
     const equipmentRateMap = distinctSourceRateMap(item, sourceMonsters, monster => {
         const configured = Number(item.drop) || fallbackRate;
-        return Math.min(0.05, configured * (monster.small ? 0.5 : 1));
+        return Math.min(0.075, configured * (monster.small ? 0.5 : 1) * 1.5);
     }, EQUIPMENT_DROP_LIMIT).rates;
     EQUIPMENT_DROP_RATE_BY_ITEM.set(item.id, equipmentRateMap);
     for (const monster of sourceMonsters) {
@@ -514,6 +521,29 @@ for (const gourd of C.BEAST_GOURDS || []) {
 function equipmentDropsFor(monster) {
     return EQUIPMENT_DROP_BY_MONSTER.get(monster.id) || [];
 }
+function bossMutationEquipMultiplier(m) {
+    if (!m) return 1;
+    const name = String(m.name || '');
+    const devour = Number(m.devourCount) || 0;
+    const level = Number(m.level) || 0;
+    const realm = Number(m.realm) || 0;
+
+    let mutationMul = 1.0;
+    // Bậc dị biến Đại Boss: thường < Yêu Tướng < Yêu Vương < Yêu Vương Thôn Thiên
+    if (name.includes('Yêu Vương Thôn Thiên') || devour >= 3) {
+        mutationMul = 2.0; // Yêu Vương Thôn Thiên: +100% tỉ lệ rơi trang bị
+    } else if (name.includes('Yêu Vương') || devour >= 2) {
+        mutationMul = 1.5; // Yêu Vương: +50% tỉ lệ rơi trang bị
+    } else if (name.includes('Yêu Tướng') || name.includes('Thôn Phệ') || devour >= 1 || level >= 2) {
+        mutationMul = 1.25; // Yêu Tướng: +25% tỉ lệ rơi trang bị
+    } else {
+        mutationMul = 1.0; // Thường
+    }
+
+    // Bậc cảnh giới của Đại Boss: mỗi cảnh giới tăng thêm 3% (tối đa +45%)
+    const realmMul = (!m.small || m.worldBoss) ? 1 + Math.min(0.45, realm * 0.03) : 1;
+    return mutationMul * realmMul;
+}
 
 const TOWN_REALM_CAP = new Map(C.TOWNS.map(town => {
     const localMax = (town.monsterPool || []).reduce((max, id) => Math.max(max, C.MONSTER_BY_ID.get(id)?.realm || 0), 0);
@@ -617,8 +647,8 @@ function talismanSuccessRate(recipeRank, toolRank, expertise = 0) {
 
 function getTimePhase(now) {
     const h = vnHour(now);
-    // Về đêm: 22h tối đến 5h sáng (22, 23, 0, 1, 2, 3, 4) -> x3 Máu, x2 Công, x2 Rơi Đồ, x2.5 EXP, x2 Linh Thạch
-    if (h >= 22 || h < 5) {
+    // 1. Về đêm: 0h đến 5h sáng (0, 1, 2, 3, 4) -> x3 Máu, x2 Công, x2 Rơi Đồ, x2.5 EXP, x2 Linh Thạch
+    if (h >= 0 && h < 5) {
         return {
             phase: 'late_night',
             name: 'Về Đêm',
@@ -630,20 +660,33 @@ function getTimePhase(now) {
             stoneMul: 2.0,
         };
     }
-    // Buổi tối: 18h tối đến 22h đêm (18, 19, 20, 21), và rạng sáng chuyển giao (5h) -> x2 Máu, x1.5 Công, x1.5 Rơi Đồ, x1.5 EXP, x1.5 Linh Thạch
-    if (h >= 18 || h === 5) {
+    // 2. Buổi trưa: 11h đến 14h (11, 12, 13) - Cùng thời gian với Boss Thế Giới trưa -> x2 Máu, x1.5 Công, x2 Rơi Đồ, x2 EXP, x2 Linh Thạch
+    if (h >= 11 && h < 14) {
+        return {
+            phase: 'midday',
+            name: 'Buổi Trưa',
+            desc: 'Khung giờ Boss Thế Giới trưa: Quái x2 Máu, x1.5 Công. Rơi đồ x2, EXP x2, Linh Thạch x2',
+            hpMul: 2.0,
+            atkMul: 1.5,
+            dropMul: 2.0,
+            expMul: 2.0,
+            stoneMul: 2.0,
+        };
+    }
+    // 3. Buổi chiều / tối: 18h đến 24h (18, 19, 20, 21, 22, 23) - Cùng thời gian với Boss Thế Giới tối -> x2 Máu, x1.5 Công, x2 Rơi Đồ, x2 EXP, x2 Linh Thạch
+    if (h >= 18) {
         return {
             phase: 'evening',
             name: 'Buổi Tối',
-            desc: 'Quái x2 Máu, x1.5 Công. Rơi đồ x1.5, EXP x1.5, Linh Thạch x1.5',
+            desc: 'Khung giờ Boss Thế Giới tối: Quái x2 Máu, x1.5 Công. Rơi đồ x2, EXP x2, Linh Thạch x2',
             hpMul: 2.0,
             atkMul: 1.5,
-            dropMul: 1.5,
-            expMul: 1.5,
-            stoneMul: 1.5,
+            dropMul: 2.0,
+            expMul: 2.0,
+            stoneMul: 2.0,
         };
     }
-    // Ban ngày: 6h đến 18h -> chuẩn 1.0x
+    // 4. Ban ngày: Các khung giờ còn lại (5h-11h, 14h-18h) -> chuẩn 1.0x
     return {
         phase: 'day',
         name: 'Ban Ngày',
@@ -3768,6 +3811,8 @@ class Game {
                 atk: Math.round(baseSt.atk + (mst.bonusAtk || 0)),
                 def: Math.round(baseSt.def + (mst.bonusDef || 0)),
                 realm: Math.max(def.realm, mst.realm || def.realm),
+                devourCount: mst.devourCount || 0,
+                level: mst.level || 0,
             };
         }
         const battle = new Battle(this, players, battleDef, now);
@@ -3859,7 +3904,7 @@ class Game {
         const isBossLoot = Boolean(m.worldBoss || battle.tier === 'boss');
         // Boss loot used to multiply boss, realm, night, and time-of-day bonuses
         // together (up to ~3x). Keep late-hour flavor, but cap the final odds.
-        const bossNightCap = tp.phase === 'late_night' ? 1.25 : tp.phase === 'evening' ? 1.15 : 1.5;
+        const bossNightCap = tp.phase === 'late_night' ? 1.25 : (tp.phase === 'evening' || tp.phase === 'midday') ? 1.15 : 1.5;
         const totalMul = isBossLoot ? Math.min(rawTotalMul, bossNightCap) : rawTotalMul;
         let battleItemDrops = 0;
         const maxBattleItemDrops = 1;
@@ -3904,8 +3949,16 @@ class Game {
             if (!MONSTER_DROP_ALLOWED_BY_ITEM.get(drop.id)?.has(m.id)) continue;
             const sourceRate = MONSTER_DROP_RATE_BY_ITEM.get(drop.id)?.get(m.id);
             if (!(sourceRate > 0)) continue;
-            const maxChance = drop.kind === 'mat' ? 0.12 : (drop.kind === 'cons' ? 0.08 : 0.04);
-            const chance = Math.min(maxChance, sourceRate * totalMul);
+            let maxChance = drop.kind === 'mat' ? 0.12 : (drop.kind === 'cons' ? 0.08 : 0.04);
+            let dropMul = totalMul;
+            if (drop.kind === 'equip') {
+                maxChance = 0.08;
+                dropMul *= 1.5; // Tăng 50% tỉ lệ rơi trang bị (tiểu yêu, đại boss, boss thế giới)
+                if (isBossLoot || !m.small) {
+                    dropMul *= bossMutationEquipMultiplier(m); // Tăng theo bậc cảnh giới / dị biến của Đại Boss
+                }
+            }
+            const chance = Math.min(maxChance, sourceRate * dropMul);
             if (this.rng() < chance) {
                 const qty = 1;
                 if (drop.kind === 'mat') {
@@ -3963,7 +4016,11 @@ class Game {
             if (def.worldBossOnly && !m.worldBoss) continue;
             if (def.elite && battle.tier === 'normal') continue;
             const sourceRate = EQUIPMENT_DROP_RATE_BY_ITEM.get(def.id)?.get(m.id) || 0;
-            const dropChance = Math.min(0.05, sourceRate * totalMul);
+            let equipTotalMul = totalMul * 1.5; // Tăng 50% tỉ lệ rơi trang bị
+            if (isBossLoot || !m.small) {
+                equipTotalMul *= bossMutationEquipMultiplier(m); // Tăng theo bậc cảnh giới / dị biến của Đại Boss
+            }
+            const dropChance = Math.min(0.10, sourceRate * equipTotalMul);
             if (this.rng() >= dropChance) continue;
             if (!this.canCreate('item', def.id)) continue;
             const item = this.addEquip(p, def, now);
@@ -4316,7 +4373,8 @@ class Game {
                             }
                         }
 
-                        if (d.equipDrop && this.rng() < 0.03) {
+                        // Boss Cổ Động rơi trang bị: tăng 50% tỉ lệ rơi (0.03 -> 0.045)
+                        if (d.equipDrop && this.rng() < 0.045) {
                             const eqDef = C.EQUIP_BY_ID.get(d.equipDrop);
                             if (eqDef) {
                                 const it = this.addEquip(p, eqDef, now);
@@ -13775,7 +13833,8 @@ class Game {
                 }
             }
 
-            if (d.equipDrop && this.rng() < 0.03) {
+            // Boss Cổ Động rơi trang bị: tăng 50% tỉ lệ rơi (0.03 -> 0.045)
+            if (d.equipDrop && this.rng() < 0.045) {
                 const eqDef = C.EQUIP_BY_ID.get(d.equipDrop);
                 if (eqDef) {
                     const it = this.addEquip(p, eqDef, now);
@@ -15276,4 +15335,4 @@ function describeSkill(s) {
 }
 
 
-module.exports = { Game, Battle, GameError, vnDate, vnHour, isNight, itemName, describeSkill, SUB_STAGES };
+module.exports = { Game, Battle, GameError, vnDate, vnHour, isNight, getTimePhase, itemName, describeSkill, SUB_STAGES, bossMutationEquipMultiplier, rawMonsterDropChance };

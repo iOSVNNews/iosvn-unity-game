@@ -97,6 +97,77 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     const game = new Game({ store, realms });
     const rates = new Map();
 
+    const requireTownRealm = (userId, townId) => {
+        const town = C.TOWN_BY_ID.get(String(townId || ''));
+        if (!town) return;
+        const realm = game.realmOf(userId);
+        if (realm.index < town.realmMin)
+            throw new GameError(`Cần đạt ${town.realmMinName || `cảnh giới ${town.realmMin}`} mới được tham gia nội dung ở ${town.name}.`);
+    };
+
+    const isDemon = player => Boolean(player?.isDemon) ||
+        ((Number(player?.maScore) || 0) > 0 && (Number(player?.maScore) || 0) > Math.max(0, Number(player?.daoScore ?? player?.daoTam ?? 100)));
+    const getTitleState = player => {
+        if (!player?.registered || player.isNpc) return [];
+        const candidates = Object.values(game.data.players || {}).filter(other =>
+            other?.registered && !other.isNpc && !game.isHiddenFromPlayers(other) &&
+            Boolean(other.ascended) === Boolean(player.ascended) && !isDemon(other) &&
+            game.isPvpActive(other, game.now())
+        );
+        candidates.sort((a, b) =>
+            (Number(b.pvp?.points) || 1000) - (Number(a.pvp?.points) || 1000) ||
+            (Number(b.pvp?.wins) || 0) - (Number(a.pvp?.wins) || 0) ||
+            String(a.userId).localeCompare(String(b.userId))
+        );
+        const rank = candidates.findIndex(other => String(other.userId) === String(player.userId)) + 1;
+        const pvp = player.pvp || {};
+        const wins = Number(pvp.wins) || 0;
+        const points = Number(pvp.points) || 1000;
+        const realmIndex = Number(game.realmOf(player.userId)?.index) || 0;
+        const maScore = Number(player.maScore) || 0;
+        return [
+            {
+                id: 'nhan_hoang', name: 'Nhân Hoàng', active: !isDemon(player) && wins >= 10 && rank === 1,
+                requirement: 'Thắng ít nhất 10 trận PvP và đứng hạng 1 bảng đấu cùng giới.',
+                maintain: 'Giữ hạng 1; mất hạng sẽ mất danh hiệu và buff.', buff: '+12% khí huyết, +12% phòng ngự',
+            },
+            {
+                id: 'thien_kieu', name: 'Thiên Kiêu', active: !isDemon(player) && wins >= 5 && realmIndex >= 5 && points >= 1200 && rank <= 10,
+                requirement: 'Đạt Nguyên Anh (cảnh giới 5), có 5 trận thắng, 1.200 điểm và lọt top 10.',
+                maintain: 'Duy trì cảnh giới, 1.200 điểm và top 10; tụt điều kiện sẽ mất danh hiệu và buff.', buff: '+10% công kích, +10% tốc độ',
+            },
+            {
+                id: 'thien_ma', name: 'Thiên Ma', active: maScore >= 1000,
+                requirement: 'Tích lũy ít nhất 1.000 Ma Tính.',
+                maintain: 'Giữ Ma Tính từ 1.000 trở lên; dưới ngưỡng sẽ mất danh hiệu và buff.', buff: '+15% công kích, +10% khí huyết',
+            },
+        ].map(title => ({ ...title, rank: title.id === 'thien_ma' ? 0 : rank }));
+    };
+
+    const baseStats = game.stats.bind(game);
+    game.stats = (player, now) => {
+        const result = baseStats(player, now);
+        const titles = getTitleState(player);
+        const active = new Set(titles.filter(title => title.active).map(title => title.id));
+        const multiply = (key, factor) => { result[key] = Math.round((Number(result[key]) || 0) * factor); };
+        if (active.has('nhan_hoang')) { multiply('hp', 1.12); multiply('def', 1.12); }
+        if (active.has('thien_kieu')) { multiply('atk', 1.10); multiply('spd', 1.10); }
+        if (active.has('thien_ma')) { multiply('atk', 1.15); multiply('hp', 1.10); }
+        if (active.size) {
+            const realmIndex = Number(result.realmIndex) || 0;
+            result.power = Math.round(result.atk * 2 + result.def * 1.5 + result.hp / 10 + result.spd + result.sense + realmIndex * 150 + Math.pow(realmIndex, 2) * 20);
+        }
+        result.titleBuffs = titles.filter(title => title.active).map(title => title.id);
+        return result;
+    };
+
+    const baseView = game.view.bind(game);
+    game.view = userId => {
+        const view = baseView(userId);
+        if (view.player) view.player.titles = getTitleState(game.player(userId));
+        return view;
+    };
+
     function send(res, status, body) {
         res.writeHead(status, {
             'Cache-Control': 'no-store',
@@ -143,6 +214,19 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
 
     const routes = {
         'GET /api/state': ({ user }) => game.view(user.id),
+        'GET /api/map/catalog': () => ({
+            maps: C.MAPS,
+            towns: C.TOWNS,
+            dungeons: C.DUNGEONS.map(({ id, name, icon, townId, realmMin, stamina, desc }) => ({ id, name, icon, townId, realmMin, stamina, desc })),
+            monsters: Array.from(C.MONSTER_BY_ID.values()).map(({ id, name, icon, realm, element }) => ({ id, name, icon, realm, element })),
+        }),
+        'POST /api/travel': ({ user, body }) => {
+            const townId = String(body.toTownId || '');
+            const target = C.TOWN_BY_ID.get(townId);
+            if (target) requireTownRealm(user.id, townId);
+            const travel = game.travel(user.id, townId);
+            return { travel, state: game.view(user.id) };
+        },
         'POST /api/register': ({ user, body }) => {
             const profile = { ...user, first_name: String(body.name || user.first_name).slice(0, 40) };
             const result = game.register(profile, body);
@@ -154,8 +238,22 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         },
         'GET /api/world/monsters': ({ user }) => ({ list: game.getWorldMonsters(user.id) }),
         'POST /api/world/hunt': ({ user, body }) => {
+            requireTownRealm(user.id, game.player(user.id)?.town);
             const battle = game.startWorldHunt(user.id, String(body.monsterUid || ''));
             return { ...battle.view(game.now(), user.id), state: game.view(user.id) };
+        },
+        'POST /api/dungeon/enter': ({ user, body }) => {
+            const dungeon = C.DUNGEON_BY_ID.get(String(body.dungeonId || ''));
+            requireTownRealm(user.id, dungeon?.townId || game.player(user.id)?.town);
+            const result = game.startDungeonBattle(user.id, String(body.dungeonId || ''));
+            return { ...result, state: game.view(user.id) };
+        },
+        'POST /api/dungeon/next-stage': ({ user }) => {
+            const active = game.player(user.id)?.activeDungeon;
+            if (!active || Number(active.stageIndex) + 1 >= Number(active.totalStages))
+                return { completed: true, message: 'Đã vượt qua toàn bộ bí cảnh.' };
+            const result = game.nextDungeonStage(user.id);
+            return { ...result, state: game.view(user.id) };
         },
         'GET /api/battle/current': ({ user }) => {
             const battle = game.battle(user.id);
@@ -166,6 +264,16 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             if (!battle) throw Object.assign(new GameError('Không có trận đấu đang diễn ra.'), { status: 409 });
             const result = battle.act(game.now(), body, user.id);
             return { result, battle: battle.view(game.now(), user.id), state: game.view(user.id) };
+        },
+        'GET /api/pvp': ({ user }) => game.pvpList(user.id),
+        'POST /api/pvp/fight': ({ user, body }) => {
+            const result = game.pvpManualFight(user.id, String(body.targetId || ''));
+            return { ...result, state: game.view(user.id) };
+        },
+        'GET /api/pvp/battle': ({ user }) => ({ battle: game.getPvpBattle(user.id) }),
+        'POST /api/pvp/action': ({ user, body }) => {
+            const battle = game.pvpManualAction(user.id, String(body.battleId || ''), String(body.act || 'attack'), body.skillId || null);
+            return { battle, state: game.view(user.id) };
         },
     };
 
