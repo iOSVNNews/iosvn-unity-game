@@ -6,7 +6,7 @@ ENV NODE_ENV=production \
     IPA_PORT=8788 \
     IPA_DATA_DIR=/data
 
-COPY package.json ipa_server.js email_auth_store.js ./
+COPY ipa_server.js email_auth_store.js ./
 COPY ipa_core ./ipa_core
 
 RUN mkdir -p /data && chown -R node:node /app /data
