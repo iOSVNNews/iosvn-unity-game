@@ -602,6 +602,7 @@ namespace IOSVN.TuTien.Core
 
         private void OpenWorldAtlas(GameState state)
         {
+            StopExplorationMovement(savePosition: true);
             if (!atlasRealmInitialized)
             {
                 atlasImmortalRealm = IsImmortalRealm(state);
@@ -626,6 +627,7 @@ namespace IOSVN.TuTien.Core
         private void RenderExplorationMap(GameState state)
         {
             latestState = state;
+            StopExplorationMovement(savePosition: true);
             if (atlasMapRoot != null) { Destroy(atlasMapRoot); atlasMapRoot = null; atlasLayer = null; }
             if (explorationMapRoot != null) Destroy(explorationMapRoot);
             if (explorationTexture != null) Destroy(explorationTexture);
@@ -1030,6 +1032,14 @@ namespace IOSVN.TuTien.Core
             });
         }
 
+        private void StopExplorationMovement(bool savePosition)
+        {
+            if (explorationMovement == null) return;
+            StopCoroutine(explorationMovement);
+            explorationMovement = null;
+            if (savePosition) SaveExplorationPosition();
+        }
+
         private static string ExplorationSaveKey(GameState state, MapInfo map) => "tutien.world." + (state?.player?.userId ?? "guest") + "." + (map?.id ?? "unknown");
 
         private void UpdateExplorationPlayerPosition()
@@ -1371,7 +1381,7 @@ namespace IOSVN.TuTien.Core
         {
             if (!landscape)
             {
-                if (explorationMovement != null) { StopCoroutine(explorationMovement); explorationMovement = null; }
+                StopExplorationMovement(savePosition: true);
                 if (explorationMapRoot != null) { Destroy(explorationMapRoot); explorationMapRoot = null; }
                 if (explorationTexture != null) { Destroy(explorationTexture); explorationTexture = null; }
                 explorationMapRect = null; explorationViewport = null; explorationMiniMap = null;
