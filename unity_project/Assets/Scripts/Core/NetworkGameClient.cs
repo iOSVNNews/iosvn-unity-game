@@ -6,7 +6,7 @@ using UnityEngine.Networking;
 
 namespace IOSVN.TuTien.Core
 {
-    [Serializable] public class ApiResult { public bool ok; public string error; public string message; public string accessToken; public long expiresAt; }
+    [Serializable] public class ApiResult { public bool ok; public string error; public string message; public string accessToken; public long expiresAt; public bool verificationRequired; public string email; public string code; }
     [Serializable] public class ChoiceInfo { public string id; public string name; }
     [Serializable] public class GameCatalog { public ChoiceInfo[] mon; public ChoiceInfo[] he; }
     [Serializable] public class RealmInfo { public int index; public string name; public int sub; public long experience; }
@@ -29,6 +29,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class MapCatalogEnvelope { public MapCatalog catalog; }
     [Serializable] public class MonsterList { public WorldMonster[] list; }
     [Serializable] public class EmailCredentials { public string email; public string password; }
+    [Serializable] public class EmailVerificationChoice { public string email; public string code; }
     [Serializable] public class EmptyPayload { }
     [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; }
     [Serializable] public class HuntChoice { public string monsterUid; }
@@ -94,6 +95,21 @@ namespace IOSVN.TuTien.Core
             {
                 var result = Parse<ApiResult>(response);
                 if (response.ok && result != null && !string.IsNullOrEmpty(result.accessToken)) accessToken = result.accessToken;
+                done?.Invoke(result ?? new ApiResult { ok = false, error = response.error });
+            }, authenticated: false));
+
+        public void VerifyEmail(string email, string code, Action<ApiResult> done) =>
+            StartCoroutine(PostJson("/auth/email/verify", new EmailVerificationChoice { email = email, code = code }, response =>
+            {
+                var result = Parse<ApiResult>(response);
+                if (response.ok && result != null && !string.IsNullOrEmpty(result.accessToken)) accessToken = result.accessToken;
+                done?.Invoke(result ?? new ApiResult { ok = false, error = response.error });
+            }, authenticated: false));
+
+        public void ResendEmailVerification(string email, Action<ApiResult> done) =>
+            StartCoroutine(PostJson("/auth/email/resend", new EmailCredentials { email = email }, response =>
+            {
+                var result = Parse<ApiResult>(response);
                 done?.Invoke(result ?? new ApiResult { ok = false, error = response.error });
             }, authenticated: false));
 
@@ -251,7 +267,7 @@ namespace IOSVN.TuTien.Core
 
         private static T Parse<T>(Response response) where T : class
         {
-            if (!response.ok || string.IsNullOrWhiteSpace(response.body)) return null;
+            if (string.IsNullOrWhiteSpace(response.body)) return null;
             try { return JsonUtility.FromJson<T>(response.body); }
             catch (Exception ex) { Debug.LogWarning("Không đọc được phản hồi game: " + ex.Message); return null; }
         }

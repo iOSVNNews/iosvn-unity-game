@@ -35,6 +35,10 @@ namespace IOSVN.TuTien.Core
         private InputField nameInput;
         private InputField emailInput;
         private InputField passwordInput;
+        private InputField verificationCodeInput;
+        private string pendingVerificationEmail;
+        private bool offlinePreview;
+        private GameState offlinePreviewState;
         private string[] sectNames;
         private string[] elementNames;
         private string gender = "nam";
@@ -116,6 +120,7 @@ namespace IOSVN.TuTien.Core
 
         private void ShowLogin(string patchMessage = null)
         {
+            statusMin = new Vector2(0.02f, 0.015f); statusMax = new Vector2(0.98f, 0.075f);
             ClearContent();
             GameLogo(new Vector2(0.12f, 0.71f), new Vector2(0.88f, 0.96f));
             Label("Đăng nhập để tiếp tục hành trình", 22, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.64f), new Vector2(0.96f, 0.70f));
@@ -124,6 +129,7 @@ namespace IOSVN.TuTien.Core
             passwordInput = Input("Mật khẩu", "password", new Vector2(0.06f, 0.44f), new Vector2(0.94f, 0.52f), true);
             Button("ĐĂNG NHẬP", new Vector2(0.06f, 0.33f), new Vector2(0.94f, 0.41f), Gold, () => SubmitAuth(false));
             Button("TẠO TÀI KHOẢN EMAIL", new Vector2(0.06f, 0.22f), new Vector2(0.94f, 0.30f), Panel, () => SubmitAuth(true));
+            Button("XEM BẢN ĐỒ NGOẠI TUYẾN", new Vector2(0.06f, 0.105f), new Vector2(0.94f, 0.185f), Panel, EnterOfflinePreview);
             ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
         }
 
@@ -134,9 +140,15 @@ namespace IOSVN.TuTien.Core
                 ShowStatus("Nhập email và mật khẩu trước.");
                 return;
             }
+            var email = emailInput.text.Trim();
             ShowStatus(createAccount ? "Đang tạo tài khoản..." : "Đang đăng nhập...");
             Action<ApiResult> finish = result =>
             {
+                if (result?.verificationRequired == true)
+                {
+                    ShowEmailVerification(result.email ?? email, result.message ?? result.error);
+                    return;
+                }
                 if (result == null || !result.ok)
                 {
                     var detail = result?.error;
@@ -147,8 +159,99 @@ namespace IOSVN.TuTien.Core
                 }
                 LoadState();
             };
-            if (createAccount) client.SignUp(emailInput.text.Trim(), passwordInput.text, finish);
-            else client.Login(emailInput.text.Trim(), passwordInput.text, finish);
+            if (createAccount) client.SignUp(email, passwordInput.text, finish);
+            else client.Login(email, passwordInput.text, finish);
+        }
+
+        private void ShowEmailVerification(string email, string message = null)
+        {
+            pendingVerificationEmail = email?.Trim();
+            statusMin = new Vector2(0.02f, 0.015f); statusMax = new Vector2(0.98f, 0.075f);
+            ClearContent();
+            GameLogo(new Vector2(0.12f, 0.75f), new Vector2(0.88f, 0.98f));
+            Label("XÁC MINH EMAIL", 27, Gold, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.67f), new Vector2(0.96f, 0.73f));
+            Label("Nhập mã 6 số đã gửi tới\n" + pendingVerificationEmail, 18, Muted, TextAnchor.MiddleCenter, new Vector2(0.06f, 0.57f), new Vector2(0.94f, 0.66f));
+            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(0.06f, 0.45f), new Vector2(0.94f, 0.53f), false);
+            verificationCodeInput.contentType = InputField.ContentType.IntegerNumber;
+            verificationCodeInput.characterLimit = 6;
+            verificationCodeInput.keyboardType = TouchScreenKeyboardType.NumberPad;
+            Button("XÁC MINH VÀO GAME", new Vector2(0.06f, 0.34f), new Vector2(0.94f, 0.42f), Gold, SubmitEmailVerification);
+            Button("GỬI LẠI MÃ", new Vector2(0.06f, 0.23f), new Vector2(0.94f, 0.31f), Panel, ResendEmailVerification);
+            Button("QUAY LẠI ĐĂNG NHẬP", new Vector2(0.06f, 0.12f), new Vector2(0.94f, 0.20f), Panel, () => ShowLogin());
+            ShowStatus(string.IsNullOrWhiteSpace(message) ? "Mã có hiệu lực trong 10 phút." : message);
+        }
+
+        private void SubmitEmailVerification()
+        {
+            if (string.IsNullOrWhiteSpace(pendingVerificationEmail) || string.IsNullOrWhiteSpace(verificationCodeInput?.text))
+            {
+                ShowStatus("Nhập mã 6 số trong email trước.");
+                return;
+            }
+            ShowStatus("Đang xác minh email...");
+            client.VerifyEmail(pendingVerificationEmail, verificationCodeInput.text.Trim(), result =>
+            {
+                if (result == null || !result.ok) { ShowStatus(result?.error ?? "Không xác minh được email."); return; }
+                pendingVerificationEmail = null;
+                LoadState();
+            });
+        }
+
+        private void ResendEmailVerification()
+        {
+            if (string.IsNullOrWhiteSpace(pendingVerificationEmail)) { ShowLogin(); return; }
+            ShowStatus("Đang gửi lại mã xác minh...");
+            client.ResendEmailVerification(pendingVerificationEmail, result =>
+            {
+                ShowStatus(result?.message ?? result?.error ?? "Đã yêu cầu gửi lại mã.");
+            });
+        }
+
+        private void EnterOfflinePreview()
+        {
+            var catalogAsset = Resources.Load<TextAsset>("MapCatalog");
+            if (catalogAsset == null)
+            {
+                ShowStatus("Thiếu danh mục bản đồ ngoại tuyến trong bản cài.");
+                return;
+            }
+            mapCatalog = JsonUtility.FromJson<MapCatalog>(catalogAsset.text);
+            var town = FirstTownInAtlas(false);
+            if (mapCatalog?.maps == null || mapCatalog.maps.Length == 0 || town == null)
+            {
+                ShowStatus("Danh mục bản đồ ngoại tuyến không hợp lệ.");
+                return;
+            }
+            offlinePreview = true;
+            offlinePreviewState = new GameState
+            {
+                registered = true,
+                town = town,
+                realm = new RealmInfo { index = 0, name = town.realmMinName ?? "Phàm Nhân" },
+                player = new PlayerInfo { userId = "offline-preview", name = "Đạo hữu", fullName = "Đạo hữu · Ngoại tuyến", ascended = false },
+                worldMonsters = Array.Empty<WorldMonster>()
+            };
+            latestState = offlinePreviewState;
+            atlasRealmInitialized = true;
+            atlasImmortalRealm = false;
+            atlasSelectedTown = town;
+            atlasSelectedDungeon = null;
+            atlasSelectionKind = "town";
+            atlasInfoExpanded = false;
+            SetRealmMusic(offlinePreviewState);
+            SetAtlasOrientation(true);
+            ShowMap(offlinePreviewState);
+            ShowStatus("Đang xem bản đồ offline. Đăng nhập, di chuyển và chiến đấu cần máy chủ online.");
+        }
+
+        private void ReturnFromWorldAtlas(GameState state)
+        {
+            if (!offlinePreview) { LoadState(); return; }
+            offlinePreview = false;
+            offlinePreviewState = null;
+            pendingVerificationEmail = null;
+            SetAtlasOrientation(false);
+            ShowLogin("Bản xem ngoại tuyến chỉ để duyệt bản đồ.");
         }
 
         private void LoadState()
@@ -330,23 +433,23 @@ namespace IOSVN.TuTien.Core
                 if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
                 {
                     Button("TỚI THÀNH", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
-                        () => TravelTo(atlasSelectedTown), info.transform);
+                        () => { if (offlinePreview) ShowStatus("Bản xem offline không di chuyển thành trấn."); else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("VÀO ĐỘNG", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (state.town?.id != atlasSelectedTown?.id) ShowStatus("Hãy tới thành trấn gắn với cổ động này trước."); else { SetAtlasOrientation(false); EnterDungeon(atlasSelectedDungeon.id); } }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("Vào cổ động cần máy chủ online."); else if (state.town?.id != atlasSelectedTown?.id) ShowStatus("Hãy tới thành trấn gắn với cổ động này trước."); else { SetAtlasOrientation(false); EnterDungeon(atlasSelectedDungeon.id); } }, info.transform);
                 }
                 else if (atlasSelectionKind == "monsters")
                 {
                     Button(state.town?.id == atlasSelectedTown?.id ? "SĂN TIỂU YÊU" : "TỚI BÃI QUÁI", new Vector2(0.04f, 0.07f), new Vector2(0.55f, 0.25f), Gold,
-                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("Săn yêu thú cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("PVP", new Vector2(0.59f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("PVP cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
                 }
                 else
                 {
                     Button(state.town?.id == atlasSelectedTown?.id ? "PVE" : "NGỰ KIẾM TỚI", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
-                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("PVE và di chuyển cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("PVP", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("PVP cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
                 }
             }
 
@@ -354,7 +457,7 @@ namespace IOSVN.TuTien.Core
             var caveCount = CountAtlasDungeons(towns);
             var monsterZoneCount = CountAtlasMonsterZones(towns);
             var top = PanelObject("AtlasTopBar", content.transform, new Vector2(0.008f, 0.91f), new Vector2(0.992f, 0.99f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 208));
-            Button("×", new Vector2(0.008f, 0.08f), new Vector2(0.065f, 0.92f), Panel, LoadState, top.transform);
+            Button("×", new Vector2(0.008f, 0.08f), new Vector2(0.065f, 0.92f), Panel, () => ReturnFromWorldAtlas(state), top.transform);
             Label("THIÊN HẠ", 20, Gold, TextAnchor.MiddleCenter, new Vector2(0.07f, 0.08f), new Vector2(0.17f, 0.92f), top.transform);
             Button((atlasShowTowns ? "● " : "○ ") + "Thành " + townCount, new Vector2(0.18f, 0.08f), new Vector2(0.31f, 0.92f), atlasShowTowns ? Panel : Ink,
                 () => { atlasShowTowns = !atlasShowTowns; RenderWorldAtlas(state); }, top.transform);
@@ -692,6 +795,12 @@ namespace IOSVN.TuTien.Core
         private void ShowBattleMapSet(GameState state, bool immortal)
         {
             SetAtlasOrientation(false);
+            if (offlinePreview && mapCatalog != null)
+            {
+                RenderBattleMapSet(state, immortal);
+                ShowStatus("Bản xem offline · các hoạt động chiến đấu cần máy chủ online.");
+                return;
+            }
             ShowStatus("Đang đồng bộ bộ map và map Cổ Động đang mở...");
             client.LoadMapCatalog((catalog, error) =>
             {
@@ -768,6 +877,7 @@ namespace IOSVN.TuTien.Core
 
         private void TravelTo(TownInfo town)
         {
+            if (offlinePreview) { ShowStatus("Di chuyển cần máy chủ online."); return; }
             if (town == null) { ShowStatus("Chưa chọn thành trấn hợp lệ."); return; }
             if (latestState?.town?.id == town.id) { ShowStatus("Đạo hữu đang ở thành này."); return; }
             var targetMap = FindMap(town.mapId);

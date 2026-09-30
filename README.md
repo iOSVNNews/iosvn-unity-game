@@ -21,9 +21,10 @@ IPA unsigned được lưu thành Actions artifact và đính kèm vào Release.
 
 - Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
 - App dùng tên **Tu Tiên Giới** và Bundle ID mặc định `com.iosvn.tutiengioi`; chỉ đặt variable `IOS_BUNDLE_ID` nếu cần ghi đè. Mỗi người ký bằng chứng chỉ riêng phải dùng provisioning profile cho phép Bundle ID này. Profile wildcard tương thích cũng có thể cho phép app mà không cần đăng ký ID tường minh.
-- Variable `IPA_SERVER_URL`.
+- Variable `IPA_SERVER_URL` is the HTTPS base URL of the dedicated IPA API and ends in `/api`.
 - Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
 - Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
+- Gmail sender for the dedicated server: environment values `GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD`.
 
 Thiếu Unity license thì workflow ghi thông báo và bỏ qua build. Runner macOS của repo private dùng quota phút GitHub Actions và có thể bị tính phí theo gói.
 
@@ -34,16 +35,19 @@ Trên Windows, vào **Unity Hub > Preferences > Licenses > Add > Get a free pers
 Workflow có thể đóng gói server email riêng trong container và đẩy lên `ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test`. Container lắng nghe cổng `8788`; gắn volume vào `/data` để giữ tài khoản và nhân vật qua lần khởi động lại. Ví dụ chạy:
 
 ```sh
-docker run --name iosvn-ipa-server -p 8788:8788 -v iosvn-ipa-data:/data ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test
+docker run --name iosvn-ipa-server --env-file ipa_server.env -p 8788:8788 -v iosvn-ipa-data:/data ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test
 ```
 
-Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA.
+Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA. Đăng ký email gửi mã xác minh 6 số qua Gmail; cần tạo Google App Password cho mailbox gửi thư rồi đặt vào `GMAIL_SMTP_APP_PASSWORD` trên máy chủ. Không nhúng mật khẩu Gmail vào IPA hoặc Git.
+
+Khi chưa chọn máy chủ, màn đăng nhập có nút **XEM BẢN ĐỒ NGOẠI TUYẾN**. Nút này mở dữ liệu bản đồ đóng gói trong app để xem 8 châu Phàm Giới, 11 vùng Tiên Giới, 65 thành, 65 cổ động và bãi tiểu yêu. Di chuyển, đăng nhập và chiến đấu cần máy chủ game online.
 
 ## Hiện trạng
 
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
 - Server IPA: `ipa_server.js`; chưa có domain HTTPS hoặc nhà cung cấp máy chủ.
-- Bản đồ Phàm Giới/Tiên Giới, profile tùy biến, pixel art mới và kết bạn vẫn là yêu cầu thiết kế, chưa được dựng thành game.
+- Atlas Phàm Giới/Tiên Giới có thể mở ngoại tuyến để duyệt; đăng nhập email, xác minh Gmail, lưu nhân vật và gameplay online cần máy chủ HTTPS riêng.
+- Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; workflow có thể build image server nhưng chưa triển khai máy chủ.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
 
 Để build trên GitHub Actions cần cấu hình Unity Personal secrets. Xuất IPA cài trên iPhone còn cần Apple signing secrets và bundle ID khớp provisioning profile.

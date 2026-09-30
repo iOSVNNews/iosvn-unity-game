@@ -10,6 +10,7 @@ const { GameStore } = require('./ipa_core/store');
 const C = require('./ipa_core/catalog');
 const { getBattleMapSets } = require('./ipa_core/mode_maps');
 const { EmailAuthStore } = require('./email_auth_store');
+const { createGmailMailer } = require('./gmail_mailer');
 
 const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.IPA_DATA_DIR || path.join(ROOT, 'server_data'));
@@ -94,6 +95,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const store = new GameStore(path.join(DATA_DIR, 'ipa_game_data.json'));
     const auth = new EmailAuthStore(path.join(DATA_DIR, 'ipa_auth_data.json'));
+    const gmail = createGmailMailer();
     const realms = createRealmProgress(store);
     const game = new Game({ store, realms });
     const rates = new Map();
@@ -332,7 +334,37 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             if (url.pathname === '/api/auth/email/register' && req.method === 'POST') {
                 if (limited(`signup:${peer}`, 10)) return send(res, 429, { error: 'Thử tạo tài khoản quá nhiều lần. Hãy chờ rồi thử lại.' });
                 const result = await auth.register(body.email, body.password);
+                try {
+                    await gmail.sendVerificationCode(result.email, result.verificationCode);
+                } catch (error) {
+                    auth.removeUnverified(result.email);
+                    logger.error('[IPA mail] Verification email could not be sent:', error.code || 'smtp_error');
+                    throw Object.assign(new Error(error.status === 503
+                        ? error.message
+                        : 'Không gửi được email xác minh. Hãy thử lại sau.'), { status: 503, code: error.code || 'email_delivery_failed' });
+                }
+                delete result.verificationCode;
+                result.message = 'Đã gửi mã xác minh 6 số tới email của bạn.';
                 return send(res, 201, result);
+            }
+            if (url.pathname === '/api/auth/email/verify' && req.method === 'POST') {
+                if (limited(`verify:${peer}`, 15, 10 * 60_000)) return send(res, 429, { ok: false, error: 'Thử xác minh quá nhiều lần. Hãy chờ rồi thử lại.' });
+                return send(res, 200, auth.verifyEmail(body.email, body.code));
+            }
+            if (url.pathname === '/api/auth/email/resend' && req.method === 'POST') {
+                if (limited(`resend:${peer}`, 5, 10 * 60_000)) return send(res, 429, { ok: false, error: 'Thử gửi mã quá nhiều lần. Hãy chờ rồi thử lại.' });
+                const request = auth.createVerificationCode(body.email);
+                if (request) {
+                    try {
+                        await gmail.sendVerificationCode(request.email, request.verificationCode);
+                    } catch (error) {
+                        logger.error('[IPA mail] Verification email could not be resent:', error.code || 'smtp_error');
+                        throw Object.assign(new Error(error.status === 503
+                            ? error.message
+                            : 'Không gửi được email xác minh. Hãy thử lại sau.'), { status: 503, code: error.code || 'email_delivery_failed' });
+                    }
+                }
+                return send(res, 200, { ok: true, message: 'Nếu email đang chờ xác minh, mã mới đã được gửi.' });
             }
             if (url.pathname === '/api/auth/email/login' && req.method === 'POST') {
                 if (limited(`login:${peer}`, 20)) return send(res, 429, { error: 'Đăng nhập quá nhiều lần. Hãy chờ rồi thử lại.' });
@@ -353,7 +385,13 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         } catch (error) {
             const status = Number(error.status) || (error instanceof GameError ? 400 : 500);
             if (status >= 500) logger.error('[IPA server]', error.stack || error);
-            return send(res, status, { error: status >= 500 ? 'Máy chủ gặp lỗi.' : error.message });
+            return send(res, status, {
+                ok: false,
+                error: status >= 500 ? (error.status === 503 ? error.message : 'Máy chủ gặp lỗi.') : error.message,
+                code: error.code || '',
+                verificationRequired: Boolean(error.verificationRequired),
+                email: error.email || '',
+            });
         }
     });
 
@@ -361,7 +399,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     ticker.unref?.();
     server.on('error', error => logger.error('[IPA server]', error.message));
     server.listen(port, host, () => logger.log(`[IPA server] Listening on http://${host}:${port}; saves: ${DATA_DIR}`));
-    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); server.close(); } };
+    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); gmail.close(); server.close(); } };
 }
 
 if (require.main === module) createIpaServer();
