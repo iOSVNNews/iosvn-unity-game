@@ -11,7 +11,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class GameCatalog { public ChoiceInfo[] mon; public ChoiceInfo[] he; }
     [Serializable] public class RealmInfo { public int index; public string name; public int sub; public long experience; }
     [Serializable] public class MapInfo { public string id; public string name; public string provinceName; public string desc; public int realmMin; public int realmMax; public bool ascensionRequired; public string realmMinName; public string realmMaxName; public string[] townIds; }
-    [Serializable] public class TownInfo { public string id; public string name; public string mapId; public string icon; public string desc; public int realmMin; public string realmMinName; public string[] monsterPool; }
+    [Serializable] public class TownInfo { public string id; public string name; public string mapId; public string icon; public string desc; public int realmMin; public string realmMinName; public int x; public int y; public string[] monsterPool; }
     [Serializable] public class DungeonInfo { public string id; public string name; public string icon; public string townId; public int realmMin; public int stamina; public string desc; }
     [Serializable] public class MonsterInfo { public string id; public string name; public string icon; public int realm; public string element; }
     [Serializable] public class BattleMapInfo { public string id; public string name; public string description; public string terrain; public string layout; public string[] palette; public string weather; public string visualThemeId; public bool isActive; }

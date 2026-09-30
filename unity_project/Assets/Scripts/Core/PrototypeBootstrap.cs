@@ -21,6 +21,9 @@ namespace IOSVN.TuTien.Core
 
         private NetworkGameClient client;
         private Canvas canvas;
+        private CanvasScaler canvasScaler;
+        private Transform backgroundRoot;
+        private GameObject atlasMapRoot;
         private Text status;
         private Text patchStatus;
         private GameObject content;
@@ -40,6 +43,22 @@ namespace IOSVN.TuTien.Core
         private Text genderChoice;
         private Text sectChoice;
         private Text elementChoice;
+        private bool atlasRealmInitialized;
+        private bool atlasImmortalRealm;
+        private bool atlasShowTowns = true;
+        private bool atlasShowDungeons = true;
+        private bool atlasShowMonsterZones = true;
+        private float atlasZoom = 1f;
+        private Transform atlasLayer;
+        private TownInfo atlasSelectedTown;
+        private DungeonInfo atlasSelectedDungeon;
+        private string atlasSelectionKind = "town";
+        private bool atlasInfoExpanded;
+        private int buttonFontSize = 20;
+        private Slider atlasZoomSlider;
+        private static Sprite atlasTownSprite;
+        private static Sprite atlasDungeonSprite;
+        private static Sprite atlasMonsterSprite;
 
         private void Awake()
         {
@@ -79,6 +98,7 @@ namespace IOSVN.TuTien.Core
             canvas = canvasObject.GetComponent<Canvas>();
             canvas.renderMode = RenderMode.ScreenSpaceOverlay;
             var scaler = canvasObject.GetComponent<CanvasScaler>();
+            canvasScaler = scaler;
             scaler.uiScaleMode = CanvasScaler.ScaleMode.ScaleWithScreenSize;
             scaler.referenceResolution = new Vector2(1080, 1920);
             scaler.matchWidthOrHeight = 0.5f;
@@ -87,6 +107,7 @@ namespace IOSVN.TuTien.Core
                 new GameObject("EventSystem", typeof(EventSystem), typeof(StandaloneInputModule));
 
             var background = PanelObject("Background", canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Ink);
+            backgroundRoot = background.transform;
             var safeArea = new GameObject("SafeArea", typeof(RectTransform), typeof(SafeAreaFitter));
             safeArea.transform.SetParent(background.transform, false);
             Place(safeArea.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
@@ -132,6 +153,7 @@ namespace IOSVN.TuTien.Core
 
         private void LoadState()
         {
+            SetAtlasOrientation(false);
             ShowStatus("Đang tải hồ sơ từ máy chủ...");
             client.LoadState((state, error) =>
             {
@@ -190,6 +212,11 @@ namespace IOSVN.TuTien.Core
         private void ShowHome(GameState state)
         {
             latestState = state;
+            atlasImmortalRealm = IsImmortalRealm(state);
+            atlasRealmInitialized = true;
+            atlasSelectedTown = state.town;
+            atlasSelectedDungeon = null;
+            atlasSelectionKind = "town";
             SetRealmMusic(state);
             ClearContent();
             Label("TU TIÊN  •  CỬU CHÂU", 28, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
@@ -222,33 +249,392 @@ namespace IOSVN.TuTien.Core
                 });
                 return;
             }
-
-            ClearContent();
-            var here = state.town?.name ?? "Chưa rõ thành";
-            Label("BẢN ĐỒ CỬU CHÂU", 29, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
-            Label($"Đang ở: {here}  •  {state.realm?.name ?? "Sơ nhập"}", 18, Muted, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.82f), new Vector2(0.98f, 0.88f));
-            Button("PVE THÀNH NÀY", new Vector2(0.02f, 0.755f), new Vector2(0.48f, 0.81f), Panel, () => ShowPveTown(state, state.town));
-            Button("PVP THÀNH NÀY", new Vector2(0.52f, 0.755f), new Vector2(0.98f, 0.81f), Gold, () => ShowPvp(state));
-            Button("BỘ MAP PVP / PVE", new Vector2(0.02f, 0.685f), new Vector2(0.98f, 0.74f), Panel, () => ShowBattleMapSet(state, IsImmortalRealm(state)));
-            var rows = CreateScrollList("WorldMap", 0.21f, 0.67f);
-            foreach (var map in mapCatalog.maps ?? Array.Empty<MapInfo>())
+            if (!atlasRealmInitialized)
             {
-                var townCount = CountTowns(map.id);
-                var header = PanelObject("Map_" + map.id, rows, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color32(39, 48, 60, 255));
-                header.AddComponent<LayoutElement>().preferredHeight = 68;
-                var heading = header.AddComponent<HorizontalLayoutGroup>();
-                heading.padding = new RectOffset(14, 12, 5, 5); heading.childAlignment = TextAnchor.MiddleLeft; heading.childControlWidth = true; heading.childControlHeight = true; heading.childForceExpandWidth = true; heading.childForceExpandHeight = true;
-                var text = ChildText(header.transform, "MapName", 19, Cream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one);
-                text.text = $"{(map.ascensionRequired ? "✨ " : "🌏 ")}{map.name}\n{map.realmMinName ?? ""}  •  {townCount} thành";
-                foreach (var town in mapCatalog.towns ?? Array.Empty<TownInfo>())
+                atlasImmortalRealm = IsImmortalRealm(state);
+                atlasRealmInitialized = true;
+            }
+            SetAtlasOrientation(true);
+            if (atlasSelectedTown == null || !IsTownInAtlas(atlasSelectedTown, atlasImmortalRealm))
+            {
+                atlasSelectedTown = IsTownInAtlas(state.town, atlasImmortalRealm) ? state.town : FirstTownInAtlas(atlasImmortalRealm);
+                atlasSelectedDungeon = null;
+                atlasSelectionKind = "town";
+            }
+            RenderWorldAtlas(state);
+        }
+
+        private void RenderWorldAtlas(GameState state)
+        {
+            if (atlasMapRoot != null) Destroy(atlasMapRoot);
+            ClearContent();
+            statusMin = new Vector2(0.40f, 0.01f); statusMax = new Vector2(0.60f, 0.045f);
+
+            atlasMapRoot = PanelObject("AtlasFullscreenRoot", backgroundRoot, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
+            atlasMapRoot.transform.SetAsFirstSibling();
+            atlasMapRoot.GetComponent<Image>().raycastTarget = false;
+            var viewport = PanelObject("AtlasViewport", atlasMapRoot.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
+            viewport.GetComponent<Image>().raycastTarget = false;
+            viewport.AddComponent<RectMask2D>();
+            var layer = PanelObject("AtlasLayer", viewport.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.white);
+            layer.GetComponent<Image>().enabled = false;
+            atlasLayer = layer.transform;
+            atlasLayer.localScale = Vector3.one * atlasZoom;
+
+            var art = new GameObject("AtlasPainting", typeof(RectTransform), typeof(RawImage));
+            art.transform.SetParent(atlasLayer, false);
+            Place(art.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
+            var atlas = art.GetComponent<RawImage>();
+            atlas.texture = Resources.Load<Texture2D>(atlasImmortalRealm ? "Maps/TienGioi_Atlas" : "Maps/PhamGioi_Atlas");
+            atlas.color = atlas.texture == null ? new Color32(154, 126, 82, 255) : Color.white;
+            atlas.raycastTarget = false;
+
+            var maps = AtlasMaps(atlasImmortalRealm);
+            var towns = AtlasTowns(atlasImmortalRealm);
+            foreach (var map in maps) AddAtlasRegionLabel(map, towns);
+            AddAtlasLandmark("THIÊN SƠN", new Vector2(0.50f, 0.88f));
+
+            foreach (var town in towns)
+            {
+                var point = AtlasPosition(town, towns);
+                if (atlasShowTowns)
                 {
-                    if (town.mapId != map.id) continue;
-                    AddTownMapRow(rows, town, map);
+                    var current = state.town?.id == town.id;
+                    AddAtlasMarker("Town_" + town.id, point, "T", current ? Gold : Color.white,
+                        current ? 42 : 34, () => SelectAtlasTown(state, town, "town", null));
+                }
+                if (atlasShowDungeons)
+                {
+                    var caveIndex = 0;
+                    foreach (var dungeon in mapCatalog.dungeons ?? Array.Empty<DungeonInfo>())
+                    {
+                        if (dungeon.townId != town.id) continue;
+                        var offset = new Vector2(0.017f + caveIndex * 0.009f, -0.018f - caveIndex * 0.006f);
+                        AddAtlasMarker("Cave_" + dungeon.id, ClampAtlasPosition(point + offset), "D", Color.white, 32,
+                            () => SelectAtlasTown(state, town, "dungeon", dungeon));
+                        caveIndex++;
+                    }
+                }
+                if (atlasShowMonsterZones && town.monsterPool != null && town.monsterPool.Length > 0)
+                {
+                    AddAtlasMarker("Monsters_" + town.id, ClampAtlasPosition(point + new Vector2(-0.019f, 0.019f)), "Y", Color.white, 32,
+                        () => SelectAtlasTown(state, town, "monsters", null));
                 }
             }
-            Button("VỀ GAME", new Vector2(0.52f, 0.04f), new Vector2(0.98f, 0.105f), Panel, LoadState);
-            ShowStatus("19 bản đồ thế giới • hai bộ chiến trường Phàm/Tiên • bản đồ hoạt động được xem trong mục Bộ Map PVP / PVE.");
+
+            if (atlasInfoExpanded && atlasSelectedTown != null)
+            {
+                var info = PanelObject("AtlasSelectionPanel", content.transform, new Vector2(0.015f, 0.055f), new Vector2(0.34f, 0.30f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 224));
+                Label(AtlasSelectionText(state), 17, Cream, TextAnchor.UpperLeft, new Vector2(0.06f, 0.32f), new Vector2(0.94f, 0.91f), info.transform);
+                Button("×", new Vector2(0.86f, 0.82f), new Vector2(0.97f, 0.98f), Panel, () => { atlasInfoExpanded = false; RenderWorldAtlas(state); }, info.transform);
+                if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
+                {
+                    Button("TỚI THÀNH", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
+                        () => TravelTo(atlasSelectedTown), info.transform);
+                    Button("VÀO ĐỘNG", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
+                        () => { if (state.town?.id != atlasSelectedTown?.id) ShowStatus("Hãy tới thành trấn gắn với cổ động này trước."); else { SetAtlasOrientation(false); EnterDungeon(atlasSelectedDungeon.id); } }, info.transform);
+                }
+                else if (atlasSelectionKind == "monsters")
+                {
+                    Button(state.town?.id == atlasSelectedTown?.id ? "SĂN TIỂU YÊU" : "TỚI BÃI QUÁI", new Vector2(0.04f, 0.07f), new Vector2(0.55f, 0.25f), Gold,
+                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                    Button("PVP", new Vector2(0.59f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
+                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                }
+                else
+                {
+                    Button(state.town?.id == atlasSelectedTown?.id ? "PVE" : "NGỰ KIẾM TỚI", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
+                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                    Button("PVP", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
+                        () => { if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                }
+            }
+
+            var townCount = towns.Length;
+            var caveCount = CountAtlasDungeons(towns);
+            var monsterZoneCount = CountAtlasMonsterZones(towns);
+            var top = PanelObject("AtlasTopBar", content.transform, new Vector2(0.008f, 0.91f), new Vector2(0.992f, 0.99f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 208));
+            Button("×", new Vector2(0.008f, 0.08f), new Vector2(0.065f, 0.92f), Panel, LoadState, top.transform);
+            Label("THIÊN HẠ", 20, Gold, TextAnchor.MiddleCenter, new Vector2(0.07f, 0.08f), new Vector2(0.17f, 0.92f), top.transform);
+            Button((atlasShowTowns ? "● " : "○ ") + "Thành " + townCount, new Vector2(0.18f, 0.08f), new Vector2(0.31f, 0.92f), atlasShowTowns ? Panel : Ink,
+                () => { atlasShowTowns = !atlasShowTowns; RenderWorldAtlas(state); }, top.transform);
+            Button((atlasShowDungeons ? "● " : "○ ") + "Động " + caveCount, new Vector2(0.32f, 0.08f), new Vector2(0.44f, 0.92f), atlasShowDungeons ? Panel : Ink,
+                () => { atlasShowDungeons = !atlasShowDungeons; RenderWorldAtlas(state); }, top.transform);
+            Button((atlasShowMonsterZones ? "● " : "○ ") + "Tiểu yêu " + monsterZoneCount, new Vector2(0.45f, 0.08f), new Vector2(0.61f, 0.92f), atlasShowMonsterZones ? Panel : Ink,
+                () => { atlasShowMonsterZones = !atlasShowMonsterZones; RenderWorldAtlas(state); }, top.transform);
+            Button("PHÀM", new Vector2(0.63f, 0.08f), new Vector2(0.72f, 0.92f), atlasImmortalRealm ? Panel : Gold,
+                () => SetAtlasRealm(state, false), top.transform);
+            Button("TIÊN", new Vector2(0.73f, 0.08f), new Vector2(0.81f, 0.92f), atlasImmortalRealm ? Gold : Panel,
+                () => SetAtlasRealm(state, true), top.transform);
+            Button("PVP / PVE", new Vector2(0.82f, 0.08f), new Vector2(0.96f, 0.92f), Panel,
+                () => { SetAtlasOrientation(false); ShowBattleMapSet(state, atlasImmortalRealm); }, top.transform);
+            Button("−", new Vector2(0.91f, 0.045f), new Vector2(0.955f, 0.105f), Panel,
+                () => { if (atlasZoomSlider != null) atlasZoomSlider.value = Mathf.Max(1f, atlasZoomSlider.value - 0.15f); });
+            var zoomTrack = PanelObject("AtlasZoomTrack", content.transform, new Vector2(0.76f, 0.062f), new Vector2(0.90f, 0.082f), Vector2.zero, Vector2.zero, new Color32(38, 32, 24, 220));
+            var zoomHandle = PanelObject("AtlasZoomHandle", zoomTrack.transform, new Vector2(0f, -1f), new Vector2(0.12f, 2f), Vector2.zero, Vector2.zero, Gold);
+            atlasZoomSlider = zoomTrack.AddComponent<Slider>();
+            atlasZoomSlider.minValue = 1f; atlasZoomSlider.maxValue = 1.75f; atlasZoomSlider.value = atlasZoom; atlasZoomSlider.direction = Slider.Direction.LeftToRight;
+            atlasZoomSlider.targetGraphic = zoomHandle.GetComponent<Image>(); atlasZoomSlider.handleRect = zoomHandle.GetComponent<RectTransform>();
+            atlasZoomSlider.onValueChanged.AddListener(value => { atlasZoom = value; if (atlasLayer != null) atlasLayer.localScale = Vector3.one * value; });
+            Button("+", new Vector2(0.955f, 0.045f), new Vector2(0.995f, 0.105f), Panel,
+                () => { if (atlasZoomSlider != null) atlasZoomSlider.value = Mathf.Min(1.75f, atlasZoomSlider.value + 0.15f); });
+
+            ShowStatus(atlas.texture == null ? "Thiếu tranh bản đồ trong Resources/Maps." : $"{maps.Length} châu · {townCount} thành · {caveCount} cổ động · {monsterZoneCount} bãi tiểu yêu.");
         }
+
+        private void SelectAtlasTown(GameState state, TownInfo town, string kind, DungeonInfo dungeon)
+        {
+            atlasSelectedTown = town;
+            atlasSelectedDungeon = dungeon;
+            atlasSelectionKind = kind;
+            atlasInfoExpanded = true;
+            RenderWorldAtlas(state);
+        }
+
+        private void SetAtlasRealm(GameState state, bool immortal)
+        {
+            atlasImmortalRealm = immortal;
+            atlasSelectedTown = IsTownInAtlas(state.town, immortal) ? state.town : FirstTownInAtlas(immortal);
+            atlasSelectedDungeon = null;
+            atlasSelectionKind = "town";
+            RenderWorldAtlas(state);
+            if (immortal && state.player?.ascended != true)
+                ShowStatus("Đang xem trước Tiên Giới; cần Phi Thăng mới có thể tới các thành trấn.");
+        }
+
+        private string AtlasSelectionText(GameState state)
+        {
+            var town = atlasSelectedTown;
+            if (town == null) return "Chưa có dữ liệu địa danh trong giới này.";
+            var map = FindMap(town.mapId);
+            var current = state.town?.id == town.id ? "\n📍 Bạn đang ở đây" : "";
+            if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
+                return $"{atlasSelectedDungeon.icon} {atlasSelectedDungeon.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {atlasSelectedDungeon.realmMin}\n\n{atlasSelectedDungeon.desc}\n\nGắn với: {town.name}{current}";
+            if (atlasSelectionKind == "monsters")
+                return $"🐾 KHU YÊU THÚ\n{town.name}\n{map?.provinceName ?? map?.name}\n\n{AtlasMonsterNames(town)}\n\n{town.monsterPool?.Length ?? 0} loài trong dữ liệu{current}";
+            var dungeonCount = CountTownDungeons(town.id);
+            return $"{town.icon} {town.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {town.realmMinName ?? RealmLabel(town.realmMin)}\n\n{town.desc}\n\n{town.monsterPool?.Length ?? 0} loài yêu thú\n{dungeonCount} cổ động{current}";
+        }
+
+        private string AtlasMonsterNames(TownInfo town)
+        {
+            var names = new System.Collections.Generic.List<string>();
+            foreach (var id in town?.monsterPool ?? Array.Empty<string>())
+            {
+                foreach (var monster in mapCatalog?.monsters ?? Array.Empty<MonsterInfo>())
+                {
+                    if (monster.id != id) continue;
+                    names.Add(monster.icon + " " + monster.name);
+                    break;
+                }
+                if (names.Count >= 7) break;
+            }
+            var extra = Math.Max(0, (town?.monsterPool?.Length ?? 0) - names.Count);
+            if (extra > 0) names.Add($"… và {extra} loài khác");
+            return string.Join("\n", names);
+        }
+
+        private void AddAtlasRegionLabel(MapInfo map, TownInfo[] towns)
+        {
+            var hasTowns = false;
+            foreach (var town in towns) if (town.mapId == map.id) { hasTowns = true; break; }
+            if (!hasTowns) return;
+            var point = AtlasRegionAnchor(map);
+            point.y = Mathf.Min(.87f, point.y + .058f);
+            const float width = .19f;
+            var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, .019f), point + new Vector2(width * .5f, .019f), Vector2.zero, Vector2.zero, new Color32(29, 28, 24, 188));
+            tag.GetComponent<Image>().raycastTarget = false;
+            var label = ChildText(tag.transform, "ProvinceName", 17, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
+            label.text = $"{AtlasRealmNumber(map):00} · {map.provinceName ?? map.name}";
+            label.raycastTarget = false;
+        }
+
+        private void AddAtlasLandmark(string name, Vector2 point)
+        {
+            var marker = PanelObject("HeavenlyMountainLabel", atlasLayer, point - new Vector2(.075f, .019f), point + new Vector2(.075f, .019f), Vector2.zero, Vector2.zero, new Color32(37, 41, 44, 196));
+            marker.GetComponent<Image>().raycastTarget = false;
+            var text = ChildText(marker.transform, "Name", 18, Gold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
+            text.text = atlasImmortalRealm ? "CỬU TIÊU THIÊN SƠN" : name;
+            text.raycastTarget = false;
+        }
+
+        private void AddAtlasMarker(string name, Vector2 point, string glyph, Color color, float size, Action click)
+        {
+            var offset = new Vector2(size * .5f, size * .5f);
+            var marker = PanelObject(name, atlasLayer, point, point, -offset, offset, Color.clear);
+            var image = marker.GetComponent<Image>();
+            image.sprite = AtlasPixelSprite(glyph); image.type = Image.Type.Simple; image.preserveAspect = true; image.color = color; image.raycastTarget = true;
+            var button = marker.AddComponent<Button>();
+            button.transition = Selectable.Transition.ColorTint;
+            var colors = button.colors; colors.normalColor = color; colors.highlightedColor = Color.white; colors.pressedColor = Gold; button.colors = colors;
+            button.onClick.AddListener(() => click?.Invoke());
+        }
+
+        private static Sprite AtlasPixelSprite(string glyph)
+        {
+            if (glyph == "T" && atlasTownSprite != null) return atlasTownSprite;
+            if (glyph == "D" && atlasDungeonSprite != null) return atlasDungeonSprite;
+            if (glyph == "Y" && atlasMonsterSprite != null) return atlasMonsterSprite;
+
+            const int size = 16;
+            var pixels = new Color32[size * size];
+            var clear = new Color32(0, 0, 0, 0);
+            for (var i = 0; i < pixels.Length; i++) pixels[i] = clear;
+            Action<int, int, int, int, Color32> rect = (x, y, width, height, color) =>
+            {
+                for (var py = Mathf.Max(0, y); py < Mathf.Min(size, y + height); py++)
+                    for (var px = Mathf.Max(0, x); px < Mathf.Min(size, x + width); px++) pixels[py * size + px] = color;
+            };
+
+            var dark = new Color32(47, 35, 28, 255);
+            var stone = new Color32(127, 113, 91, 255);
+            var lightStone = new Color32(197, 172, 123, 255);
+            var gold = new Color32(245, 202, 91, 255);
+            if (glyph == "T")
+            {
+                rect(3, 2, 10, 2, dark); rect(4, 4, 8, 5, new Color32(228, 211, 165, 255));
+                rect(2, 9, 12, 2, dark); rect(4, 11, 8, 2, new Color32(189, 104, 54, 255));
+                rect(5, 13, 6, 1, gold); rect(7, 2, 2, 4, dark);
+                rect(7, 2, 2, 3, new Color32(116, 70, 45, 255));
+            }
+            else if (glyph == "D")
+            {
+                rect(4, 2, 8, 2, stone); rect(2, 4, 3, 5, stone); rect(11, 4, 3, 5, stone);
+                rect(3, 9, 10, 3, lightStone); rect(5, 4, 6, 7, dark);
+                rect(7, 4, 2, 5, new Color32(22, 19, 18, 255)); rect(10, 5, 1, 1, gold);
+            }
+            else
+            {
+                rect(3, 10, 3, 3, dark); rect(10, 10, 3, 3, dark);
+                rect(4, 6, 8, 6, new Color32(154, 62, 74, 255));
+                rect(5, 4, 6, 7, new Color32(191, 78, 86, 255));
+                rect(4, 3, 2, 3, dark); rect(10, 3, 2, 3, dark);
+                rect(6, 8, 1, 1, gold); rect(9, 8, 1, 1, gold);
+                rect(2, 12, 3, 2, new Color32(209, 131, 68, 255)); rect(11, 12, 3, 2, new Color32(209, 131, 68, 255));
+            }
+
+            var texture = new Texture2D(size, size, TextureFormat.RGBA32, false) { name = "AtlasPixel" + glyph, filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels32(pixels); texture.Apply(false, true);
+            var sprite = Sprite.Create(texture, new Rect(0, 0, size, size), new Vector2(.5f, .5f), size);
+            if (glyph == "T") atlasTownSprite = sprite;
+            else if (glyph == "D") atlasDungeonSprite = sprite;
+            else if (glyph == "Y") atlasMonsterSprite = sprite;
+            return sprite;
+        }
+
+        private void SetAtlasOrientation(bool landscape)
+        {
+            if (!landscape && atlasMapRoot != null)
+            {
+                Destroy(atlasMapRoot);
+                atlasMapRoot = null;
+                atlasLayer = null;
+            }
+            Screen.orientation = landscape ? ScreenOrientation.LandscapeLeft : ScreenOrientation.Portrait;
+            if (canvasScaler != null) canvasScaler.referenceResolution = landscape ? new Vector2(1920, 1080) : new Vector2(1080, 1920);
+            buttonFontSize = landscape ? 20 : 20;
+        }
+
+        private MapInfo[] AtlasMaps(bool immortal)
+        {
+            var result = new System.Collections.Generic.List<MapInfo>();
+            foreach (var map in mapCatalog?.maps ?? Array.Empty<MapInfo>()) if (map != null && map.ascensionRequired == immortal) result.Add(map);
+            return result.ToArray();
+        }
+
+        private TownInfo[] AtlasTowns(bool immortal)
+        {
+            var result = new System.Collections.Generic.List<TownInfo>();
+            foreach (var town in mapCatalog?.towns ?? Array.Empty<TownInfo>()) if (IsTownInAtlas(town, immortal)) result.Add(town);
+            result.Sort((a, b) => string.CompareOrdinal(a.mapId, b.mapId));
+            return result.ToArray();
+        }
+
+        private bool IsTownInAtlas(TownInfo town, bool immortal)
+        {
+            if (town == null) return false;
+            var map = FindMap(town.mapId);
+            return map != null && map.ascensionRequired == immortal;
+        }
+
+        private TownInfo FirstTownInAtlas(bool immortal)
+        {
+            foreach (var town in mapCatalog?.towns ?? Array.Empty<TownInfo>()) if (IsTownInAtlas(town, immortal)) return town;
+            return null;
+        }
+
+        private MapInfo FindMap(string id)
+        {
+            foreach (var map in mapCatalog?.maps ?? Array.Empty<MapInfo>()) if (map.id == id) return map;
+            return null;
+        }
+
+        private int CountTownDungeons(string townId)
+        {
+            var count = 0;
+            foreach (var dungeon in mapCatalog?.dungeons ?? Array.Empty<DungeonInfo>()) if (dungeon.townId == townId) count++;
+            return count;
+        }
+
+        private int CountAtlasDungeons(TownInfo[] towns)
+        {
+            var count = 0;
+            foreach (var town in towns) count += CountTownDungeons(town.id);
+            return count;
+        }
+
+        private static int CountAtlasMonsterZones(TownInfo[] towns)
+        {
+            var count = 0;
+            foreach (var town in towns) if (town.monsterPool != null && town.monsterPool.Length > 0) count++;
+            return count;
+        }
+
+        private Vector2 AtlasRegionAnchor(MapInfo map)
+        {
+            var mortal = new[]
+            {
+                new Vector2(.20f, .20f), new Vector2(.40f, .20f), new Vector2(.60f, .22f), new Vector2(.81f, .24f),
+                new Vector2(.81f, .72f), new Vector2(.61f, .79f), new Vector2(.37f, .79f), new Vector2(.50f, .50f)
+            };
+            var immortal = new[]
+            {
+                new Vector2(.18f, .18f), new Vector2(.39f, .18f), new Vector2(.61f, .18f), new Vector2(.82f, .18f),
+                new Vector2(.82f, .50f), new Vector2(.82f, .82f), new Vector2(.61f, .82f), new Vector2(.39f, .82f),
+                new Vector2(.18f, .82f), new Vector2(.18f, .51f), new Vector2(.50f, .50f)
+            };
+            var index = AtlasMapOrdinal(map) - (map != null && map.ascensionRequired ? 9 : 1);
+            if (map != null && map.ascensionRequired) return immortal[Mathf.Clamp(index, 0, immortal.Length - 1)];
+            return mortal[Mathf.Clamp(index, 0, mortal.Length - 1)];
+        }
+
+        private static int AtlasMapOrdinal(MapInfo map)
+        {
+            if (map == null || string.IsNullOrEmpty(map.id)) return 1;
+            var underscore = map.id.LastIndexOf('_');
+            return underscore >= 0 && int.TryParse(map.id.Substring(underscore + 1), out var value) ? value : 1;
+        }
+
+        private static int AtlasRealmNumber(MapInfo map) => map != null && map.ascensionRequired ? AtlasMapOrdinal(map) - 8 : AtlasMapOrdinal(map);
+
+        private Vector2 AtlasPosition(TownInfo town, TownInfo[] towns)
+        {
+            var map = FindMap(town?.mapId);
+            if (town == null || map == null) return new Vector2(.5f, .5f);
+            var minX = float.MaxValue; var maxX = float.MinValue; var minY = float.MaxValue; var maxY = float.MinValue;
+            foreach (var item in towns)
+            {
+                if (item.mapId != town.mapId) continue;
+                minX = Mathf.Min(minX, item.x); maxX = Mathf.Max(maxX, item.x);
+                minY = Mathf.Min(minY, item.y); maxY = Mathf.Max(maxY, item.y);
+            }
+            var x = maxX == minX ? .5f : Mathf.InverseLerp(minX, maxX, town.x);
+            var y = maxY == minY ? .5f : Mathf.InverseLerp(minY, maxY, town.y);
+            var anchor = AtlasRegionAnchor(map);
+            return ClampAtlasPosition(anchor + new Vector2((x - .5f) * .115f, (y - .5f) * .095f));
+        }
+
+        private static Vector2 ClampAtlasPosition(Vector2 point) => new Vector2(Mathf.Clamp(point.x, .035f, .965f), Mathf.Clamp(point.y, .075f, .90f));
 
         private bool IsImmortalRealm(GameState state)
         {
@@ -305,6 +691,7 @@ namespace IOSVN.TuTien.Core
 
         private void ShowBattleMapSet(GameState state, bool immortal)
         {
+            SetAtlasOrientation(false);
             ShowStatus("Đang đồng bộ bộ map và map Cổ Động đang mở...");
             client.LoadMapCatalog((catalog, error) =>
             {
@@ -381,7 +768,14 @@ namespace IOSVN.TuTien.Core
 
         private void TravelTo(TownInfo town)
         {
+            if (town == null) { ShowStatus("Chưa chọn thành trấn hợp lệ."); return; }
             if (latestState?.town?.id == town.id) { ShowStatus("Đạo hữu đang ở thành này."); return; }
+            var targetMap = FindMap(town.mapId);
+            if (targetMap != null && IsImmortalRealm(latestState) != targetMap.ascensionRequired)
+            {
+                ShowStatus("Không thể đi thẳng giữa Phàm Giới và Tiên Giới. Hãy hoàn thành điều kiện Phi Thăng.");
+                return;
+            }
             if ((latestState?.realm?.index ?? 0) < town.realmMin)
             {
                 ShowStatus($"Cần đạt {town.realmMinName ?? RealmLabel(town.realmMin)} mới được tới {town.name}.");
@@ -852,12 +1246,12 @@ namespace IOSVN.TuTien.Core
             return text;
         }
 
-        private Button Button(string label, Vector2 min, Vector2 max, Color color, Action click)
+        private Button Button(string label, Vector2 min, Vector2 max, Color color, Action click, Transform parent = null)
         {
-            var root = PanelObject("Button_" + label, content.transform, min, max, Vector2.zero, Vector2.zero, color);
+            var root = PanelObject("Button_" + label, parent ?? content.transform, min, max, Vector2.zero, Vector2.zero, color);
             var button = root.AddComponent<Button>();
             var colors = button.colors; colors.normalColor = color; colors.highlightedColor = new Color(1f, 0.9f, 0.68f); colors.pressedColor = Gold; button.colors = colors;
-            var text = ChildText(root.transform, "Text", 20, color == Gold ? Ink : Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
+            var text = ChildText(root.transform, "Text", buttonFontSize, color == Gold ? Ink : Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
             text.text = label; button.onClick.AddListener(() => click?.Invoke());
             return button;
         }

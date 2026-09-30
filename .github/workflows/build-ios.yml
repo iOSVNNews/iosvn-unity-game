@@ -10,6 +10,7 @@ on:
       - 'ipa_core/**'
       - 'Dockerfile'
       - '.dockerignore'
+      - '.github/scripts/**'
       - '.github/workflows/build-ios.yml'
   pull_request:
     paths:
@@ -19,6 +20,7 @@ on:
       - 'ipa_core/**'
       - 'Dockerfile'
       - '.dockerignore'
+      - '.github/scripts/**'
       - '.github/workflows/build-ios.yml'
   workflow_dispatch:
     inputs:
@@ -163,44 +165,19 @@ jobs:
           if [[ -z "$PROJECT_PATH" ]]; then echo 'Unity-iPhone.xcodeproj was not found.' >&2; exit 1; fi
           echo "IOS_PROJECT_PATH=$PROJECT_PATH" >> "$GITHUB_ENV"
 
-      - name: Fix Unity framework local header imports
-        if: ${{ inputs.use_prebuilt_xcode == true }}
+      - name: Normalize Unity framework header imports
         shell: bash
         run: |
           set -euo pipefail
-          python3 - <<'PY'
-          from pathlib import Path
+          python3 .github/scripts/normalize_unity_ios_framework_imports.py "$IOS_PROJECT_PATH"
 
-          root = Path("build/iOS/Classes")
-          replacements = {
-              root / "UnityAppController.h": (
-                  "#import <UnityFramework/RenderPluginDelegate.h>",
-                  '#import "PluginBase/RenderPluginDelegate.h"',
-              ),
-              root / "PluginBase/RenderPluginDelegate.h": (
-                  "#import <UnityFramework/LifeCycleListener.h>",
-                  '#import "LifeCycleListener.h"',
-              ),
-              Path("build/iOS/UnityFramework/UnityFramework.h"): (
-                  "#import <UnityFramework/UnityAppController.h>",
-                  '#import "../Classes/UnityAppController.h"',
-              ),
-              Path("build/iOS/MainApp/main.mm"): (
-                  "#import <UnityFramework/UnityFramework.h>",
-                  '#import "../UnityFramework/UnityFramework.h"',
-              ),
-              root / "main.mm": (
-                  "#import <UnityFramework/UnityFramework.h>",
-                  '#import "../UnityFramework/UnityFramework.h"',
-              ),
-          }
-          for path, (old, new) in replacements.items():
-              source = path.read_text(encoding="utf-8")
-              if old not in source:
-                  raise SystemExit(f"Expected Unity generated import was not found in {path}.")
-              path.write_text(source.replace(old, new), encoding="utf-8")
-          print("Rewrote two Unity framework self-imports to local header paths.")
-          PY
+      - name: Set Tu Tiên Giới app target identity
+        shell: bash
+        env:
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/configure_ios_app_target.py "$IOS_PROJECT_PATH" "$IOS_BUNDLE_ID"
 
       - name: Apply Tu Tiên Giới app icon to Xcode project
         shell: bash
@@ -246,14 +223,14 @@ jobs:
 
       - name: Compile for iOS device without signing
         shell: bash
+        env:
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }}
         run: |
           set -euo pipefail
           xcodebuild -project "$IOS_PROJECT_PATH" -scheme Unity-iPhone \
             -configuration Release -sdk iphoneos \
             -destination 'generic/platform=iOS' \
             -derivedDataPath "$RUNNER_TEMP/ios-derived" \
-            PRODUCT_NAME='TuTienGioi' PRODUCT_BUNDLE_IDENTIFIER='com.iosvn.tutiengioi' \
-            INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_IDENTITY='' CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
             clean build
 
@@ -261,7 +238,7 @@ jobs:
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa }}
         shell: bash
         env:
-          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID }}
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }}
           IOS_TEAM_ID: ${{ secrets.IOS_TEAM_ID }}
           IOS_CERTIFICATE_P12_BASE64: ${{ secrets.IOS_CERTIFICATE_P12_BASE64 }}
           IOS_CERTIFICATE_PASSWORD: ${{ secrets.IOS_CERTIFICATE_PASSWORD }}
@@ -339,8 +316,6 @@ jobs:
             -destination 'generic/platform=iOS' \
             -archivePath "$ARCHIVE_PATH" \
             -derivedDataPath "$RUNNER_TEMP/ios-signed-derived" \
-            PRODUCT_NAME='TuTienGioi' PRODUCT_BUNDLE_IDENTIFIER='com.iosvn.tutiengioi' \
-            INFOPLIST_KEY_CFBundleDisplayName='Tu Tiên Giới' \
             CODE_SIGN_STYLE=Manual CODE_SIGNING_ALLOWED=YES \
             CODE_SIGN_IDENTITY='Apple Development' \
             DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
@@ -372,6 +347,8 @@ jobs:
       - name: Package unsigned IPA
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa }}
         shell: bash
+        env:
+          IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }}
         run: |
           set -euo pipefail
           PRODUCTS_PATH="$RUNNER_TEMP/ios-derived/Build/Products/Release-iphoneos"
@@ -382,8 +359,8 @@ jobs:
             exit 1
           fi
           BUNDLE_ID="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$APP_PATH/Info.plist")"
-          if [[ "$BUNDLE_ID" != "com.iosvn.tutiengioi" ]]; then
-            echo "::error::Unsigned app bundle ID is '$BUNDLE_ID', expected 'com.iosvn.tutiengioi'."
+          if [[ "$BUNDLE_ID" != "$IOS_BUNDLE_ID" ]]; then
+            echo "::error::Unsigned app bundle ID is '$BUNDLE_ID', expected '$IOS_BUNDLE_ID'."
             exit 1
           fi
           if /usr/libexec/PlistBuddy -c 'Print :CFBundleDisplayName' "$APP_PATH/Info.plist" >/dev/null 2>&1; then
