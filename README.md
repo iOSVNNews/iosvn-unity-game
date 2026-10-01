@@ -39,15 +39,18 @@ docker run --name iosvn-ipa-server --env-file ipa_server.env -p 8788:8788 -v ios
 
 Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA. Đăng ký email gửi mã xác minh 6 số qua Gmail; cần tạo Google App Password cho mailbox gửi thư rồi đặt vào `GMAIL_SMTP_APP_PASSWORD` trên máy chủ. Không nhúng mật khẩu Gmail vào IPA hoặc Git.
 
-Khi chưa chọn máy chủ, màn đăng nhập có nút **XEM BẢN ĐỒ NGOẠI TUYẾN**. Nút này mở dữ liệu bản đồ đóng gói trong app để xem 8 châu Phàm Giới, 11 vùng Tiên Giới, 65 thành, 65 cổ động và bãi tiểu yêu. Di chuyển, đăng nhập và chiến đấu cần máy chủ game online.
+Khi chưa chọn máy chủ, màn đăng nhập có nút **XEM BẢN ĐỒ NGOẠI TUYẾN** để chơi vòng săn quái lưu cục bộ: đi bộ trên map, gặp quái tuần tra, đánh bằng kỹ năng, nhận vật phẩm, tích lũy tu vi và mở thành theo cảnh giới. Đây là chế độ PVE trên thiết bị. Ghép trận PVP với người chơi thật vẫn cần triển khai và cấu hình server HTTPS riêng.
 
 ## Hiện trạng
 
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
 - Server IPA: `ipa_server.js`; chưa có domain HTTPS hoặc nhà cung cấp máy chủ.
-- Atlas Phàm Giới/Tiên Giới có thể mở ngoại tuyến để duyệt; đăng nhập email, xác minh Gmail, lưu nhân vật và gameplay online cần máy chủ HTTPS riêng.
+- Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái, 1.589 vật phẩm và 245 kỹ năng; quái và vật phẩm dùng pixel art từ game Telegram. Ba quái cảnh giới 12 được vẽ bổ sung vì nguồn thiếu sprite. Tất cả 245 kỹ năng có pixel icon riêng; nút chọn chiêu và hiệu ứng đánh dùng hình đúng kỹ năng.
+- Hồ sơ ngoại tuyến lưu trên thiết bị. Đăng nhập email, đồng bộ nhân vật và PVP giữa người chơi cần máy chủ HTTPS riêng.
 - Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; workflow có thể build image server nhưng chưa triển khai máy chủ.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
+
+Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`.
 
 Để build trên GitHub Actions cần cấu hình Unity Personal secrets. Xuất IPA cài trên iPhone còn cần Apple signing secrets và bundle ID khớp provisioning profile.
 

@@ -8,6 +8,11 @@ namespace IOSVN.TuTien.Core
     {
         public string sourceMapId;
         public string sourceMapName;
+        public string sourceName;
+        public string[] realmNames;
+        public OfflineClassData[] classes;
+        public OfflineElementData[] elements;
+        public OfflineSkillData[] skills;
         public OfflineMonsterData[] monsters;
         public OfflineItemData[] items;
 
@@ -19,6 +24,39 @@ namespace IOSVN.TuTien.Core
     }
 
     [Serializable]
+    public sealed class OfflineClassData
+    {
+        public string id;
+        public string name;
+        public string weapon;
+        public string weaponName;
+        public string statName;
+    }
+
+    [Serializable]
+    public sealed class OfflineElementData
+    {
+        public string id;
+        public string name;
+        public string beats;
+        public string effect;
+    }
+
+    [Serializable]
+    public sealed class OfflineSkillData
+    {
+        public string id;
+        public string mon;
+        public string name;
+        public string icon;
+        public string kind;
+        public int realm;
+        public int mp;
+        public int cd;
+        public string desc;
+    }
+
+    [Serializable]
     public sealed class OfflineMonsterData
     {
         public string id;
@@ -26,6 +64,11 @@ namespace IOSVN.TuTien.Core
         public int realm;
         public string element;
         public int hp;
+        public int atk;
+        public int def;
+        public int spd;
+        public bool small;
+        public bool worldBoss;
         public OfflineDropData[] drops;
     }
 

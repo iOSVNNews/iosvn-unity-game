@@ -26,8 +26,23 @@ namespace IOSVN.TuTien.Core
             public Vector2Int cell;
         }
 
+        private sealed class RoamingMonsterActor
+        {
+            public WorldMapPoint point;
+            public Vector2Int homeCell;
+            public RectTransform marker;
+            public Text nameplate;
+            public Vector2 moveStart;
+            public Vector2 moveEnd;
+            public float moveStartedAt;
+            public float moveDuration;
+            public float nextMoveAt;
+            public float respawnAt;
+            public bool defeated;
+        }
+
         [Serializable] private sealed class OfflineInventoryStack { public string id; public int quantity; }
-        [Serializable] private sealed class OfflineProgressSave { public int hp = 240; public int kills; public int stones = 30000; public List<OfflineInventoryStack> items = new List<OfflineInventoryStack>(); }
+        [Serializable] private sealed class OfflineProgressSave { public int hp = 240; public int kills; public int stones = 30000; public int realmIndex; public int experience; public string currentTownId; public string monClass = "kiem"; public List<OfflineInventoryStack> items = new List<OfflineInventoryStack>(); }
 
         private static readonly Color Ink = new Color32(13, 18, 27, 255);
         private static readonly Color Panel = new Color32(25, 33, 43, 255);
@@ -51,12 +66,16 @@ namespace IOSVN.TuTien.Core
         private Image explorationPlayerMarker;
         private Text explorationLocationText;
         private Text explorationPoiText;
+        private Button explorationActionButton;
         private RectTransform explorationMiniPlayerRect;
         private WorldMapPoint explorationSelectedPoint;
         private MapInfo explorationMap;
         private Texture2D explorationTexture;
         private bool[,] explorationBlocked;
         private readonly List<WorldMapPoint> explorationPoints = new List<WorldMapPoint>();
+        private readonly List<RoamingMonsterActor> roamingMonsters = new List<RoamingMonsterActor>();
+        private RoamingMonsterActor selectedRoamingMonster;
+        private RoamingMonsterActor activeRoamingMonster;
         private Vector2Int explorationCell;
         private Vector2Int explorationMoveTarget;
         private Coroutine explorationMovement;
@@ -85,6 +104,7 @@ namespace IOSVN.TuTien.Core
         private OfflineHuntCatalogData offlineHuntCatalog;
         private OfflineProgressSave offlineProgress = new OfflineProgressSave();
         private OfflineMonsterData activeOfflineMonster;
+        private OfflineSkillData activeOfflineSkill;
         private GameObject offlineBattleRoot;
         private Texture2D offlineBattleTexture;
         private GameObject offlineInventoryRoot;
@@ -98,10 +118,15 @@ namespace IOSVN.TuTien.Core
         private bool offlineActionRunning;
         private bool offlineProgressLoaded;
         private Button offlineSkillButton;
+        private Image offlineSkillIcon;
+        private Button offlineSkillCycleButton;
+        private readonly List<OfflineSkillData> offlineBattleSkills = new List<OfflineSkillData>();
+        private int offlineBattleSkillIndex;
         private Vector2 offlineBattleMoveInput;
         private Vector2 offlinePlayerBattlePosition;
         private float offlineNextEnemyAttackTime;
         private float offlineBattleMotionTime;
+        private float offlineEnemyStunnedUntil;
         private string[] sectNames;
         private string[] elementNames;
         private string gender = "nam";
@@ -165,6 +190,7 @@ namespace IOSVN.TuTien.Core
 
         private void Update()
         {
+            if (offlinePreview && offlineBattleRoot == null) UpdateRoamingMonsters();
             if (offlineBattleRoot == null || offlinePlayerFighter == null || offlineMonsterFighter == null || offlineBattleOver) return;
             var bounds = offlineBattleRoot.GetComponent<RectTransform>().rect;
             var playerPosition = offlinePlayerBattlePosition;
@@ -190,17 +216,17 @@ namespace IOSVN.TuTien.Core
                 enemyPosition.y = Mathf.Clamp(enemyPosition.y, -bounds.height * .31f, bounds.height * .32f);
                 offlineMonsterFighter.localPosition = enemyPosition;
 
-                if (distance < 178f && Time.time >= offlineNextEnemyAttackTime)
+                if (distance < 178f && Time.time >= offlineNextEnemyAttackTime && Time.time >= offlineEnemyStunnedUntil)
                 {
                     offlineNextEnemyAttackTime = Time.time + 1.15f;
-                    var damage = UnityEngine.Random.Range(8, 15);
+                        var damage = OfflineMonsterAttackDamage(activeOfflineMonster);
                     offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - damage);
                     offlineMonsterImage.color = new Color32(255, 137, 112, 255);
                     StartCoroutine(ResetMonsterHitFlash());
                     offlineBattleMessage.text = activeOfflineMonster.name + " áp sát phản kích · mất " + damage + " khí huyết.";
                     if (offlineProgress.hp <= 0)
                     {
-                        offlineProgress.hp = OfflineMaxHp / 2;
+                        offlineProgress.hp = OfflinePlayerMaxHp() / 2;
                         offlineBattleOver = true;
                         offlineBattleTitle.text = "TRỌNG THƯƠNG  ·  ĐƯỢC CỨU VỀ THÀNH";
                         offlineBattleMessage.text = "Chưa nhận được chiến lợi phẩm. Khí huyết đã hồi một nửa.";
@@ -393,7 +419,7 @@ namespace IOSVN.TuTien.Core
                 return;
             }
             LoadOfflineProgress();
-            var town = FirstTownInAtlas(false);
+            var town = FindOfflineTown(offlineProgress.currentTownId) ?? FirstTownInAtlas(false);
             if (mapCatalog?.maps == null || mapCatalog.maps.Length == 0 || town == null)
             {
                 ShowStatus("Danh mục bản đồ ngoại tuyến không hợp lệ.");
@@ -404,13 +430,15 @@ namespace IOSVN.TuTien.Core
             {
                 registered = true,
                 town = town,
-                realm = new RealmInfo { index = 0, name = town.realmMinName ?? "Phàm Nhân" },
-                player = new PlayerInfo { userId = "offline-preview", name = "Đạo hữu", fullName = "Đạo hữu · Ngoại tuyến", ascended = false },
+                realm = new RealmInfo { index = offlineProgress.realmIndex, name = OfflineRealmName(offlineProgress.realmIndex) },
+                player = new PlayerInfo { userId = "offline-preview", name = "Đạo hữu", fullName = "Đạo hữu · Ngoại tuyến", ascended = offlineProgress.realmIndex >= 11 },
                 worldMonsters = Array.Empty<WorldMonster>()
             };
+            offlineProgress.currentTownId = town.id;
+            SaveOfflineProgress();
             latestState = offlinePreviewState;
             atlasRealmInitialized = true;
-            atlasImmortalRealm = false;
+            atlasImmortalRealm = offlinePreviewState.player.ascended;
             atlasSelectedTown = town;
             atlasSelectedDungeon = null;
             atlasSelectionKind = "town";
@@ -785,6 +813,8 @@ namespace IOSVN.TuTien.Core
             if (explorationMapRoot != null) Destroy(explorationMapRoot);
             if (explorationTexture != null) Destroy(explorationTexture);
             explorationPoints.Clear();
+            roamingMonsters.Clear();
+            selectedRoamingMonster = null;
             explorationSelectedPoint = null;
             explorationMiniPlayerRect = null;
             explorationPlayerMarker = null;
@@ -852,14 +882,14 @@ namespace IOSVN.TuTien.Core
             var poiPanel = PanelObject("ExplorationPoiPanel", content.transform, new Vector2(.015f, .755f), new Vector2(.77f, .89f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 220));
             explorationPoiText = ChildText(poiPanel.transform, "SelectedPoint", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .06f), new Vector2(.97f, .94f));
             explorationPoiText.text = offlinePreview
-                ? $"{offlineProgress.hp}/{OfflineMaxHp} KHÍ HUYẾT  ·  {offlineProgress.stones:N0} LINH THẠCH  ·  {offlineProgress.kills} trận thắng\nChạm bãi tiểu yêu, để nhân vật đi tới rồi chọn KHIÊU CHIẾN."
+                ? $"{offlineProgress.hp}/{OfflinePlayerMaxHp()} KHÍ HUYẾT  ·  CẢNH GIỚI {offlineProgress.realmIndex} · {offlineProgress.experience:N0} LINH LỰC  ·  {offlineProgress.stones:N0} LINH THẠCH\n{offlineProgress.kills} trận thắng · Yêu thú đang tuần quanh bãi săn."
                 : "Chạm bản đồ để nhân vật đi theo đường mòn; chọn thành trấn, cổ động hoặc bãi yêu để xem hoạt động.";
 
             Button("↑", new Vector2(.075f, .135f), new Vector2(.125f, .195f), Panel, () => MoveExplorationBy(Vector2Int.up));
             Button("←", new Vector2(.025f, .075f), new Vector2(.075f, .135f), Panel, () => MoveExplorationBy(Vector2Int.left));
             Button("↓", new Vector2(.075f, .075f), new Vector2(.125f, .135f), Panel, () => MoveExplorationBy(Vector2Int.down));
             Button("→", new Vector2(.125f, .075f), new Vector2(.175f, .135f), Panel, () => MoveExplorationBy(Vector2Int.right));
-            Button(offlinePreview ? "KHIÊU CHIẾN / VÀO ĐIỂM" : "THÀNH / ĐIỂM ĐẾN", new Vector2(.77f, .075f), new Vector2(.98f, .145f), Gold, () => ActivateSelectedExplorationPoint(state));
+            explorationActionButton = Button(offlinePreview ? "CHỌN MỤC TIÊU" : "THÀNH / ĐIỂM ĐẾN", new Vector2(.77f, .075f), new Vector2(.98f, .145f), Gold, () => ActivateSelectedExplorationPoint(state));
             Button("−", new Vector2(.38f, .075f), new Vector2(.425f, .13f), Panel, () => SetExplorationZoom(explorationZoom - .15f));
             var zoomTrack = PanelObject("ExplorationZoomTrack", content.transform, new Vector2(.435f, .091f), new Vector2(.625f, .112f), Vector2.zero, Vector2.zero, new Color32(38, 42, 47, 245));
             var zoomHandle = PanelObject("ExplorationZoomHandle", zoomTrack.transform, new Vector2(0f, -1f), new Vector2(.12f, 2f), Vector2.zero, Vector2.zero, Gold);
@@ -882,8 +912,9 @@ namespace IOSVN.TuTien.Core
             explorationSelectedPoint = start;
             explorationPlayerMarker = AddExplorationPlayerMarker(state);
             UpdateExplorationPlayerPosition();
+            if (offlinePreview) BuildRoamingMonsters();
             UpdateExplorationLabels();
-            ShowStatus(offlinePreview ? "Bản đồ đi lại ngoại tuyến · vị trí được lưu trên máy." : "Bản đồ đi lại · vị trí nhân vật được đồng bộ với hồ sơ online.");
+            ShowStatus(offlinePreview ? "Thế giới ngoại tuyến · yêu thú tuần tra và áp sát · tiến độ lưu trên máy." : "Bản đồ đi lại · vị trí nhân vật được đồng bộ với hồ sơ online.");
         }
 
         private Texture2D BuildExplorationTexture(MapInfo map)
@@ -982,6 +1013,172 @@ namespace IOSVN.TuTien.Core
                     explorationPoints.Add(new WorldMapPoint { kind = WorldPointKind.MonsterZone, title = "Bãi tiểu yêu · " + (monsterName ?? town.name), town = town, monsterId = monsterId, cell = zoneCell });
                 }
             }
+        }
+
+        private void BuildRoamingMonsters()
+        {
+            roamingMonsters.Clear();
+            var occupied = new HashSet<int>();
+            foreach (var point in explorationPoints)
+                if (point != null) occupied.Add(point.cell.y * ExplorationMapWidth + point.cell.x);
+            var serial = 0;
+            foreach (var zone in explorationPoints)
+            {
+                if (zone.kind != WorldPointKind.MonsterZone || zone.town?.monsterPool == null) continue;
+                var candidates = new List<OfflineMonsterData>();
+                foreach (var id in zone.town.monsterPool)
+                {
+                    var monster = FindOfflineMonster(id);
+                    if (monster == null) continue;
+                    if (monster.realm <= offlineProgress.realmIndex + 1) candidates.Add(monster);
+                }
+                if (candidates.Count == 0)
+                    foreach (var id in zone.town.monsterPool)
+                    {
+                        var monster = FindOfflineMonster(id);
+                        if (monster != null) candidates.Add(monster);
+                    }
+                if (candidates.Count == 0) continue;
+                var count = Mathf.Min(3, candidates.Count);
+                var offset = (int)(Math.Abs((long)zone.town.id.GetHashCode()) % candidates.Count);
+                for (var i = 0; i < count; i++)
+                {
+                    var monster = candidates[(offset + i) % candidates.Count];
+                    var cell = FindOpenRoamingCell(zone.cell, occupied);
+                    occupied.Add(cell.y * ExplorationMapWidth + cell.x);
+                    var actorPoint = new WorldMapPoint
+                    {
+                        kind = WorldPointKind.MonsterZone, title = monster.name,
+                        town = zone.town, monsterId = monster.id, cell = cell,
+                    };
+                    var actor = new RoamingMonsterActor { point = actorPoint, homeCell = cell, nextMoveAt = Time.time + 1.5f + i * .45f };
+                    var marker = new GameObject("RoamingMonster_" + monster.id + "_" + serial++, typeof(RectTransform), typeof(Image), typeof(Button));
+                    marker.transform.SetParent(explorationMapRect, false);
+                    actor.marker = marker.GetComponent<RectTransform>();
+                    actor.marker.anchorMin = actor.marker.anchorMax = new Vector2(.5f, .5f);
+                    actor.marker.sizeDelta = monster.worldBoss ? new Vector2(58, 58) : new Vector2(42, 42);
+                    actor.marker.anchoredPosition = ExplorationCellPosition(cell) + new Vector2(0f, 7f);
+                    var image = marker.GetComponent<Image>();
+                    image.sprite = LoadPixelIcon("PixelArt/Monsters/" + monster.id) ?? AtlasPixelSprite("Y");
+                    image.preserveAspect = true;
+                    var button = marker.GetComponent<Button>();
+                    button.transition = Selectable.Transition.ColorTint;
+                    button.onClick.AddListener(() => SelectRoamingMonster(actor));
+                    var nameObject = new GameObject("Nameplate", typeof(RectTransform), typeof(Text), typeof(Outline));
+                    nameObject.transform.SetParent(marker.transform, false);
+                    var nameRect = nameObject.GetComponent<RectTransform>();
+                    nameRect.anchorMin = new Vector2(-.75f, 1f); nameRect.anchorMax = new Vector2(1.75f, 1f);
+                    nameRect.pivot = new Vector2(.5f, 0f); nameRect.anchoredPosition = new Vector2(0f, 1f); nameRect.sizeDelta = new Vector2(92f, 20f);
+                    actor.nameplate = nameObject.GetComponent<Text>();
+                    actor.nameplate.font = BuiltinFont(); actor.nameplate.fontSize = 11;
+                    actor.nameplate.color = monster.worldBoss ? Gold : Cream;
+                    actor.nameplate.alignment = TextAnchor.MiddleCenter;
+                    actor.nameplate.horizontalOverflow = HorizontalWrapMode.Wrap;
+                    actor.nameplate.text = monster.name;
+                    var outline = nameObject.GetComponent<Outline>(); outline.effectColor = Ink; outline.effectDistance = new Vector2(1f, -1f);
+                    actor.nameplate.raycastTarget = false;
+                    nameObject.SetActive(false);
+                    roamingMonsters.Add(actor);
+                }
+            }
+        }
+
+        private Vector2Int FindOpenRoamingCell(Vector2Int origin, HashSet<int> occupied)
+        {
+            for (var radius = 0; radius <= 8; radius++)
+                for (var y = -radius; y <= radius; y++) for (var x = -radius; x <= radius; x++)
+                {
+                    if (Mathf.Max(Mathf.Abs(x), Mathf.Abs(y)) != radius) continue;
+                    var cell = origin + new Vector2Int(x, y);
+                    if (cell.x < 3 || cell.y < 3 || cell.x >= ExplorationMapWidth - 3 || cell.y >= ExplorationMapHeight - 3) continue;
+                    if (explorationBlocked != null && explorationBlocked[cell.x, cell.y]) continue;
+                    var key = cell.y * ExplorationMapWidth + cell.x;
+                    if (occupied.Contains(key) || cell == explorationCell) continue;
+                    return cell;
+                }
+            return origin;
+        }
+
+        private void UpdateRoamingMonsters()
+        {
+            if (explorationMapRoot == null || explorationMapRect == null) return;
+            foreach (var actor in roamingMonsters)
+            {
+                if (actor == null || actor.marker == null || actor.point == null) continue;
+                if (actor.moveDuration > 0f)
+                {
+                    var progress = Mathf.Clamp01((Time.time - actor.moveStartedAt) / actor.moveDuration);
+                    actor.marker.anchoredPosition = Vector2.Lerp(actor.moveStart, actor.moveEnd, progress * progress * (3f - 2f * progress));
+                    if (progress >= 1f) actor.moveDuration = 0f;
+                }
+                if (actor.defeated)
+                {
+                    if (Time.time < actor.respawnAt) continue;
+                    actor.defeated = false;
+                    actor.marker.gameObject.SetActive(true);
+                    var occupiedOnRespawn = new HashSet<int>();
+                    foreach (var other in roamingMonsters)
+                        if (other != actor && other != null && !other.defeated && other.point != null)
+                            occupiedOnRespawn.Add(other.point.cell.y * ExplorationMapWidth + other.point.cell.x);
+                    actor.point.cell = FindOpenRoamingCell(actor.homeCell, occupiedOnRespawn);
+                    actor.marker.anchoredPosition = ExplorationCellPosition(actor.point.cell) + new Vector2(0f, 7f);
+                    actor.moveDuration = 0f;
+                    actor.nextMoveAt = Time.time + 2f;
+                }
+                if (actor == selectedRoamingMonster && explorationMovement != null) continue;
+                if (Time.time < actor.nextMoveAt) continue;
+                actor.nextMoveAt = Time.time + UnityEngine.Random.Range(1.2f, 2.7f);
+                var distance = Mathf.Abs(actor.point.cell.x - explorationCell.x) + Mathf.Abs(actor.point.cell.y - explorationCell.y);
+                if (distance <= 1) continue;
+                var neighbors = new[] { Vector2Int.up, Vector2Int.right, Vector2Int.down, Vector2Int.left };
+                var valid = new List<Vector2Int>();
+                var occupied = new HashSet<int>();
+                foreach (var other in roamingMonsters)
+                    if (other != actor && other != null && !other.defeated && other.point != null)
+                        occupied.Add(other.point.cell.y * ExplorationMapWidth + other.point.cell.x);
+                foreach (var direction in neighbors)
+                {
+                    var next = actor.point.cell + direction;
+                    if (next.x < 3 || next.y < 3 || next.x >= ExplorationMapWidth - 3 || next.y >= ExplorationMapHeight - 3) continue;
+                    if (explorationBlocked != null && explorationBlocked[next.x, next.y]) continue;
+                    if (occupied.Contains(next.y * ExplorationMapWidth + next.x)) continue;
+                    valid.Add(next);
+                }
+                if (valid.Count == 0) continue;
+                Vector2Int chosen = valid[UnityEngine.Random.Range(0, valid.Count)];
+                if (distance <= 8)
+                {
+                    var best = int.MaxValue;
+                    foreach (var candidate in valid)
+                    {
+                        var d = Mathf.Abs(candidate.x - explorationCell.x) + Mathf.Abs(candidate.y - explorationCell.y);
+                        if (d < best) { best = d; chosen = candidate; }
+                    }
+                }
+                actor.point.cell = chosen;
+                actor.moveStart = actor.marker.anchoredPosition;
+                actor.moveEnd = ExplorationCellPosition(chosen) + new Vector2(0f, 7f);
+                actor.moveStartedAt = Time.time;
+                actor.moveDuration = .32f;
+                if (actor == selectedRoamingMonster) UpdateExplorationLabels();
+            }
+        }
+
+        private void SelectRoamingMonster(RoamingMonsterActor actor)
+        {
+            if (actor == null || actor.defeated) return;
+            ClearSelectedRoamingMonster();
+            selectedRoamingMonster = actor;
+            explorationSelectedPoint = actor.point;
+            if (actor.nameplate != null) actor.nameplate.gameObject.SetActive(true);
+            UpdateExplorationLabels();
+            MoveExplorationTo(actor.point.cell);
+        }
+
+        private void ClearSelectedRoamingMonster()
+        {
+            if (selectedRoamingMonster?.nameplate != null) selectedRoamingMonster.nameplate.gameObject.SetActive(false);
+            selectedRoamingMonster = null;
         }
 
         private void BuildExplorationPointsData(MapInfo map) => BuildExplorationPoints(map);
@@ -1139,6 +1336,7 @@ namespace IOSVN.TuTien.Core
             var cell = new Vector2Int(Mathf.FloorToInt((local.x + explorationMapRect.sizeDelta.x * .5f) / ExplorationTilePixels),
                 Mathf.FloorToInt((local.y + explorationMapRect.sizeDelta.y * .5f) / ExplorationTilePixels));
             if (cell.x < 0 || cell.y < 0 || cell.x >= ExplorationMapWidth || cell.y >= ExplorationMapHeight) return;
+            ClearSelectedRoamingMonster();
             explorationSelectedPoint = ClosestExplorationPoint(cell, 2);
             if (explorationSelectedPoint != null) UpdateExplorationLabels();
             MoveExplorationTo(cell);
@@ -1146,6 +1344,7 @@ namespace IOSVN.TuTien.Core
 
         private void SelectExplorationPoint(WorldMapPoint point)
         {
+            ClearSelectedRoamingMonster();
             explorationSelectedPoint = point;
             UpdateExplorationLabels();
             MoveExplorationTo(point.cell);
@@ -1193,6 +1392,27 @@ namespace IOSVN.TuTien.Core
             foreach (var cell in path)
             {
                 explorationCell = cell; UpdateExplorationPlayerPosition();
+                if (offlinePreview)
+                {
+                    RoamingMonsterActor encountered = null;
+                    foreach (var actor in roamingMonsters)
+                    {
+                        if (actor == null || actor.defeated || actor.point == null) continue;
+                        var distance = Mathf.Abs(actor.point.cell.x - explorationCell.x) + Mathf.Abs(actor.point.cell.y - explorationCell.y);
+                        if (distance <= 1) { encountered = actor; break; }
+                    }
+                    if (encountered != null)
+                    {
+                        ClearSelectedRoamingMonster();
+                        selectedRoamingMonster = encountered;
+                        explorationSelectedPoint = encountered.point;
+                        if (encountered.nameplate != null) encountered.nameplate.gameObject.SetActive(true);
+                        explorationMovement = null;
+                        SaveExplorationPosition();
+                        UpdateExplorationLabels();
+                        yield break;
+                    }
+                }
                 yield return new WaitForSeconds(.075f);
             }
             explorationMovement = null;
@@ -1245,6 +1465,14 @@ namespace IOSVN.TuTien.Core
         private void UpdateExplorationLabels()
         {
             if (explorationPoiText == null) return;
+            if (offlinePreview && selectedRoamingMonster != null && !selectedRoamingMonster.defeated)
+            {
+                var target = FindOfflineMonster(selectedRoamingMonster.point.monsterId);
+                explorationPoiText.text = $"MỤC TIÊU ĐANG DI CHUYỂN  ·  {target?.name ?? selectedRoamingMonster.point.title}\nCảnh giới yêu thú {target?.realm ?? 0} · {selectedRoamingMonster.point.town?.name} · {Mathf.Abs(explorationCell.x - selectedRoamingMonster.point.cell.x) + Mathf.Abs(explorationCell.y - selectedRoamingMonster.point.cell.y)} ô\nTiến sát mục tiêu rồi chạm GIAO CHIẾN.";
+                if (explorationActionButton != null) SetOfflineButtonLabel(explorationActionButton, "GIAO CHIẾN");
+                return;
+            }
+            if (explorationActionButton != null) SetOfflineButtonLabel(explorationActionButton, offlinePreview ? "KHIÊU CHIẾN / VÀO ĐIỂM" : "THÀNH / ĐIỂM ĐẾN");
             if (explorationSelectedPoint == null) { explorationPoiText.text = "Đường núi · Chạm bản đồ để đi từng ô."; return; }
             var point = explorationSelectedPoint;
             var kind = point.kind == WorldPointKind.Town ? "THÀNH TRẤN" : point.kind == WorldPointKind.Dungeon ? "CỔ ĐỘNG" : "BÃI TIỂU YÊU";
@@ -1293,6 +1521,13 @@ namespace IOSVN.TuTien.Core
 
         private void ActivateSelectedExplorationPoint(GameState state)
         {
+            if (offlinePreview && selectedRoamingMonster != null && !selectedRoamingMonster.defeated)
+            {
+                if (explorationCell != selectedRoamingMonster.point.cell) { MoveExplorationTo(selectedRoamingMonster.point.cell); return; }
+                activeRoamingMonster = selectedRoamingMonster;
+                StartOfflineHunt(selectedRoamingMonster.point);
+                return;
+            }
             var point = explorationSelectedPoint;
             if (point == null) { ShowStatus("Hãy chọn một thành trấn, cổ động hoặc bãi yêu trước."); return; }
             if (explorationCell != point.cell) { MoveExplorationTo(point.cell); return; }
@@ -1316,19 +1551,76 @@ namespace IOSVN.TuTien.Core
 
         private void OfflineTravelTo(TownInfo town)
         {
-            if (town == null || town.mapId != offlineHuntCatalog?.sourceMapId)
+            if (town == null)
             {
-                ShowStatus("Bản chơi thử offline hiện mở đầy đủ khu vực đầu Thanh Châu; các châu còn lại vẫn có trên atlas.");
+                ShowStatus("Không tìm thấy thành trấn này trong dữ liệu thế giới.");
                 return;
             }
+            if (offlineProgress.realmIndex < town.realmMin)
+            {
+                ShowStatus($"Cần đạt {town.realmMinName ?? RealmLabel(town.realmMin)} để ngự kiếm tới {town.name}. Hãy săn yêu thú để tích lũy linh lực.");
+                return;
+            }
+            var targetMap = FindMap(town.mapId);
+            if (targetMap == null) { ShowStatus("Thiếu dữ liệu bản đồ của thành trấn."); return; }
+            if (targetMap.ascensionRequired && offlineProgress.realmIndex < 11)
+            {
+                ShowStatus("Cần hoàn thành Phi Thăng ở cảnh giới 11 trước khi vào Tiên Giới.");
+                return;
+            }
+            offlinePreviewState.player.ascended = offlineProgress.realmIndex >= 11;
+            offlinePreviewState.realm.index = offlineProgress.realmIndex;
+            offlinePreviewState.realm.name = OfflineRealmName(offlineProgress.realmIndex);
             offlinePreviewState.town = town;
             latestState = offlinePreviewState;
-            var destination = FindPointForTown(town.id);
-            if (destination != null)
-                PlayerPrefs.SetString(ExplorationSaveKey(offlinePreviewState, explorationMap), destination.cell.x + "," + destination.cell.y);
-            PlayerPrefs.Save();
+            offlineProgress.currentTownId = town.id;
+            PlayerPrefs.DeleteKey(ExplorationSaveKey(offlinePreviewState, targetMap));
+            SaveOfflineProgress();
+            atlasImmortalRealm = targetMap.ascensionRequired;
             RenderExplorationMap(offlinePreviewState);
-            ShowStatus("Đã ngự kiếm tới " + town.name + " · trận đánh và vật phẩm offline đã được lưu trên máy.");
+            ShowStatus("Đã ngự kiếm tới " + town.name + " · yêu thú, chiến lợi phẩm và tiến độ được lưu trên máy.");
+        }
+
+        private TownInfo FindOfflineTown(string townId)
+        {
+            if (string.IsNullOrEmpty(townId)) return null;
+            foreach (var town in mapCatalog?.towns ?? Array.Empty<TownInfo>())
+                if (town != null && town.id == townId && town.realmMin <= offlineProgress.realmIndex) return town;
+            return null;
+        }
+
+        private void EnterOfflineMonsterField(GameState state)
+        {
+            if (atlasSelectedTown == null) { ShowStatus("Chọn một thành trấn có bãi yêu thú trước."); return; }
+            if (state?.town?.id != atlasSelectedTown.id) { OfflineTravelTo(atlasSelectedTown); return; }
+            atlasFromExploration = false;
+            RenderExplorationMap(state);
+            foreach (var point in explorationPoints)
+            {
+                if (point.kind != WorldPointKind.MonsterZone || point.town?.id != atlasSelectedTown.id) continue;
+                explorationSelectedPoint = point;
+                UpdateExplorationLabels();
+                MoveExplorationTo(point.cell);
+                return;
+            }
+            ShowStatus("Khu vực này chưa có bãi quái trong catalog.");
+        }
+
+        private void EnterOfflineAtlasDungeon(GameState state)
+        {
+            if (atlasSelectedTown == null || atlasSelectedDungeon == null) { ShowStatus("Chọn cổ động cần thám hiểm trước."); return; }
+            if (state?.town?.id != atlasSelectedTown.id) { OfflineTravelTo(atlasSelectedTown); return; }
+            atlasFromExploration = false;
+            RenderExplorationMap(state);
+            foreach (var point in explorationPoints)
+            {
+                if (point.kind != WorldPointKind.Dungeon || point.dungeon?.id != atlasSelectedDungeon.id) continue;
+                explorationSelectedPoint = point;
+                UpdateExplorationLabels();
+                MoveExplorationTo(point.cell);
+                return;
+            }
+            ShowStatus("Cổ động chưa có đường vào trên bản đồ khu vực.");
         }
 
         private void LoadOfflineProgress()
@@ -1348,12 +1640,53 @@ namespace IOSVN.TuTien.Core
                 AddOfflineInventory("bo_y", 1);
                 AddOfflineInventory("hoi_xuan_dan", 3);
             }
-            offlineProgress.hp = Mathf.Clamp(offlineProgress.hp, 1, OfflineMaxHp);
+            offlineProgress.realmIndex = Mathf.Clamp(offlineProgress.realmIndex, 0, 65);
+            offlineProgress.experience = Mathf.Max(0, offlineProgress.experience);
+            offlineProgress.hp = Mathf.Clamp(offlineProgress.hp, 1, OfflinePlayerMaxHp());
             offlineProgressLoaded = true;
             SaveOfflineProgress();
         }
 
         private const int OfflineMaxHp = 240;
+
+        private int OfflinePlayerMaxHp() => OfflineMaxHp + Mathf.Max(0, offlineProgress.realmIndex) * 65;
+
+        private int OfflineExperienceToNextRealm() => 300 + Mathf.Max(0, offlineProgress.realmIndex) * 55;
+
+        private string OfflineRealmName(int index)
+        {
+            var best = "Cảnh giới " + index;
+            foreach (var map in mapCatalog?.maps ?? Array.Empty<MapInfo>())
+            {
+                if (map == null || index < map.realmMin || index > map.realmMax) continue;
+                best = map.realmMinName ?? best;
+                if (index > map.realmMin && !string.IsNullOrEmpty(map.realmMaxName)) best = map.realmMaxName;
+                break;
+            }
+            return best;
+        }
+
+        private void GrantOfflineExperience(OfflineMonsterData monster)
+        {
+            var oldRealm = offlineProgress.realmIndex;
+            var gained = 120 + Mathf.Max(0, monster.realm) * 45;
+            offlineProgress.experience += gained;
+            while (offlineProgress.realmIndex < 65 && offlineProgress.experience >= OfflineExperienceToNextRealm())
+            {
+                offlineProgress.experience -= OfflineExperienceToNextRealm();
+                offlineProgress.realmIndex++;
+            }
+            var realmUps = offlineProgress.realmIndex - oldRealm;
+            if (realmUps > 0)
+            {
+                offlineProgress.hp = Mathf.Min(OfflinePlayerMaxHp(), offlineProgress.hp + realmUps * 65);
+                offlinePreviewState.realm.index = offlineProgress.realmIndex;
+                offlinePreviewState.realm.name = OfflineRealmName(offlineProgress.realmIndex);
+                offlinePreviewState.player.ascended = offlineProgress.realmIndex >= 11;
+                offlineBattleMessage.text = $"Đột phá {realmUps} cảnh giới · {offlinePreviewState.realm.name}! +{gained:N0} linh lực.";
+            }
+            else offlineBattleMessage.text = $"Đánh bại {monster.name} · +{gained:N0} linh lực.";
+        }
 
         private void SaveOfflineProgress()
         {
@@ -1380,6 +1713,41 @@ namespace IOSVN.TuTien.Core
             foreach (var item in offlineHuntCatalog?.items ?? Array.Empty<OfflineItemData>())
                 if (item != null && item.id == id) return item;
             return null;
+        }
+
+        private void PrepareOfflineBattleSkills()
+        {
+            offlineBattleSkills.Clear();
+            foreach (var skill in offlineHuntCatalog?.skills ?? Array.Empty<OfflineSkillData>())
+            {
+                if (skill == null || skill.mon != offlineProgress.monClass || skill.realm > offlineProgress.realmIndex) continue;
+                if (skill.kind == "escape" || skill.kind == "mana") continue;
+                offlineBattleSkills.Add(skill);
+            }
+            if (offlineBattleSkills.Count == 0)
+                offlineBattleSkills.Add(new OfflineSkillData { id = "kiem_khi_tram", mon = "kiem", name = "Kiếm Khí Trảm", kind = "atk", realm = 0, mp = 14 });
+            offlineBattleSkills.Sort((left, right) => left.realm.CompareTo(right.realm));
+            offlineBattleSkillIndex = offlineBattleSkills.Count - 1;
+            activeOfflineSkill = offlineBattleSkills[offlineBattleSkillIndex];
+        }
+
+        private void CycleOfflineSkill()
+        {
+            if (offlineBattleSkills.Count == 0) return;
+            offlineBattleSkillIndex = (offlineBattleSkillIndex + offlineBattleSkills.Count - 1) % offlineBattleSkills.Count;
+            activeOfflineSkill = offlineBattleSkills[offlineBattleSkillIndex];
+            UpdateOfflineSkillPresentation();
+            if (offlineBattleMessage != null) offlineBattleMessage.text = activeOfflineSkill.desc ?? "Đã chọn kỹ năng.";
+        }
+
+        private void UpdateOfflineSkillPresentation()
+        {
+            if (offlineSkillButton == null) return;
+            SetOfflineButtonLabel(offlineSkillButton, (activeOfflineSkill?.name ?? "Kỹ năng") + " · " + offlineBattleEnergy);
+            if (offlineSkillIcon == null) return;
+            var sprite = LoadPixelIcon("PixelArt/Items/" + (activeOfflineSkill?.id ?? "kiem_khi_tram"));
+            offlineSkillIcon.sprite = sprite;
+            offlineSkillIcon.enabled = sprite != null;
         }
 
         private static Sprite LoadPixelIcon(string resourcePath)
@@ -1444,17 +1812,20 @@ namespace IOSVN.TuTien.Core
         private void StartOfflineHunt(WorldMapPoint point)
         {
             if (offlineBattleRoot != null || offlineActionRunning) return;
+            activeRoamingMonster = selectedRoamingMonster != null && selectedRoamingMonster.point == point ? selectedRoamingMonster : null;
             activeOfflineMonster = FindOfflineMonster(point?.monsterId);
             if (activeOfflineMonster == null)
             {
                 ShowStatus("Bãi này chưa có sprite hoặc dữ liệu quái trong gói offline.");
                 return;
             }
-            if (offlineProgress.hp <= 0) offlineProgress.hp = OfflineMaxHp / 2;
+            if (offlineProgress.hp <= 0) offlineProgress.hp = OfflinePlayerMaxHp() / 2;
             offlineActionRunning = false;
             offlineBattleOver = false;
-            offlineBattleMonsterHp = Mathf.Max(110, Mathf.RoundToInt(activeOfflineMonster.hp * .42f));
+            offlineBattleMonsterHp = OfflineMonsterBattleMaxHp(activeOfflineMonster);
             offlineBattleEnergy = 3;
+            offlineEnemyStunnedUntil = 0f;
+            PrepareOfflineBattleSkills();
             if (explorationMapRoot != null) explorationMapRoot.SetActive(false);
             if (offlineInventoryRoot != null) { Destroy(offlineInventoryRoot); offlineInventoryRoot = null; }
             ClearContent();
@@ -1469,7 +1840,7 @@ namespace IOSVN.TuTien.Core
             PanelObject("BattleShade", offlineBattleRoot.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0, 0, 0, .20f));
 
             var header = PanelObject("BattleHud", offlineBattleRoot.transform, new Vector2(.025f, .815f), new Vector2(.975f, .98f), Vector2.zero, Vector2.zero, new Color32(15, 20, 24, 235));
-            ChildText(header.transform, "PlayerVitals", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .53f), new Vector2(.37f, .94f)).text = $"ĐẠO HỮU  ·  {offlineProgress.hp}/{OfflineMaxHp} KHÍ HUYẾT";
+            ChildText(header.transform, "PlayerVitals", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .53f), new Vector2(.37f, .94f)).text = $"ĐẠO HỮU  ·  {offlineProgress.hp}/{OfflinePlayerMaxHp()} KHÍ HUYẾT";
             ChildText(header.transform, "BattleLocation", 15, Gold, TextAnchor.MiddleCenter, new Vector2(.38f, .53f), new Vector2(.60f, .94f)).text = "PVE  ·  " + (point.town?.name ?? offlineHuntCatalog.sourceMapName);
             ChildText(header.transform, "EnemyName", 17, Cream, TextAnchor.MiddleRight, new Vector2(.61f, .53f), new Vector2(.80f, .94f)).text = activeOfflineMonster.name;
             offlinePlayerHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.035f, .15f), new Vector2(.37f, .43f), new Color32(73, 190, 111, 255));
@@ -1488,8 +1859,29 @@ namespace IOSVN.TuTien.Core
             BattleMoveButton("↓", new Vector2(.105f, .055f), new Vector2(.175f, .125f), Vector2.down);
             BattleMoveButton("→", new Vector2(.175f, .055f), new Vector2(.245f, .125f), Vector2.right);
             Button("ĐÁNH", new Vector2(.64f, .045f), new Vector2(.75f, .19f), Gold, () => OfflineBattleAction(false), offlineBattleRoot.transform);
-            offlineSkillButton = Button("KIẾM KHÍ  ·  " + offlineBattleEnergy, new Vector2(.76f, .045f), new Vector2(.87f, .19f), new Color32(52, 75, 96, 255), () => OfflineBattleAction(true), offlineBattleRoot.transform);
-            Button("HỒI ĐAN", new Vector2(.88f, .045f), new Vector2(.99f, .19f), new Color32(57, 90, 70, 255), UseOfflineHealingPill, offlineBattleRoot.transform);
+            offlineSkillButton = Button((activeOfflineSkill?.name ?? "Kỹ năng") + " · " + offlineBattleEnergy,
+                new Vector2(.69f, .045f), new Vector2(.84f, .19f), new Color32(52, 75, 96, 255), () => OfflineBattleAction(true), offlineBattleRoot.transform);
+            var skillLabel = offlineSkillButton.GetComponentInChildren<Text>()?.GetComponent<RectTransform>();
+            if (skillLabel != null)
+            {
+                skillLabel.anchorMin = new Vector2(.27f, 0f);
+                skillLabel.anchorMax = new Vector2(.98f, 1f);
+                skillLabel.offsetMin = Vector2.zero;
+                skillLabel.offsetMax = Vector2.zero;
+            }
+            var skillIconObject = new GameObject("SkillPixelArt", typeof(RectTransform), typeof(Image));
+            skillIconObject.transform.SetParent(offlineSkillButton.transform, false);
+            var skillIconRect = skillIconObject.GetComponent<RectTransform>();
+            skillIconRect.anchorMin = new Vector2(.025f, .10f);
+            skillIconRect.anchorMax = new Vector2(.265f, .90f);
+            skillIconRect.offsetMin = Vector2.zero;
+            skillIconRect.offsetMax = Vector2.zero;
+            offlineSkillIcon = skillIconObject.GetComponent<Image>();
+            offlineSkillIcon.preserveAspect = true;
+            offlineSkillIcon.raycastTarget = false;
+            UpdateOfflineSkillPresentation();
+            offlineSkillCycleButton = Button("ĐỔI PHÁP", new Vector2(.845f, .045f), new Vector2(.91f, .19f), Panel, CycleOfflineSkill, offlineBattleRoot.transform);
+            Button("HỒI ĐAN", new Vector2(.915f, .045f), new Vector2(.99f, .19f), new Color32(57, 90, 70, 255), UseOfflineHealingPill, offlineBattleRoot.transform);
             offlineLeaveButton = Button("RÚT LUI", new Vector2(.82f, .85f), new Vector2(.97f, .95f), Panel, FinishOfflineBattle, header.transform);
             offlineNextEnemyAttackTime = Time.time + 1.1f;
             offlineBattleMotionTime = 0f;
@@ -1567,8 +1959,21 @@ namespace IOSVN.TuTien.Core
 
         private void ShowOfflineBattleVitals()
         {
-            if (offlinePlayerHealthFill != null) offlinePlayerHealthFill.fillAmount = Mathf.Clamp01(offlineProgress.hp / (float)OfflineMaxHp);
-            if (offlineMonsterHealthFill != null) offlineMonsterHealthFill.fillAmount = Mathf.Clamp01(offlineBattleMonsterHp / (float)Mathf.Max(1, Mathf.RoundToInt(activeOfflineMonster.hp * .42f)));
+            if (offlinePlayerHealthFill != null) offlinePlayerHealthFill.fillAmount = Mathf.Clamp01(offlineProgress.hp / (float)OfflinePlayerMaxHp());
+            if (offlineMonsterHealthFill != null) offlineMonsterHealthFill.fillAmount = Mathf.Clamp01(offlineBattleMonsterHp / (float)OfflineMonsterBattleMaxHp(activeOfflineMonster));
+        }
+
+        private int OfflineMonsterBattleMaxHp(OfflineMonsterData monster)
+        {
+            var health = Mathf.Max(110f, monster == null ? 110f : monster.hp * .42f);
+            if (monster?.worldBoss == true) health *= 2f;
+            return Mathf.Clamp(Mathf.RoundToInt(health), 110, 18000);
+        }
+
+        private int OfflineMonsterAttackDamage(OfflineMonsterData monster)
+        {
+            var damage = 13 + Mathf.Clamp(Mathf.RoundToInt((monster?.atk ?? 25) * .08f), 0, 110);
+            return damage + UnityEngine.Random.Range(0, 7);
         }
 
         private void OfflineBattleAction(bool skill)
@@ -1584,7 +1989,7 @@ namespace IOSVN.TuTien.Core
         private IEnumerator ResolveOfflineBattleTurn(bool skill)
         {
             if (skill) offlineBattleEnergy--;
-            SetOfflineButtonLabel(offlineSkillButton, "KIẾM KHÍ  ·  " + offlineBattleEnergy);
+            UpdateOfflineSkillPresentation();
             StartCoroutine(AnimateOfflineSwordEffect(skill));
             var playerHome = offlinePlayerFighter.anchoredPosition;
             var enemyHome = offlineMonsterFighter.anchoredPosition;
@@ -1597,7 +2002,17 @@ namespace IOSVN.TuTien.Core
             }
             offlinePlayerFighter.anchoredPosition = playerHome + direction;
             if (skill) offlineMonsterImage.color = new Color32(255, 184, 102, 255);
-            var damage = skill ? 88 : 51;
+            var rawDamage = (skill ? 88 : 51) + offlineProgress.realmIndex * (skill ? 15 : 9);
+            if (skill)
+            {
+                var kind = activeOfflineSkill?.kind ?? "atk";
+                var multiplier = kind == "multi" ? 2.1f : kind == "dot" ? 1.7f : kind == "stun" ? 1.45f : kind == "buff" ? 1.65f : kind == "shield" ? 1.3f : 1.6f;
+                rawDamage = Mathf.RoundToInt(rawDamage * multiplier);
+                if (kind == "stun") offlineEnemyStunnedUntil = Time.time + 1.8f;
+                if (kind == "heal") offlineProgress.hp = Mathf.Min(OfflinePlayerMaxHp(), offlineProgress.hp + Mathf.Max(28, rawDamage / 2));
+            }
+            var damage = Mathf.Max(18, rawDamage - Mathf.Clamp(activeOfflineMonster.def / 12, 0, 180));
+            if (skill && activeOfflineSkill?.kind == "dot") damage += Mathf.Max(8, damage / 5);
             offlineBattleMonsterHp = Mathf.Max(0, offlineBattleMonsterHp - damage);
             for (var n = 0; n < 5; n++)
             {
@@ -1613,7 +2028,14 @@ namespace IOSVN.TuTien.Core
             {
                 offlineBattleOver = true;
                 offlineProgress.kills++;
-                offlineProgress.stones += 300;
+                offlineProgress.stones += 300 + activeOfflineMonster.realm * 45;
+                GrantOfflineExperience(activeOfflineMonster);
+                if (activeRoamingMonster != null)
+                {
+                    activeRoamingMonster.defeated = true;
+                    activeRoamingMonster.respawnAt = Time.time + 22f;
+                    activeRoamingMonster.marker.gameObject.SetActive(false);
+                }
                 var drops = RollOfflineDrops(activeOfflineMonster);
                 var description = new List<string>();
                 foreach (var drop in drops)
@@ -1626,21 +2048,30 @@ namespace IOSVN.TuTien.Core
                     icon.GetComponent<Image>().sprite = LoadPixelIcon("PixelArt/Items/" + drop.Key); icon.GetComponent<Image>().preserveAspect = true;
                 }
                 offlineBattleTitle.text = "CHIẾN THẮNG  ·  " + activeOfflineMonster.name;
-                offlineBattleMessage.text = "RƠI ĐỒ  ·  " + string.Join("   ·   ", description);
+                offlineBattleMessage.text += "\nRƠI ĐỒ  ·  " + string.Join("   ·   ", description);
                 SetOfflineButtonLabel(offlineLeaveButton, "NHẶT ĐỒ  ·  VỀ MAP");
                 SaveOfflineProgress();
                 ShowOfflineBattleVitals();
             }
             else
             {
-                offlineBattleMessage.text = skill ? "Kiếm khí xé gió · gây " + damage + " sát thương." : "Một đòn kiếm trúng yêu thú · " + damage + " sát thương.";
+                offlineBattleMessage.text = skill
+                    ? (activeOfflineSkill?.name ?? "Kỹ năng") + " · gây " + damage + " sát thương."
+                    : "Một đòn đánh trúng yêu thú · " + damage + " sát thương.";
+                if (skill && activeOfflineSkill?.kind == "stun")
+                {
+                    offlineBattleMessage.text += " Yêu thú bị định thân.";
+                    SaveOfflineProgress(); ShowOfflineBattleVitals();
+                    offlineActionRunning = false;
+                    yield break;
+                }
                 yield return new WaitForSeconds(.38f);
-                var incoming = 13 + (activeOfflineMonster.realm * 2) + UnityEngine.Random.Range(0, 7);
+                var incoming = OfflineMonsterAttackDamage(activeOfflineMonster);
                 offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - incoming);
                 offlineBattleMessage.text = activeOfflineMonster.name + " phản kích · mất " + incoming + " khí huyết.";
                 if (offlineProgress.hp <= 0)
                 {
-                    offlineProgress.hp = OfflineMaxHp / 2;
+                    offlineProgress.hp = OfflinePlayerMaxHp() / 2;
                     offlineBattleOver = true;
                     offlineBattleTitle.text = "TRỌNG THƯƠNG  ·  ĐƯỢC CỨU VỀ THÀNH";
                     offlineBattleMessage.text = "Chưa nhận được chiến lợi phẩm. Khí huyết đã hồi một nửa.";
@@ -1662,10 +2093,16 @@ namespace IOSVN.TuTien.Core
             rect.sizeDelta = new Vector2(skill ? 112 : 84, skill ? 112 : 84);
             var image = effectObject.GetComponent<Image>();
             image.raycastTarget = false;
-            var artId = skill ? "thanh_phong_kiem_khi" : "kiem_phap_co_ban";
-            var artName = skill ? "Thanh Phong Kiếm Khí" : "Đánh thường";
-            image.sprite = PixelSkillArt.Frames(artId, artName, "kiem", false)[0];
-            PixelSkillArt.Animate(image, artId, artName, "kiem", false);
+            var artId = skill ? activeOfflineSkill?.id ?? "kiem_khi_tram" : "kiem_phap_co_ban";
+            var artName = skill ? activeOfflineSkill?.name ?? "Kiếm Khí Trảm" : "Đánh thường";
+            var combatRole = skill ? activeOfflineSkill?.kind ?? offlineProgress.monClass : offlineProgress.monClass;
+            var detailedSkillSprite = skill ? LoadPixelIcon("PixelArt/Items/" + artId) : null;
+            if (detailedSkillSprite != null) image.sprite = detailedSkillSprite;
+            else
+            {
+                image.sprite = PixelSkillArt.Frames(artId, artName, combatRole, offlineProgress.realmIndex >= 11)[0];
+                PixelSkillArt.Animate(image, artId, artName, combatRole, offlineProgress.realmIndex >= 11);
+            }
             var canvasSize = rootRect.rect.size;
             var start = new Vector2(-canvasSize.x * .10f, 0);
             var end = new Vector2(canvasSize.x * .12f, canvasSize.y * .015f);
@@ -1698,8 +2135,8 @@ namespace IOSVN.TuTien.Core
         {
             if (offlineActionRunning || offlineBattleOver) return;
             if (!RemoveOfflineInventory("hoi_xuan_dan", 1)) { offlineBattleMessage.text = "Túi không còn Hồi Xuân Đan."; return; }
-            if (offlineProgress.hp >= OfflineMaxHp) { AddOfflineInventory("hoi_xuan_dan", 1); offlineBattleMessage.text = "Khí huyết đã đầy."; return; }
-            offlineProgress.hp = Mathf.Min(OfflineMaxHp, offlineProgress.hp + 82);
+            if (offlineProgress.hp >= OfflinePlayerMaxHp()) { AddOfflineInventory("hoi_xuan_dan", 1); offlineBattleMessage.text = "Khí huyết đã đầy."; return; }
+            offlineProgress.hp = Mathf.Min(OfflinePlayerMaxHp(), offlineProgress.hp + 82 + offlineProgress.realmIndex * 10);
             SaveOfflineProgress(); ShowOfflineBattleVitals();
             OfflineBattleAction(false);
         }
@@ -1711,7 +2148,8 @@ namespace IOSVN.TuTien.Core
             if (offlineBattleTexture != null) Destroy(offlineBattleTexture);
             offlineBattleTexture = null;
             offlineBattleRoot = null; activeOfflineMonster = null; offlineLeaveButton = null;
-            offlineBattleOver = false; offlineActionRunning = false; offlineSkillButton = null;
+            activeRoamingMonster = null;
+            offlineBattleOver = false; offlineActionRunning = false; offlineSkillButton = null; offlineSkillIcon = null;
             offlineBattleMoveInput = Vector2.zero;
             SaveOfflineProgress();
             RenderExplorationMap(offlinePreviewState);
@@ -1815,23 +2253,23 @@ namespace IOSVN.TuTien.Core
                 if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
                 {
                     Button("TỚI THÀNH", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
-                        () => { if (offlinePreview) ShowStatus("Bản xem offline không di chuyển thành trấn."); else TravelTo(atlasSelectedTown); }, info.transform);
+                        () => { if (offlinePreview) OfflineTravelTo(atlasSelectedTown); else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("VÀO ĐỘNG", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (offlinePreview) ShowStatus("Vào cổ động cần máy chủ online."); else if (state.town?.id != atlasSelectedTown?.id) ShowStatus("Hãy tới thành trấn gắn với cổ động này trước."); else { SetAtlasOrientation(false); EnterDungeon(atlasSelectedDungeon.id); } }, info.transform);
+                        () => { if (offlinePreview) EnterOfflineAtlasDungeon(state); else if (state.town?.id != atlasSelectedTown?.id) ShowStatus("Hãy tới thành trấn gắn với cổ động này trước."); else { SetAtlasOrientation(false); EnterDungeon(atlasSelectedDungeon.id); } }, info.transform);
                 }
                 else if (atlasSelectionKind == "monsters")
                 {
                     Button(state.town?.id == atlasSelectedTown?.id ? "SĂN TIỂU YÊU" : "TỚI BÃI QUÁI", new Vector2(0.04f, 0.07f), new Vector2(0.55f, 0.25f), Gold,
-                        () => { if (offlinePreview) ShowStatus("Săn yêu thú cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                        () => { if (offlinePreview) EnterOfflineMonsterField(state); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("PVP", new Vector2(0.59f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (offlinePreview) ShowStatus("PVP cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("PVP với người chơi thật cần máy chủ IPA online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
                 }
                 else
                 {
                     Button(state.town?.id == atlasSelectedTown?.id ? "PVE" : "NGỰ KIẾM TỚI", new Vector2(0.04f, 0.07f), new Vector2(0.48f, 0.25f), Gold,
-                        () => { if (offlinePreview) ShowStatus("PVE và di chuyển cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
+                        () => { if (offlinePreview) OfflineTravelTo(atlasSelectedTown); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPveTown(state, atlasSelectedTown); } else TravelTo(atlasSelectedTown); }, info.transform);
                     Button("PVP", new Vector2(0.52f, 0.07f), new Vector2(0.96f, 0.25f), Panel,
-                        () => { if (offlinePreview) ShowStatus("PVP cần máy chủ online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
+                        () => { if (offlinePreview) ShowStatus("PVP với người chơi thật cần máy chủ IPA online."); else if (state.town?.id == atlasSelectedTown?.id) { SetAtlasOrientation(false); ShowPvp(state); } else ShowStatus("PVP chỉ mở tại thành trấn hiện tại."); }, info.transform);
                 }
             }
 
