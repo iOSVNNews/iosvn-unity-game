@@ -4,10 +4,11 @@ Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản
 
 ## Trang chủ và tài khoản
 
-Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ và bảng tài khoản ở giữa. Tab tạo tài khoản mở form riêng có xác nhận mật khẩu; đăng nhập và đăng ký gọi API thật, có kiểm tra dữ liệu và thông báo lỗi. Các ảnh dưới đây được render từ mã Unity hiện tại.
+Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ. Bảng tài khoản là một thẻ kính tối bo góc chia hai cột cho màn ngang: cột trái có tiêu đề và lối vào chơi ngoại tuyến/thử tạo nhân vật, cột phải có tab Đăng nhập/Tạo tài khoản dạng segmented, ô nhập có icon, nút hiện/ẩn mật khẩu và nút chính gradient vàng. Ô nhập sáng viền khi focus và chuyển đỏ khi sai, thẻ rung nhẹ khi báo lỗi, nút chính hiện vòng xoay khi đang gửi. Chữ dùng Be Vietnam Pro và Playfair Display SC (SIL OFL, xem `unity_project/Assets/Fonts/`). Các ảnh dưới đây được render từ mã Unity hiện tại (`iOSVN > Login > Render auth previews`).
 
 ![Trang đăng nhập](unity_project/docs/login-home.png)
 ![Trang đăng ký](unity_project/docs/login-register.png)
+![Xác minh email](unity_project/docs/login-verify.png)
 
 ## Build trên GitHub
 
@@ -53,11 +54,12 @@ Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ t
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
 - Server IPA: `ipa_server.js`, HTTPS `/ipa/api` trên domain `tutien.iosvn.com.vn`.
 - Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái, 1.589 vật phẩm và 245 kỹ năng; quái và vật phẩm dùng pixel art từ game Telegram. Ba quái cảnh giới 12 được vẽ bổ sung vì nguồn thiếu sprite. Tất cả 245 kỹ năng có pixel icon riêng; nút chọn chiêu và hiệu ứng đánh dùng hình đúng kỹ năng.
+- Pixel art khớp đủ với game Telegram: 1.860 icon vật phẩm/kỹ năng/lửa luyện/hồ lô, 279 quái và 58 icon HUD (`PixelArt/UI`). Emoji trong dữ liệu (thành, bí cảnh, đối thủ) được đổi sang đúng icon HUD như Mini App vì Unity không vẽ được emoji màu. Texture pixel được nhập lossless ở lưới gốc 64×64 (HUD 32×32), lọc point, không mipmap, không nén.
 - Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
 - Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
 
-Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`.
+Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`. Thêm `--ui-and-catalog` để chỉ làm mới icon HUD và catalog mà không mã hoá lại 2.139 ảnh quái/vật phẩm.
 
 Để build trên GitHub Actions cần cấu hình Unity Personal secrets. Xuất IPA cài trên iPhone còn cần Apple signing secrets và bundle ID khớp provisioning profile.
 

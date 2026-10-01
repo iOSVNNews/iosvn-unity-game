@@ -324,41 +324,14 @@ namespace IOSVN.TuTien.Core
             ClearContent();
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
             GameLogo(new Vector2(.005f, .77f), new Vector2(.125f, .98f));
-            Label("PHÀM GIỚI · TIÊN GIỚI", 16, Cream, TextAnchor.MiddleCenter, new Vector2(.005f, .72f), new Vector2(.145f, .765f));
-        }
-
-        private void ShowAccountForm(bool createAccount)
-        {
-            var previousEmail = emailInput != null ? emailInput.text : string.Empty;
-            PrepareAccountScreen();
-            passwordConfirmationInput = null;
-            PanelObject("AuthShadow", content.transform, new Vector2(.30f, .105f), new Vector2(.70f, .945f), new Vector2(10, -12), new Vector2(10, -12), new Color32(4, 12, 17, 130));
-            var card = PanelObject("LandscapeAuthCard", content.transform, new Vector2(.30f, .105f), new Vector2(.70f, .945f), Vector2.zero, Vector2.zero, new Color32(14, 27, 35, 242));
-            ChildText(card.transform, "AuthTitle", 32, Gold, TextAnchor.MiddleCenter, new Vector2(.07f, .90f), new Vector2(.93f, .965f)).text = createAccount ? "KHỞI ĐẦU TIÊN LỘ" : "CHÀO MỪNG ĐẠO HỮU";
-            ChildText(card.transform, "AuthSubtitle", 20, Cream, TextAnchor.MiddleCenter, new Vector2(.07f, .85f), new Vector2(.93f, .90f)).text = createAccount ? "Tạo tài khoản để lưu hành trình tu luyện" : "Đăng nhập để tiếp tục hành trình tu luyện";
-            AuthControl(Button("ĐĂNG NHẬP", new Vector2(.085f, .755f), new Vector2(.49f, .83f), createAccount ? Panel : Gold, () => { if (createAccount) ShowAccountForm(false); }, card.transform));
-            AuthControl(Button("TẠO TÀI KHOẢN", new Vector2(.51f, .755f), new Vector2(.915f, .83f), createAccount ? Gold : Panel, () => { if (!createAccount) ShowAccountForm(true); }, card.transform));
-            ChildText(card.transform, "EmailLabel", 19, Cream, TextAnchor.MiddleLeft, new Vector2(.085f, .69f), new Vector2(.915f, .735f)).text = "TÀI KHOẢN HOẶC EMAIL";
-            emailInput = Input("account", "Tên tài khoản hoặc email", new Vector2(.085f, .59f), new Vector2(.915f, .685f), false, card.transform);
-            emailInput.text = previousEmail;
-            emailInput.characterLimit = 254;
-            AuthControl(emailInput);
-            ChildText(card.transform, "PasswordLabel", 19, Cream, TextAnchor.MiddleLeft, new Vector2(.085f, .55f), new Vector2(.915f, .585f)).text = "MẬT KHẨU";
-            passwordInput = Input("password", createAccount ? "Từ 10 đến 128 ký tự" : "Nhập mật khẩu", new Vector2(.085f, .445f), new Vector2(.915f, .54f), true, card.transform);
-            passwordInput.characterLimit = 128;
-            AuthControl(passwordInput);
-            if (createAccount)
-            {
-                passwordConfirmationInput = Input("passwordConfirmation", "Nhập lại mật khẩu", new Vector2(.085f, .335f), new Vector2(.915f, .43f), true, card.transform);
-                passwordConfirmationInput.characterLimit = 128;
-                AuthControl(passwordConfirmationInput);
-            }
-            status = ChildText(card.transform, "AuthFeedback", 21, Muted, TextAnchor.MiddleCenter, new Vector2(.085f, .215f), new Vector2(.915f, .315f));
-            status.text = createAccount ? "Tên tài khoản: 3–24 ký tự không dấu.\nĐăng ký bằng email cần mã xác minh." : "Hồ sơ của bạn được lưu trên máy chủ game.";
-            authPrimaryButton = Button(createAccount ? "TẠO TÀI KHOẢN" : "VÀO GAME", new Vector2(.085f, .085f), new Vector2(.915f, .195f), Gold, () => SubmitAuth(createAccount), card.transform);
-            AuthControl(authPrimaryButton);
-            AuthControl(Button("CHƠI NGOẠI TUYẾN", new Vector2(.30f, .018f), new Vector2(.495f, .085f), new Color32(28, 66, 61, 240), EnterOfflinePreview));
-            AuthControl(Button("THỬ TẠO NHÂN VẬT", new Vector2(.505f, .018f), new Vector2(.70f, .085f), new Color32(17, 33, 43, 240), EnterOfflineCharacterCreationPreview));
+            var tagline = Label("PHÀM GIỚI  ·  TIÊN GIỚI", 17, new Color32(240, 228, 204, 220), TextAnchor.MiddleCenter, new Vector2(.005f, .725f), new Vector2(.125f, .765f));
+            tagline.font = ModernUi.SemiBold;
+            tagline.horizontalOverflow = HorizontalWrapMode.Overflow;
+            var taglineOutline = tagline.GetComponent<Outline>();
+            if (taglineOutline != null) taglineOutline.enabled = false;
+            var taglineShadow = tagline.gameObject.AddComponent<Shadow>();
+            taglineShadow.effectColor = new Color(0f, 0f, 0f, .65f);
+            taglineShadow.effectDistance = new Vector2(0f, -2f);
         }
 
         private void AuthControl(Selectable control) => authControls.Add(control);
@@ -367,12 +340,15 @@ namespace IOSVN.TuTien.Core
         {
             authRequestPending = busy;
             foreach (var control in authControls) if (control != null) control.interactable = !busy;
+            if (authPrimarySpinner != null) authPrimarySpinner.gameObject.SetActive(busy);
+            if (authPrimaryArrow != null) authPrimaryArrow.gameObject.SetActive(!busy);
         }
 
         private void AuthFeedback(string message, bool error = false)
         {
             ShowStatus(message);
-            if (status != null) status.color = error ? new Color32(255, 164, 138, 255) : Cream;
+            if (status != null) status.color = error ? AuthError : AuthTextSecondary;
+            if (error) UiShake.Play(authCardRoot);
         }
 
         private void SubmitAuth(bool createAccount)
@@ -384,18 +360,21 @@ namespace IOSVN.TuTien.Core
                 : System.Text.RegularExpressions.Regex.IsMatch(email, @"^[a-zA-Z0-9][a-zA-Z0-9_.]{2,23}$");
             if (!validIdentity)
             {
+                FlagAuthInput(emailInput);
                 AuthFeedback("Nhập tên tài khoản 3–24 ký tự không dấu hoặc email hợp lệ.", true);
                 emailInput.ActivateInputField();
                 return;
             }
             if (passwordInput.text.Length < 10 || passwordInput.text.Length > 128)
             {
+                FlagAuthInput(passwordInput);
                 AuthFeedback("Mật khẩu cần có từ 10 đến 128 ký tự.", true);
                 passwordInput.ActivateInputField();
                 return;
             }
             if (createAccount && passwordConfirmationInput.text != passwordInput.text)
             {
+                FlagAuthInput(passwordConfirmationInput);
                 AuthFeedback("Mật khẩu nhập lại chưa khớp.", true);
                 passwordConfirmationInput.ActivateInputField();
                 return;
@@ -432,30 +411,12 @@ namespace IOSVN.TuTien.Core
             else client.Login(email, passwordInput.text, finish);
         }
 
-        private void ShowEmailVerification(string email, string message = null)
-        {
-            pendingVerificationEmail = email?.Trim();
-            PrepareAccountScreen();
-            var card = PanelObject("LandscapeVerificationCard", content.transform, new Vector2(.30f, .15f), new Vector2(.70f, .89f), Vector2.zero, Vector2.zero, new Color32(14, 27, 35, 242));
-            ChildText(card.transform, "VerificationTitle", 32, Gold, TextAnchor.MiddleCenter, new Vector2(.07f, .82f), new Vector2(.93f, .94f)).text = "XÁC MINH EMAIL";
-            ChildText(card.transform, "VerificationEmail", 22, Cream, TextAnchor.MiddleCenter, new Vector2(.085f, .65f), new Vector2(.915f, .81f)).text = "Nhập mã 6 số đã gửi tới\n" + pendingVerificationEmail;
-            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(.085f, .48f), new Vector2(.915f, .62f), false, card.transform);
-            verificationCodeInput.contentType = InputField.ContentType.IntegerNumber;
-            verificationCodeInput.characterLimit = 6;
-            verificationCodeInput.keyboardType = TouchScreenKeyboardType.NumberPad;
-            AuthControl(verificationCodeInput);
-            status = ChildText(card.transform, "AuthFeedback", 21, Cream, TextAnchor.MiddleCenter, new Vector2(.085f, .34f), new Vector2(.915f, .46f));
-            AuthControl(Button("XÁC MINH VÀO GAME", new Vector2(.085f, .20f), new Vector2(.915f, .32f), Gold, SubmitEmailVerification, card.transform));
-            AuthControl(Button("GỬI LẠI MÃ", new Vector2(.085f, .055f), new Vector2(.49f, .17f), Panel, ResendEmailVerification, card.transform));
-            AuthControl(Button("ĐĂNG NHẬP", new Vector2(.51f, .055f), new Vector2(.915f, .17f), Panel, () => ShowLogin(), card.transform));
-            AuthFeedback(string.IsNullOrWhiteSpace(message) ? "Mã có hiệu lực trong 10 phút." : message);
-        }
-
         private void SubmitEmailVerification()
         {
             if (authRequestPending) return;
             if (string.IsNullOrWhiteSpace(pendingVerificationEmail) || !System.Text.RegularExpressions.Regex.IsMatch(verificationCodeInput?.text ?? "", @"^\d{6}$"))
             {
+                FlagAuthInput(verificationCodeInput);
                 AuthFeedback("Nhập đầy đủ mã 6 số trong email.", true);
                 return;
             }
@@ -809,6 +770,8 @@ namespace IOSVN.TuTien.Core
             ChildText(header.transform, "Welcome", 23, Cream, TextAnchor.MiddleLeft, new Vector2(.025f, .06f), new Vector2(.56f, .60f)).text = playerName ?? "Đạo hữu";
             ChildText(header.transform, "HeaderResources", 16, Gold, TextAnchor.MiddleRight, new Vector2(.58f, .12f), new Vector2(.975f, .88f)).text =
                 $"{state.realm?.name ?? "Sơ nhập"}     ·     {state.town?.name ?? "Chưa rõ thành"}     ·     {Math.Max(0, state.player?.stones ?? 0):N0} LINH THẠCH";
+            ((RectTransform)header.transform.Find("HeaderResources")).anchorMax = new Vector2(.94f, .88f);
+            PlacePixelIcon(header.transform, "coin", new Vector2(.945f, .22f), new Vector2(.975f, .78f));
 
             var profile = PanelObject("HomeProfileCard", content.transform, new Vector2(.02f, .185f), new Vector2(.315f, .835f), Vector2.zero, Vector2.zero, new Color32(23, 29, 36, 255));
             PanelObject("HomePortraitFrame", profile.transform, new Vector2(.25f, .40f), new Vector2(.75f, .94f), Vector2.zero, Vector2.zero, new Color32(71, 57, 40, 255));
@@ -831,17 +794,18 @@ namespace IOSVN.TuTien.Core
             hpFill.fillAmount = maxHp == 0 ? 0f : Mathf.Clamp01((float)hp / maxHp);
             ChildText(profile.transform, "ProfileVitals", 14, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .12f), new Vector2(.95f, .18f)).text =
                 maxHp == 0 ? "KHÍ HUYẾT  ·  CHƯA CÓ DỮ LIỆU" : $"KHÍ HUYẾT  ·  {hp:N0} / {maxHp:N0}";
-            Button("DANH HIỆU", new Vector2(.07f, .035f), new Vector2(.93f, .105f), Panel, () => ShowTitles(state), profile.transform);
+            PlacePixelIcon(profile.transform, "heart", new Vector2(.02f, .17f), new Vector2(.075f, .24f));
+            AddButtonPixelIcon(Button("DANH HIỆU", new Vector2(.07f, .035f), new Vector2(.93f, .105f), Panel, () => ShowTitles(state), profile.transform), "power");
 
-            Button("BẢN ĐỒ", new Vector2(.34f, .785f), new Vector2(.55f, .84f), Panel, () => ShowMap(state));
-            Button("LÔI ĐÀI  ·  PVP", new Vector2(.565f, .785f), new Vector2(.765f, .84f), Gold, () => ShowPvp(state));
-            Button("TRUY TUNG  ·  PVE", new Vector2(.78f, .785f), new Vector2(.98f, .84f), Panel, RefreshMonsters);
+            AddButtonPixelIcon(Button("BẢN ĐỒ", new Vector2(.34f, .785f), new Vector2(.55f, .84f), Panel, () => ShowMap(state)), "road");
+            AddButtonPixelIcon(Button("LÔI ĐÀI  ·  PVP", new Vector2(.565f, .785f), new Vector2(.765f, .84f), Gold, () => ShowPvp(state)), "swords");
+            AddButtonPixelIcon(Button("TRUY TUNG  ·  PVE", new Vector2(.78f, .785f), new Vector2(.98f, .84f), Panel, RefreshMonsters), "san_yeu");
             Label("YÊU THÚ QUANH THÀNH", 19, Gold, TextAnchor.MiddleLeft, new Vector2(.35f, .735f), new Vector2(.77f, .78f));
             Button("LÀM MỚI", new Vector2(.82f, .735f), new Vector2(.98f, .78f), Panel, RefreshMonsters);
-            var scrollContent = CreateScrollList("MonsterList", 0.175f, 0.725f);
+            var scrollContent = CreateScrollList("MonsterList", 0.175f, 0.725f, .34f);
             if (state.worldMonsters != null) AddMonsterCards(state.worldMonsters, scrollContent);
             Button("BÍ CẢNH", new Vector2(.34f, .035f), new Vector2(.60f, .105f), Panel, () => ShowPveTown(state, state.town));
-            Button("TÀI KHOẢN", new Vector2(.62f, .035f), new Vector2(.80f, .105f), Panel, () => ShowAccountLinks(state));
+            AddButtonPixelIcon(Button("TÀI KHOẢN", new Vector2(.62f, .035f), new Vector2(.80f, .105f), Panel, () => ShowAccountLinks(state)), "ho_so");
             Button("ĐĂNG XUẤT", new Vector2(.82f, .035f), new Vector2(.98f, .105f), Panel, () => client.Logout(_ => ShowLogin()));
             ShowStatus("Hồ sơ và mục tiêu được đồng bộ với máy chủ.");
         }
@@ -1386,7 +1350,7 @@ namespace IOSVN.TuTien.Core
         private static Sprite CreateCultivatorSprite(AppearanceColors colors)
         {
             var cacheKey = (colors?.hair ?? "") + "|" + (colors?.outfit ?? "") + "|" + (colors?.eyes ?? "");
-            if (CultivatorSpriteCache.TryGetValue(cacheKey, out var cached)) return cached;
+            if (CultivatorSpriteCache.TryGetValue(cacheKey, out var cached) && cached != null) return cached;
             const int width = 16, height = 24;
             var pixels = new Color32[width * height]; var clear = new Color32(0, 0, 0, 0);
             for (var i = 0; i < pixels.Length; i++) pixels[i] = clear;
@@ -1836,7 +1800,8 @@ namespace IOSVN.TuTien.Core
         private static Sprite LoadPixelIcon(string resourcePath)
         {
             if (string.IsNullOrEmpty(resourcePath)) return null;
-            if (PixelIconCache.TryGetValue(resourcePath, out var cached)) return cached;
+            // Unity destroys unreferenced runtime sprites when unused assets are unloaded; rebuild those.
+            if (PixelIconCache.TryGetValue(resourcePath, out var cached) && cached != null) return cached;
             var texture = Resources.Load<Texture2D>(resourcePath);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
@@ -2437,13 +2402,13 @@ namespace IOSVN.TuTien.Core
             var town = atlasSelectedTown;
             if (town == null) return "Chưa có dữ liệu địa danh trong giới này.";
             var map = FindMap(town.mapId);
-            var current = state.town?.id == town.id ? "\n📍 Bạn đang ở đây" : "";
+            var current = state.town?.id == town.id ? "\n• Bạn đang ở đây" : "";
             if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
-                return $"{atlasSelectedDungeon.icon} {atlasSelectedDungeon.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {atlasSelectedDungeon.realmMin}\n\n{atlasSelectedDungeon.desc}\n\nGắn với: {town.name}{current}";
+                return $"{atlasSelectedDungeon.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {atlasSelectedDungeon.realmMin}\n\n{atlasSelectedDungeon.desc}\n\nGắn với: {town.name}{current}";
             if (atlasSelectionKind == "monsters")
-                return $"🐾 BÃI QUÁI {atlasSelectedMonsterFieldLabel}\n{town.name} · {map?.provinceName ?? map?.name}\n\n{AtlasMonsterNames(town, atlasSelectedMonsterField, atlasSelectedMonsterFieldCount)}\n\nNhóm {atlasSelectedMonsterField + 1}/{atlasSelectedMonsterFieldCount} · {town.monsterPool?.Length ?? 0} loài trong khu vực{current}";
+                return $"BÃI QUÁI {atlasSelectedMonsterFieldLabel}\n{town.name} · {map?.provinceName ?? map?.name}\n\n{AtlasMonsterNames(town, atlasSelectedMonsterField, atlasSelectedMonsterFieldCount)}\n\nNhóm {atlasSelectedMonsterField + 1}/{atlasSelectedMonsterFieldCount} · {town.monsterPool?.Length ?? 0} loài trong khu vực{current}";
             var dungeonCount = CountTownDungeons(town.id);
-            return $"{town.icon} {town.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {town.realmMinName ?? RealmLabel(town.realmMin)}\n\n{town.desc}\n\n{town.monsterPool?.Length ?? 0} loài yêu thú\n{dungeonCount} cổ động{current}";
+            return $"{town.name}\n{map?.provinceName ?? map?.name}\nCảnh giới: {town.realmMinName ?? RealmLabel(town.realmMin)}\n\n{town.desc}\n\n{town.monsterPool?.Length ?? 0} loài yêu thú\n{dungeonCount} cổ động{current}";
         }
 
         private string AtlasMonsterNames(TownInfo town, int groupIndex, int groupCount)
@@ -2460,7 +2425,7 @@ namespace IOSVN.TuTien.Core
                 foreach (var monster in mapCatalog?.monsters ?? Array.Empty<MonsterInfo>())
                 {
                     if (monster.id != id) continue;
-                    names.Add(monster.icon + " " + monster.name);
+                    names.Add(monster.name);
                     break;
                 }
                 if (names.Count >= 7) break;
@@ -2858,7 +2823,8 @@ namespace IOSVN.TuTien.Core
             var label = labelObject.GetComponent<Text>(); label.font = BuiltinFont(); label.fontSize = 16; label.color = Cream; label.alignment = TextAnchor.MiddleLeft; label.horizontalOverflow = HorizontalWrapMode.Wrap; label.verticalOverflow = VerticalWrapMode.Truncate;
             var dungeonCount = 0;
             foreach (var dungeon in mapCatalog.dungeons ?? Array.Empty<DungeonInfo>()) if (dungeon.townId == town.id) dungeonCount++;
-            label.text = $"{town.icon} {town.name}\n{town.realmMinName ?? ""} · {(town.monsterPool?.Length ?? 0)} yêu thú · {dungeonCount} bí cảnh";
+            label.text = $"{town.name}\n{town.realmMinName ?? ""} · {(town.monsterPool?.Length ?? 0)} yêu thú · {dungeonCount} bí cảnh";
+            AddRowPixelIcon(row, UiPixelIcon(PixelIconForEmoji(town.icon)), 48f);
             labelObject.GetComponent<LayoutElement>().flexibleWidth = 1;
             var travel = Button(current ? "Ở đây" : "Đi", Vector2.zero, Vector2.one, current ? Gold : Panel, () => TravelTo(town));
             travel.transform.SetParent(row.transform, false); travel.gameObject.AddComponent<LayoutElement>().preferredWidth = 100;
@@ -2947,7 +2913,8 @@ namespace IOSVN.TuTien.Core
             var textObject = new GameObject("DungeonInfo", typeof(RectTransform), typeof(Text), typeof(LayoutElement));
             textObject.transform.SetParent(row.transform, false);
             var text = textObject.GetComponent<Text>(); text.font = BuiltinFont(); text.fontSize = 16; text.color = Cream; text.alignment = TextAnchor.MiddleLeft; text.horizontalOverflow = HorizontalWrapMode.Wrap;
-            text.text = $"{dungeon.icon} {dungeon.name}\n{dungeon.stamina} thể lực · yêu cầu {RealmLabel(dungeon.realmMin)}";
+            text.text = $"{dungeon.name}\n{dungeon.stamina} thể lực · yêu cầu {RealmLabel(dungeon.realmMin)}";
+            AddRowPixelIcon(row, UiPixelIcon(PixelIconForEmoji(dungeon.icon, "co_dong")), 48f);
             textObject.GetComponent<LayoutElement>().flexibleWidth = 1;
             var enter = Button("VÀO", Vector2.zero, Vector2.one, Gold, () => EnterDungeon(dungeon.id));
             enter.transform.SetParent(row.transform, false); enter.gameObject.AddComponent<LayoutElement>().preferredWidth = 115;
@@ -3025,7 +2992,8 @@ namespace IOSVN.TuTien.Core
             var labelObject = new GameObject("OpponentInfo", typeof(RectTransform), typeof(Text), typeof(LayoutElement));
             labelObject.transform.SetParent(row.transform, false);
             var label = labelObject.GetComponent<Text>(); label.font = BuiltinFont(); label.fontSize = 16; label.color = Cream; label.alignment = TextAnchor.MiddleLeft; label.horizontalOverflow = HorizontalWrapMode.Wrap;
-            label.text = $"{(opponent.isDemon ? "☯️ " : "⚔️ ")}{opponent.fullName ?? opponent.name}\n{opponent.realmName} · {opponent.power:N0} chiến lực · {opponent.points} điểm";
+            label.text = $"{StripEmoji(opponent.fullName ?? opponent.name)}\n{opponent.realmName} · {opponent.power:N0} chiến lực · {opponent.points} điểm";
+            AddRowPixelIcon(row, UiPixelIcon(opponent.isDemon ? "bat_quai" : "swords"), 44f);
             labelObject.GetComponent<LayoutElement>().flexibleWidth = 1;
             var fight = Button("GIAO CHIẾN", Vector2.zero, Vector2.one, Gold, () => StartPvp(opponent.userId));
             fight.transform.SetParent(row.transform, false); fight.gameObject.AddComponent<LayoutElement>().preferredWidth = 150;
@@ -3118,13 +3086,15 @@ namespace IOSVN.TuTien.Core
         {
             var card = PanelObject("Info", parent, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Panel);
             card.AddComponent<LayoutElement>().preferredHeight = 72;
-            var label = ChildText(card.transform, "Text", 17, Muted, TextAnchor.MiddleLeft, new Vector2(0.03f, 0.04f), new Vector2(0.97f, 0.96f));
-            label.text = value;
+            var icon = LeadingPixelIcon(value);
+            var label = ChildText(card.transform, "Text", 17, Muted, TextAnchor.MiddleLeft, new Vector2(icon != null ? 0.085f : 0.03f, 0.04f), new Vector2(0.97f, 0.96f));
+            label.text = StripEmoji(value);
+            if (icon != null) PlacePixelIcon(card.transform, icon, new Vector2(0.02f, 0.2f), new Vector2(0.07f, 0.8f));
         }
 
-        private Transform CreateScrollList(string name, float bottom, float top)
+        private Transform CreateScrollList(string name, float bottom, float top, float left = 0.02f, float right = 0.98f)
         {
-            var listRoot = PanelObject(name, content.transform, new Vector2(0.02f, bottom), new Vector2(0.98f, top), Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
+            var listRoot = PanelObject(name, content.transform, new Vector2(left, bottom), new Vector2(right, top), Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
             var viewport = PanelObject("Viewport", listRoot.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(1, 1, 1, 0.015f));
             viewport.AddComponent<Mask>().showMaskGraphic = false;
             var scroll = listRoot.AddComponent<ScrollRect>(); scroll.viewport = viewport.GetComponent<RectTransform>(); scroll.horizontal = false; scroll.vertical = true; scroll.movementType = ScrollRect.MovementType.Clamped;
@@ -3172,6 +3142,7 @@ namespace IOSVN.TuTien.Core
                 labelObject.transform.SetParent(card.transform, false);
                 var label = labelObject.GetComponent<Text>(); label.font = BuiltinFont(); label.fontSize = 18; label.color = Cream; label.alignment = TextAnchor.MiddleLeft;
                 label.text = $"{monster.name}\n{monster.townId}  •  HP {Math.Max(0, monster.hp):N0}";
+                AddRowPixelIcon(card, LoadPixelIcon("PixelArt/Monsters/" + monster.monsterId), 76f);
                 labelObject.GetComponent<LayoutElement>().flexibleWidth = 1;
                 var hunt = Button("Khiêu chiến", Vector2.zero, Vector2.one, Gold, () => Hunt(monster.uid));
                 hunt.transform.SetParent(card.transform, false);
@@ -3278,6 +3249,9 @@ namespace IOSVN.TuTien.Core
             authRequestPending = false;
             authControls.Clear();
             authPrimaryButton = null;
+            authPrimarySpinner = null;
+            authPrimaryArrow = null;
+            authCardRoot = null;
             if (authBackdrop != null) { authBackdrop.SetActive(false); Destroy(authBackdrop); authBackdrop = null; }
             status = null;
             statusMin = new Vector2(0.02f, 0.12f); statusMax = new Vector2(0.98f, 0.19f);

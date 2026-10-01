@@ -12,11 +12,17 @@ namespace IOSVN.TuTien.Editor
     /// <summary>Creates a deterministic iOS Xcode project in GitHub Actions.</summary>
     public static class IOSBuild
     {
-        public static void Build()
+        public static void Build() => BuildTo(null);
+
+        /// <summary>Editor menu entry for local exports; CI keeps using Build() with command-line arguments.</summary>
+        [MenuItem("iOSVN/Build/Export iOS Xcode project to build/iOS-local")]
+        private static void BuildFromMenu() => BuildTo("../build/iOS-local");
+
+        private static void BuildTo(string outputOverride)
         {
             OnlinePrototypeProjectSetup.EnsurePrototypeScene();
             var bundleId = Argument("-iosBundleId", "com.iosvn.tutiengioi");
-            var outputPath = Argument("-iosBuildPath", "../build/iOS");
+            var outputPath = outputOverride ?? Argument("-iosBuildPath", "../build/iOS");
             if (!IsValidBundleId(bundleId)) throw new BuildFailedException("IOS_BUNDLE_ID must be a reverse-DNS identifier, for example com.studio.game.");
 
             PlayerSettings.companyName = "iOSVN";

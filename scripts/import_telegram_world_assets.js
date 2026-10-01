@@ -3,18 +3,19 @@
 
 // Imports the pixel monster/item art and gameplay catalog from the Telegram game
 // into Unity Resources so the IPA can run its exploration loop without a CDN.
-// Usage: node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"
+// Usage: node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien" [--ui-and-catalog]
 
 const fs = require('node:fs');
 const path = require('node:path');
 const zlib = require('node:zlib');
 
 const repoRoot = path.resolve(__dirname, '..');
-const telegramRoot = path.resolve(process.argv[2] || 'D:/Bot_Danh_Gia_Uy_Tin_Telegram/tutien');
+const telegramRoot = path.resolve(process.argv.slice(2).find(arg => !arg.startsWith('--')) || 'D:/Bot_Danh_Gia_Uy_Tin_Telegram/tutien');
 const sourceIcons = path.join(telegramRoot, 'public', 'icons');
 const unityAssets = path.join(repoRoot, 'unity_project', 'Assets');
 const outputMonsterIcons = path.join(unityAssets, 'Resources', 'PixelArt', 'Monsters');
 const outputItemIcons = path.join(unityAssets, 'Resources', 'PixelArt', 'Items');
+const outputUiIcons = path.join(unityAssets, 'Resources', 'PixelArt', 'UI');
 const outputCatalog = path.join(unityAssets, 'Resources', 'OfflineHuntCatalog.json');
 const mapCatalogPath = path.join(unityAssets, 'Resources', 'MapCatalog.json');
 const botCatalog = require(path.join(telegramRoot, 'catalog.js'));
@@ -39,6 +40,8 @@ function pngChunk(type, data) {
 }
 
 function parseColor(value) {
+  const short = /^#([0-9a-f]{3,4})$/i.exec(value || '');
+  if (short) value = '#' + [...short[1]].map(digit => digit + digit).join('');
   const match = /^#([0-9a-f]{6})([0-9a-f]{2})?$/i.exec(value || '');
   if (!match) throw new Error(`Unsupported pixel SVG color: ${value}`);
   return [
@@ -83,6 +86,100 @@ function renderPixelSvg(svg, sourceName) {
     Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
     pngChunk('IHDR', header), pngChunk('IDAT', zlib.deflateSync(scanlines, { level: 9 })), pngChunk('IEND', Buffer.alloc(0)),
   ]);
+}
+
+function encodePng(pixels, width, height) {
+  const scanlines = Buffer.alloc((width * 4 + 1) * height);
+  for (let y = 0; y < height; y++) pixels.copy(scanlines, y * (width * 4 + 1) + 1, y * width * 4, (y + 1) * width * 4);
+  const header = Buffer.alloc(13);
+  header.writeUInt32BE(width, 0); header.writeUInt32BE(height, 4);
+  header[8] = 8; header[9] = 6; header[10] = 0; header[11] = 0; header[12] = 0;
+  return Buffer.concat([
+    Buffer.from([137, 80, 78, 71, 13, 10, 26, 10]),
+    pngChunk('IHDR', header), pngChunk('IDAT', zlib.deflateSync(scanlines, { level: 9 })), pngChunk('IEND', Buffer.alloc(0)),
+  ]);
+}
+
+// The Telegram HUD icons are crisp 32x32 path SVGs (M/H/V/L/Z commands). Rasterise them
+// at their native grid with the non-zero rule, sampling each pixel centre.
+function parsePathPolygons(d) {
+  const tokens = String(d || '').match(/[MmLlHhVvZz]|-?\d*\.?\d+(?:e-?\d+)?/g) || [];
+  const polygons = [];
+  let current = null, x = 0, y = 0, startX = 0, startY = 0, command = null, i = 0;
+  const number = () => Number(tokens[i++]);
+  while (i < tokens.length) {
+    if (/^[A-Za-z]$/.test(tokens[i])) command = tokens[i++];
+    else if (!command) throw new Error(`Bad path data: ${d}`);
+    switch (command) {
+      case 'M': case 'm': {
+        const nx = number(), ny = number();
+        x = command === 'm' ? x + nx : nx; y = command === 'm' ? y + ny : ny;
+        startX = x; startY = y;
+        current = [[x, y]]; polygons.push(current);
+        command = command === 'm' ? 'l' : 'L';
+        break;
+      }
+      case 'L': case 'l': { const nx = number(), ny = number(); x = command === 'l' ? x + nx : nx; y = command === 'l' ? y + ny : ny; current.push([x, y]); break; }
+      case 'H': case 'h': { const n = number(); x = command === 'h' ? x + n : n; current.push([x, y]); break; }
+      case 'V': case 'v': { const n = number(); y = command === 'v' ? y + n : n; current.push([x, y]); break; }
+      case 'Z': case 'z': x = startX; y = startY; current = [[x, y]]; polygons.push(current); command = null; continue;
+      default: throw new Error(`Unsupported path command ${command}`);
+    }
+  }
+  return polygons.filter(polygon => polygon.length > 2);
+}
+
+function windingAt(polygons, px, py) {
+  let winding = 0;
+  for (const polygon of polygons) {
+    for (let k = 0; k < polygon.length; k++) {
+      const [x0, y0] = polygon[k];
+      const [x1, y1] = polygon[(k + 1) % polygon.length];
+      if (y0 <= py) {
+        if (y1 > py && (x1 - x0) * (py - y0) - (px - x0) * (y1 - y0) > 0) winding++;
+      } else if (y1 <= py && (x1 - x0) * (py - y0) - (px - x0) * (y1 - y0) < 0) winding--;
+    }
+  }
+  return winding;
+}
+
+function renderPathSvg(svg, sourceName) {
+  const view = /viewBox=["']0 0 (\d+) (\d+)["']/.exec(svg);
+  if (!view) throw new Error(`${sourceName} needs an integer viewBox`);
+  const width = Number(view[1]), height = Number(view[2]);
+  const pixels = Buffer.alloc(width * height * 4);
+  let pathCount = 0;
+  for (const match of svg.matchAll(/<path\b([^>]*?)\/?>/g)) {
+    const attributes = Object.fromEntries([...match[1].matchAll(/([\w-]+)=["']([^"']*)["']/g)].map(item => [item[1], item[2]]));
+    const color = parseColor(attributes.fill);
+    const alpha = (color[3] / 255) * (attributes.opacity !== undefined ? Number(attributes.opacity) : 1);
+    const polygons = parsePathPolygons(attributes.d);
+    for (let py = 0; py < height; py++) {
+      for (let px = 0; px < width; px++) {
+        if (windingAt(polygons, px + .5, py + .5) === 0) continue;
+        const index = (py * width + px) * 4;
+        const below = pixels[index + 3] / 255;
+        const outAlpha = alpha + below * (1 - alpha);
+        for (let c = 0; c < 3; c++) pixels[index + c] = Math.round((color[c] * alpha + pixels[index + c] * below * (1 - alpha)) / (outAlpha || 1));
+        pixels[index + 3] = Math.round(outAlpha * 255);
+      }
+    }
+    pathCount++;
+  }
+  if (!pathCount) throw new Error(`${sourceName} contains no paths`);
+  return encodePng(pixels, width, height);
+}
+
+function importUiIcons(outputFolder) {
+  const inputFolder = path.join(sourceIcons, 'ui');
+  fs.mkdirSync(outputFolder, { recursive: true });
+  let count = 0;
+  for (const filename of fs.readdirSync(inputFolder).filter(file => file.endsWith('.svg')).sort()) {
+    const svgPath = path.join(inputFolder, filename);
+    fs.writeFileSync(path.join(outputFolder, `${path.basename(filename, '.svg')}.png`), renderPathSvg(fs.readFileSync(svgPath, 'utf8'), svgPath));
+    count++;
+  }
+  return count;
 }
 
 function importFolder(name, outputFolder) {
@@ -195,8 +292,12 @@ function writeOfflineCatalog() {
 if (!fs.existsSync(sourceIcons) || !fs.existsSync(path.join(telegramRoot, 'catalog.js'))) {
   throw new Error(`Telegram game source not found at ${telegramRoot}`);
 }
-const monsters = importFolder('monsters', outputMonsterIcons);
-const items = importFolder('items', outputItemIcons);
+// --ui-and-catalog refreshes HUD icons and the offline catalog without re-encoding
+// the 2,139 existing monster/item PNGs (zlib output differs between Node builds).
+const artToo = !process.argv.includes('--ui-and-catalog');
+const monsters = artToo ? importFolder('monsters', outputMonsterIcons) : 0;
+const items = artToo ? importFolder('items', outputItemIcons) : 0;
 const handDrawnMonsters = fillMissingWorldBossArt(outputMonsterIcons);
+const uiIcons = importUiIcons(outputUiIcons);
 const catalog = writeOfflineCatalog();
-console.log(JSON.stringify({ importedMonsterArt: monsters, handDrawnMonsterArt: handDrawnMonsters, importedItemArt: items, ...catalog }, null, 2));
+console.log(JSON.stringify({ importedMonsterArt: monsters, handDrawnMonsterArt: handDrawnMonsters, importedItemArt: items, importedUiArt: uiIcons, ...catalog }, null, 2));
