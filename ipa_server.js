@@ -8,7 +8,9 @@ const http = require('http');
 const { Game, GameError } = require('./ipa_core/engine');
 const { GameStore } = require('./ipa_core/store');
 const C = require('./ipa_core/catalog');
+const { getBattleMapSets } = require('./ipa_core/mode_maps');
 const { EmailAuthStore } = require('./email_auth_store');
+const { createGmailMailer } = require('./gmail_mailer');
 
 const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.IPA_DATA_DIR || path.join(ROOT, 'server_data'));
@@ -93,6 +95,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     fs.mkdirSync(DATA_DIR, { recursive: true });
     const store = new GameStore(path.join(DATA_DIR, 'ipa_game_data.json'));
     const auth = new EmailAuthStore(path.join(DATA_DIR, 'ipa_auth_data.json'));
+    const gmail = createGmailMailer();
     const realms = createRealmProgress(store);
     const game = new Game({ store, realms });
     const rates = new Map();
@@ -104,6 +107,36 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         if (realm.index < town.realmMin)
             throw new GameError(`Cần đạt ${town.realmMinName || `cảnh giới ${town.realmMin}`} mới được tham gia nội dung ở ${town.name}.`);
     };
+
+    const battleMapFor = (userId, battle, modeId) => {
+        const player = game.player(userId);
+        const currentTown = C.TOWN_BY_ID.get(String(player?.town || ''));
+        const currentWorld = C.MAP_BY_ID.get(String(currentTown?.mapId || ''));
+        const immortal = currentWorld ? Boolean(currentWorld.ascensionRequired) : Boolean(player?.ascended);
+        const set = getBattleMapSets(game.now()).find(item => item.requiresAscension === immortal);
+        const mode = set?.modes.find(item => item.id === modeId);
+        if (!mode?.maps?.length) return null;
+        battle.modeBattleMapId ||= mode.activeMapId;
+        const selected = mode.maps.find(item => item.id === battle.modeBattleMapId) || mode.maps.find(item => item.id === mode.activeMapId);
+        return selected ? { ...selected, isActive: true, modeId: mode.id, modeName: mode.name, realmSetId: set.id, realmSetName: set.name } : null;
+    };
+    const withBattleMap = (view, battle, userId, modeId) => {
+        if (!view || view.none) return view;
+        const battleMap = battleMapFor(userId, battle || {}, modeId);
+        return battleMap ? { ...view, battleMap } : view;
+    };
+    const pveModeForBattle = battle => battle?.dungeonLeaderId
+        ? 'pve_ancient_cave'
+        : battle?.monsterDef?.worldBoss
+            ? 'pve_world_boss'
+            : battle?.monsterDef?.small
+                ? 'pve_small_monster'
+                : 'pve_elite_boss';
+    const pvpModeForBattle = battle => battle?.sectWarChallenge
+        ? 'pvp_sect'
+        : ['roam_attack', 'town_attack'].includes(battle?.purpose)
+            ? 'pvp_sat_phat'
+            : 'pvp_duel';
 
     const isDemon = player => Boolean(player?.isDemon) ||
         ((Number(player?.maScore) || 0) > 0 && (Number(player?.maScore) || 0) > Math.max(0, Number(player?.daoScore ?? player?.daoTam ?? 100)));
@@ -219,6 +252,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             towns: C.TOWNS,
             dungeons: C.DUNGEONS.map(({ id, name, icon, townId, realmMin, stamina, desc }) => ({ id, name, icon, townId, realmMin, stamina, desc })),
             monsters: Array.from(C.MONSTER_BY_ID.values()).map(({ id, name, icon, realm, element }) => ({ id, name, icon, realm, element })),
+            battleMapSets: getBattleMapSets(),
         }),
         'POST /api/travel': ({ user, body }) => {
             const townId = String(body.toTownId || '');
@@ -227,6 +261,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             const travel = game.travel(user.id, townId);
             return { travel, state: game.view(user.id) };
         },
+        'POST /api/world/move': ({ user, body }) => ({ ok: true, position: game.moveWorldPosition(user.id, body) }),
         'POST /api/register': ({ user, body }) => {
             const profile = { ...user, first_name: String(body.name || user.first_name).slice(0, 40) };
             const result = game.register(profile, body);
@@ -240,40 +275,53 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         'POST /api/world/hunt': ({ user, body }) => {
             requireTownRealm(user.id, game.player(user.id)?.town);
             const battle = game.startWorldHunt(user.id, String(body.monsterUid || ''));
-            return { ...battle.view(game.now(), user.id), state: game.view(user.id) };
+            const modeId = pveModeForBattle(battle);
+            const view = withBattleMap(battle.view(game.now(), user.id), battle, user.id, modeId);
+            return { ...view, state: game.view(user.id) };
         },
         'POST /api/dungeon/enter': ({ user, body }) => {
             const dungeon = C.DUNGEON_BY_ID.get(String(body.dungeonId || ''));
             requireTownRealm(user.id, dungeon?.townId || game.player(user.id)?.town);
             const result = game.startDungeonBattle(user.id, String(body.dungeonId || ''));
-            return { ...result, state: game.view(user.id) };
+            const battle = game.battle(user.id);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, 'pve_ancient_cave'), state: game.view(user.id) };
         },
         'POST /api/dungeon/next-stage': ({ user }) => {
             const active = game.player(user.id)?.activeDungeon;
             if (!active || Number(active.stageIndex) + 1 >= Number(active.totalStages))
                 return { completed: true, message: 'Đã vượt qua toàn bộ bí cảnh.' };
             const result = game.nextDungeonStage(user.id);
-            return { ...result, state: game.view(user.id) };
+            const battle = game.battle(user.id);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, 'pve_ancient_cave'), state: game.view(user.id) };
         },
         'GET /api/battle/current': ({ user }) => {
             const battle = game.battle(user.id);
-            return { battle: battle ? battle.view(game.now(), user.id) : null };
+            const view = battle ? battle.view(game.now(), user.id) : null;
+            return { battle: withBattleMap(view, battle, user.id, battle ? pveModeForBattle(battle) : '') };
         },
         'POST /api/battle/act': ({ user, body }) => {
             const battle = game.battle(user.id);
             if (!battle) throw Object.assign(new GameError('Không có trận đấu đang diễn ra.'), { status: 409 });
             const result = battle.act(game.now(), body, user.id);
-            return { result, battle: battle.view(game.now(), user.id), state: game.view(user.id) };
+            const view = withBattleMap(battle.view(game.now(), user.id), battle, user.id, pveModeForBattle(battle));
+            return { result, battle: view, state: game.view(user.id) };
         },
         'GET /api/pvp': ({ user }) => game.pvpList(user.id),
         'POST /api/pvp/fight': ({ user, body }) => {
             const result = game.pvpManualFight(user.id, String(body.targetId || ''));
-            return { ...result, state: game.view(user.id) };
+            const battle = game.pvpManualBattles?.get(String(user.id));
+            const modeId = pvpModeForBattle(battle);
+            return { ...result, battle: withBattleMap(result.battle, battle, user.id, modeId), state: game.view(user.id) };
         },
-        'GET /api/pvp/battle': ({ user }) => ({ battle: game.getPvpBattle(user.id) }),
+        'GET /api/pvp/battle': ({ user }) => {
+            const battle = game.pvpManualBattles?.get(String(user.id));
+            const view = game.getPvpBattle(user.id);
+            return { battle: withBattleMap(view, battle, user.id, pvpModeForBattle(battle)) };
+        },
         'POST /api/pvp/action': ({ user, body }) => {
+            const instance = game.pvpManualBattles?.get(String(user.id));
             const battle = game.pvpManualAction(user.id, String(body.battleId || ''), String(body.act || 'attack'), body.skillId || null);
-            return { battle, state: game.view(user.id) };
+            return { battle: withBattleMap(battle, instance, user.id, pvpModeForBattle(instance)), state: game.view(user.id) };
         },
     };
 
@@ -287,7 +335,37 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
             if (url.pathname === '/api/auth/email/register' && req.method === 'POST') {
                 if (limited(`signup:${peer}`, 10)) return send(res, 429, { error: 'Thử tạo tài khoản quá nhiều lần. Hãy chờ rồi thử lại.' });
                 const result = await auth.register(body.email, body.password);
+                try {
+                    await gmail.sendVerificationCode(result.email, result.verificationCode);
+                } catch (error) {
+                    auth.removeUnverified(result.email);
+                    logger.error('[IPA mail] Verification email could not be sent:', error.code || 'smtp_error');
+                    throw Object.assign(new Error(error.status === 503
+                        ? error.message
+                        : 'Không gửi được email xác minh. Hãy thử lại sau.'), { status: 503, code: error.code || 'email_delivery_failed' });
+                }
+                delete result.verificationCode;
+                result.message = 'Đã gửi mã xác minh 6 số tới email của bạn.';
                 return send(res, 201, result);
+            }
+            if (url.pathname === '/api/auth/email/verify' && req.method === 'POST') {
+                if (limited(`verify:${peer}`, 15, 10 * 60_000)) return send(res, 429, { ok: false, error: 'Thử xác minh quá nhiều lần. Hãy chờ rồi thử lại.' });
+                return send(res, 200, auth.verifyEmail(body.email, body.code));
+            }
+            if (url.pathname === '/api/auth/email/resend' && req.method === 'POST') {
+                if (limited(`resend:${peer}`, 5, 10 * 60_000)) return send(res, 429, { ok: false, error: 'Thử gửi mã quá nhiều lần. Hãy chờ rồi thử lại.' });
+                const request = auth.createVerificationCode(body.email);
+                if (request) {
+                    try {
+                        await gmail.sendVerificationCode(request.email, request.verificationCode);
+                    } catch (error) {
+                        logger.error('[IPA mail] Verification email could not be resent:', error.code || 'smtp_error');
+                        throw Object.assign(new Error(error.status === 503
+                            ? error.message
+                            : 'Không gửi được email xác minh. Hãy thử lại sau.'), { status: 503, code: error.code || 'email_delivery_failed' });
+                    }
+                }
+                return send(res, 200, { ok: true, message: 'Nếu email đang chờ xác minh, mã mới đã được gửi.' });
             }
             if (url.pathname === '/api/auth/email/login' && req.method === 'POST') {
                 if (limited(`login:${peer}`, 20)) return send(res, 429, { error: 'Đăng nhập quá nhiều lần. Hãy chờ rồi thử lại.' });
@@ -308,7 +386,13 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         } catch (error) {
             const status = Number(error.status) || (error instanceof GameError ? 400 : 500);
             if (status >= 500) logger.error('[IPA server]', error.stack || error);
-            return send(res, status, { error: status >= 500 ? 'Máy chủ gặp lỗi.' : error.message });
+            return send(res, status, {
+                ok: false,
+                error: status >= 500 ? (error.status === 503 ? error.message : 'Máy chủ gặp lỗi.') : error.message,
+                code: error.code || '',
+                verificationRequired: Boolean(error.verificationRequired),
+                email: error.email || '',
+            });
         }
     });
 
@@ -316,7 +400,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     ticker.unref?.();
     server.on('error', error => logger.error('[IPA server]', error.message));
     server.listen(port, host, () => logger.log(`[IPA server] Listening on http://${host}:${port}; saves: ${DATA_DIR}`));
-    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); server.close(); } };
+    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); gmail.close(); server.close(); } };
 }
 
 if (require.main === module) createIpaServer();

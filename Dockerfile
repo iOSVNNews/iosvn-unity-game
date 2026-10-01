@@ -6,7 +6,10 @@ ENV NODE_ENV=production \
     IPA_PORT=8788 \
     IPA_DATA_DIR=/data
 
-COPY ipa_server.js email_auth_store.js ./
+COPY package.json package-lock.json ./
+RUN npm ci --omit=dev
+
+COPY ipa_server.js email_auth_store.js gmail_mailer.js ./
 COPY ipa_core ./ipa_core
 
 RUN mkdir -p /data && chown -R node:node /app /data

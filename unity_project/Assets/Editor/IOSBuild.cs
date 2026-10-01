@@ -15,13 +15,21 @@ namespace IOSVN.TuTien.Editor
         public static void Build()
         {
             OnlinePrototypeProjectSetup.EnsurePrototypeScene();
-            var bundleId = Argument("-iosBundleId", "com.example.iosvn");
+            var bundleId = Argument("-iosBundleId", "com.iosvn.tutiengioi");
             var outputPath = Argument("-iosBuildPath", "../build/iOS");
             if (!IsValidBundleId(bundleId)) throw new BuildFailedException("IOS_BUNDLE_ID must be a reverse-DNS identifier, for example com.studio.game.");
 
             PlayerSettings.companyName = "iOSVN";
-            PlayerSettings.productName = "Tu Tiên iOSVN";
+            PlayerSettings.productName = "Tu Tiên Giới";
+            PlayerSettings.iOS.applicationDisplayName = "Tu Tiên Giới";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
+            var appIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/Brand/TuTienGioi_AppIcon.png");
+            if (appIcon == null) throw new BuildFailedException("Missing iOS app icon at Assets/Resources/Brand/TuTienGioi_AppIcon.png.");
+            var iconSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.iOS, IconKind.Application);
+            if (iconSizes.Length == 0) throw new BuildFailedException("Unity did not expose iOS application icon slots.");
+            var appIcons = new Texture2D[iconSizes.Length];
+            for (var i = 0; i < appIcons.Length; i++) appIcons[i] = appIcon;
+            PlayerSettings.SetIcons(NamedBuildTarget.iOS, appIcons, IconKind.Application);
             var configuredUrl = Argument("-ipaServerUrl", null);
             var serverConfig = AssetDatabase.LoadAssetAtPath<GameServerConfig>("Assets/Resources/GameServerConfig.asset");
             if (serverConfig != null && configuredUrl != null)

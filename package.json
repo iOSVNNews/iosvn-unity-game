@@ -1,0 +1,13 @@
+{
+  "name": "tu-tien-gioi",
+  "version": "1.0.0",
+  "description": "Unity iOS game with a dedicated online Tu Tiên server",
+  "main": "standalone_server.js",
+  "scripts": {
+    "start": "node standalone_server.js",
+    "start:ipa": "node ipa_server.js"
+  },
+  "dependencies": {
+    "nodemailer": "^10.0.13"
+  }
+}
