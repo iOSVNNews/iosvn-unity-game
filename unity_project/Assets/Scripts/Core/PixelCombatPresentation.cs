@@ -14,11 +14,13 @@ namespace IOSVN.TuTien.Core
             public RectTransform rect;
             public RectTransform shadow;
             public Image image;
+            public RectTransform weapon;
             public Sprite[] frames;
             public Vector2 home;
             public float phase;
             public int role;
-            public int lastBeat = -1;
+            public float attackUntil;
+            public float hitUntil;
         }
 
         private sealed class Projectile
@@ -59,12 +61,14 @@ namespace IOSVN.TuTien.Core
         private string battleId;
         private string playerName;
         private string enemyName;
+        private string enemyId;
+        private string enemyElement;
         private Coroutine sceneLoop;
         private Coroutine pollLoop;
         private Action<BattleView> pveComplete;
         private Action<PvpBattle> pvpComplete;
 
-        public void BuildPve(BattleView battle, NetworkGameClient network, AppearanceColors appearance, bool immortal,
+        public void BuildPve(BattleView battle, NetworkGameClient network, AppearanceColors appearance, string playerClass, string weaponId, bool immortal,
             string initialAction, string initialSkillId, string initialSkillName, string initialSkillKind,
             Action<string> act, Action<BattleSkill> useSkill, Action nextStage, Action exit,
             Action<BattleView> completed)
@@ -75,11 +79,13 @@ namespace IOSVN.TuTien.Core
             battleId = battle.id;
             playerName = battle.p?.name ?? "Đạo hữu";
             enemyName = battle.m?.name ?? "Yêu thú";
+            enemyId = battle.m?.id;
+            enemyElement = battle.m?.element ?? "";
             pveComplete = completed;
             BuildGround(battle.battleMap);
             BuildHeader(enemyName, battle.m?.hp ?? 0, battle.m?.maxHp ?? 0,
                 "PVE · " + (battle.battleMap?.name ?? "Chiến trường"), battle.m?.warn != null ? "CẢNH BÁO · YÊU THÚ SẮP TUNG CHIÊU" : null);
-            AddPveFighters(battle, appearance);
+            AddPveFighters(battle, appearance, playerClass, weaponId);
             BuildPlayerHud(playerName, battle.p?.hp ?? 0, battle.p?.maxHp ?? 0, battle.p?.mp ?? 0, battle.p?.maxMp ?? 0);
             BuildLog(LastPveLog(battle));
             BuildStatus();
@@ -109,7 +115,7 @@ namespace IOSVN.TuTien.Core
             if (!battle.over) pollLoop = StartCoroutine(PollPve());
         }
 
-        public void BuildPvp(PvpBattle battle, NetworkGameClient network, AppearanceColors appearance, bool immortal,
+        public void BuildPvp(PvpBattle battle, NetworkGameClient network, AppearanceColors appearance, string playerClass, string weaponId, bool immortal,
             string initialAction, string initialSkillId, string initialSkillName, string initialSkillKind,
             Action<string, string, string, string> act, Action refresh, Action exit,
             Action<PvpBattle> completed)
@@ -124,7 +130,7 @@ namespace IOSVN.TuTien.Core
             BuildGround(battle.battleMap);
             BuildHeader(enemyName, battle.opponent?.hp ?? 0, battle.opponent?.maxHp ?? 0,
                 "LÔI ĐÀI · " + (battle.battleMap?.name ?? "Chiến trường PvP"), battle.over ? (battle.isWin ? "CHIẾN THẮNG" : "KẾT THÚC") : null);
-            AddPvpFighters(battle, appearance);
+            AddPvpFighters(battle, appearance, playerClass, weaponId);
             BuildPlayerHud(playerName, battle.me?.hp ?? 0, battle.me?.maxHp ?? 0, battle.me?.mp ?? 0, battle.me?.maxMp ?? 0);
             BuildLog(LastPvpLog(battle));
             BuildStatus();
@@ -268,21 +274,24 @@ namespace IOSVN.TuTien.Core
             logText.text = line;
         }
 
-        private void AddPveFighters(BattleView battle, AppearanceColors appearance)
+        private void AddPveFighters(BattleView battle, AppearanceColors appearance, string playerClass, string weaponId)
         {
             var monsterName = battle.m?.name ?? "Yêu thú";
-            AddFighter("SpiritBeast", GetBeastFrames(immortalRealm, monsterName, 0), new Vector2(0.31f, 0.47f), new Vector2(190f, 190f), 1, UnityEngine.Random.value * 2.4f);
+            var monsterId = battle.m?.id;
+            AddFighter("SpiritBeast", GetBeastFrames(immortalRealm, monsterId, monsterName, 0), new Vector2(0.31f, 0.47f), new Vector2(190f, 190f), 1, UnityEngine.Random.value * 2.4f);
             AddFighter("PlayerPixelFighter", GetPlayerFrames(appearance, "player"), new Vector2(0.70f, 0.45f), new Vector2(112f, 158f), 0, UnityEngine.Random.value * 2.4f);
+            AddPlayerWeapon(playerClass, weaponId);
             var count = Mathf.Clamp(battle.m?.minionCount ?? 0, 0, 4);
             var places = new[] { new Vector2(0.17f, 0.38f), new Vector2(0.19f, 0.60f), new Vector2(0.42f, 0.61f), new Vector2(0.40f, 0.34f) };
-            for (var i = 0; i < count; i++) AddFighter("SpiritMinion" + i, GetBeastFrames(immortalRealm, monsterName, i + 1), places[i], new Vector2(78f, 82f), i + 2, UnityEngine.Random.value * 3f);
+            for (var i = 0; i < count; i++) AddFighter("SpiritMinion" + i, GetBeastFrames(immortalRealm, monsterId, monsterName, i + 1), places[i], new Vector2(78f, 82f), i + 2, UnityEngine.Random.value * 3f);
         }
 
-        private void AddPvpFighters(PvpBattle battle, AppearanceColors appearance)
+        private void AddPvpFighters(PvpBattle battle, AppearanceColors appearance, string playerClass, string weaponId)
         {
             var opponent = new AppearanceColors { hair = "#B6B9C6", outfit = "#4C6698", eyes = "#8CD8F0" };
             AddFighter("OpponentPixelFighter", GetPlayerFrames(opponent, "opponent"), new Vector2(0.30f, 0.45f), new Vector2(130f, 174f), 1, UnityEngine.Random.value * 2.3f);
             AddFighter("PlayerPixelFighter", GetPlayerFrames(appearance, "player"), new Vector2(0.70f, 0.45f), new Vector2(130f, 174f), 0, UnityEngine.Random.value * 2.3f);
+            AddPlayerWeapon(playerClass, weaponId);
             AddText(transform, "OpponentName", 17, Cream, TextAnchor.MiddleCenter, new Vector2(0.19f, 0.66f), new Vector2(0.41f, 0.71f)).text = battle.opponent?.name ?? "Đối thủ";
             AddText(transform, "Versus", 23, Gold, TextAnchor.MiddleCenter, new Vector2(0.46f, 0.43f), new Vector2(0.54f, 0.53f)).text = "VS";
             AddText(transform, "PlayerNameLabel", 17, Cream, TextAnchor.MiddleCenter, new Vector2(0.59f, 0.66f), new Vector2(0.81f, 0.71f)).text = battle.me?.name ?? "Đạo hữu";
@@ -310,6 +319,25 @@ namespace IOSVN.TuTien.Core
             fighters.Add(new Fighter { rect = rect, shadow = shadow, image = image, frames = frames, home = position, phase = phase, role = role });
         }
 
+        private void AddPlayerWeapon(string playerClass, string weaponId)
+        {
+            if (fighters.Count == 0) return;
+            var fighter = fighters[fighters.Count - 1];
+            if (fighter.role != 0) return;
+            var sprite = PixelWeaponArt.ForId(weaponId) ?? PixelWeaponArt.ForClass(playerClass);
+            if (sprite == null) return;
+            var go = new GameObject("EquippedPixelWeapon", typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(fighter.rect, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(.25f, .54f);
+            rect.sizeDelta = new Vector2(62f, 62f);
+            var image = go.GetComponent<Image>();
+            image.sprite = sprite;
+            image.preserveAspect = true;
+            image.raycastTarget = false;
+            fighter.weapon = rect;
+        }
+
         private void StartScene(bool active)
         {
             sceneLoop = StartCoroutine(AnimateScene(active));
@@ -317,53 +345,52 @@ namespace IOSVN.TuTien.Core
 
         private IEnumerator AnimateScene(bool active)
         {
-            var nextBurst = Time.time + 0.7f;
             while (fighters.Count > 0)
             {
-                var now = Time.time;
+                var now = Time.unscaledTime;
                 for (var i = 0; i < fighters.Count; i++)
                 {
                     var fighter = fighters[i];
                     if (fighter.rect == null || fighter.image == null) continue;
                     var time = now + fighter.phase;
-                    var cycleLength = 1.15f + (fighter.role % 4) * 0.19f;
-                    var dashLength = 0.42f + (fighter.role % 3) * 0.035f;
-                    var cycle = Mathf.Repeat(time, cycleLength);
-                    var dash = active && cycle < dashLength ? Mathf.Sin(cycle / dashLength * Mathf.PI) : 0f;
+                    var striking = active && fighter.attackUntil > now;
+                    var hurt = fighter.hitUntil > now;
+                    var dash = striking ? Mathf.Sin((1f - (fighter.attackUntil - now) / .34f) * Mathf.PI) : 0f;
                     var direction = fighter.role == 0 || fighter.role >= 2 && fighter.role % 2 == 0 ? -1f : 1f;
-                    var x = fighter.home.x + Mathf.Sin(time * (1.35f + fighter.role * 0.09f)) * 0.045f + direction * dash * (fighter.role >= 2 ? 0.13f : 0.22f);
-                    var y = fighter.home.y + Mathf.Sin(time * (2.0f + fighter.phase)) * 0.055f + dash * 0.032f;
+                    var x = fighter.home.x + Mathf.Sin(time * (1.35f + fighter.role * 0.09f)) * 0.012f + direction * dash * (fighter.role >= 2 ? 0.06f : 0.13f);
+                    var y = fighter.home.y + Mathf.Sin(time * (2.0f + fighter.phase)) * 0.017f + dash * 0.025f;
                     fighter.rect.anchorMin = fighter.rect.anchorMax = new Vector2(Mathf.Clamp(x, 0.08f, 0.92f), Mathf.Clamp(y, 0.28f, 0.72f));
                     if (fighter.shadow != null)
                     {
                         fighter.shadow.anchorMin = fighter.shadow.anchorMax = fighter.rect.anchorMin;
                         fighter.shadow.anchoredPosition = new Vector2(0f, -fighter.rect.sizeDelta.y * 0.34f);
                     }
-                    var frame = active ? Mathf.FloorToInt(time * 11f) % fighter.frames.Length : Mathf.FloorToInt(time * 2f) % fighter.frames.Length;
+                    var frame = hurt ? 6 + Mathf.FloorToInt(now * 9f) % 2
+                        : striking ? 4 + Mathf.FloorToInt(now * 9f) % 2
+                        : Mathf.FloorToInt(time * (active ? 5f : 2f)) % 4;
+                    frame %= fighter.frames.Length;
                     fighter.image.sprite = fighter.frames[frame];
-                    fighter.image.rectTransform.localScale = new Vector3(direction < 0f ? -1f : 1f, 1f, 1f);
-                    var beat = Mathf.FloorToInt(time / cycleLength);
-                    if (active && beat > fighter.lastBeat)
+                    fighter.image.rectTransform.localScale = new Vector3(fighter.role == 1 && pvp ? -1f : 1f, 1f, 1f);
+                    if (fighter.weapon != null)
                     {
-                        fighter.lastBeat = beat;
-                        if (fighter.role < 2 || (beat + fighter.role) % 2 == 0)
-                        {
-                            var target = fighter.role == 0 ? new Vector2(0.30f, 0.47f) : new Vector2(0.70f, 0.45f);
-                            var tint = fighter.role == 0 ? new Color32(247, 201, 94, 255) : fighter.role == 1 ? new Color32(105, 215, 243, 255) : new Color32(185, 154, 242, 255);
-                            SpawnVolley(fighter.rect.anchorMin, target, tint, false, fighter.role >= 2 ? 3 : 5);
-                        }
+                        var swing = striking ? Mathf.Sin((1f - (fighter.attackUntil - now) / .34f) * Mathf.PI) * 65f : Mathf.Sin(time * 2f) * 4f;
+                        fighter.weapon.localRotation = Quaternion.Euler(0f, 0f, swing);
                     }
-                }
-                if (active && now >= nextBurst)
-                {
-                    nextBurst = now + UnityEngine.Random.Range(0.65f, 1.2f);
-                    var point = new Vector2(UnityEngine.Random.Range(0.33f, 0.66f), UnityEngine.Random.Range(0.38f, 0.60f));
-                    SpawnVolley(point, point + UnityEngine.Random.insideUnitCircle * 0.055f, new Color32(120, 221, 255, 255), true, 5);
                 }
                 UpdateProjectiles(now);
                 yield return null;
             }
             sceneLoop = null;
+        }
+
+        private void ShowImpact(bool fromPlayer)
+        {
+            var now = Time.unscaledTime;
+            foreach (var fighter in fighters)
+            {
+                if (fighter.role == (fromPlayer ? 0 : 1)) fighter.attackUntil = now + .34f;
+                else if (fighter.role == (fromPlayer ? 1 : 0)) fighter.hitUntil = now + .28f;
+            }
         }
 
         private void SpawnVolley(Vector2 from, Vector2 to, Color tint, bool radial, int count)
@@ -477,6 +504,7 @@ namespace IOSVN.TuTien.Core
             if (action == "dodge") SpawnSkillEffect(player, player, "phu_don_quyet", "Vạn Dặm Thần Hành Phù", "escape");
             else if (action == "skill") SpawnSkillEffect(player, target, skillId, skillName, skillKind);
             else SpawnVolley(player, target, new Color32(255, 204, 94, 255), false, 7);
+            if (action != "dodge") ShowImpact(true);
         }
 
         private IEnumerator PollPve()
@@ -542,10 +570,16 @@ namespace IOSVN.TuTien.Core
             if (!playerHit && !enemyHit) return;
             var from = playerHit ? new Vector2(0.70f, pvp ? 0.45f : 0.46f) : new Vector2(0.30f, pvp ? 0.45f : 0.47f);
             var to = playerHit ? new Vector2(0.30f, pvp ? 0.45f : 0.47f) : new Vector2(0.70f, pvp ? 0.45f : 0.46f);
+            ShowImpact(playerHit);
             foreach (var skill in knownSkills.Values)
             {
                 if (string.IsNullOrWhiteSpace(skill.name) || line.IndexOf(skill.name, StringComparison.OrdinalIgnoreCase) < 0) continue;
                 SpawnSkillEffect(from, to, skill.id, skill.name, skill.kind);
+                return;
+            }
+            if (!playerHit && !pvp && !string.IsNullOrEmpty(enemyElement))
+            {
+                SpawnSkillEffect(from, to, "quai_" + enemyId, enemyName + " " + enemyElement, "atk");
                 return;
             }
             SpawnVolley(from, to, playerHit ? new Color32(255, 207, 92, 255) : new Color32(112, 215, 248, 255), false, 7);
@@ -603,7 +637,7 @@ namespace IOSVN.TuTien.Core
         private static Texture2D PixelGround(string mapId, bool immortal, string[] mapPalette, string layout)
         {
             var key = (immortal ? "tien:" : "pham:") + (mapId ?? "grassland") + ":" + (layout ?? string.Empty) + ":" + string.Join(",", mapPalette ?? Array.Empty<string>());
-            if (TerrainCache.TryGetValue(key, out var cached)) return cached;
+            if (TerrainCache.TryGetValue(key, out var cached) && cached != null) return cached;
             const int width = 320, height = 180, tile = 8;
             unchecked
             {
@@ -633,8 +667,8 @@ namespace IOSVN.TuTien.Core
                 for (var x = 0; x < width; x += tile)
                 {
                     var baseColor = palette[random.Next(palette.Length)];
-                    for (var py = y; py < y + tile; py++)
-                    for (var px = x; px < x + tile; px++)
+                    for (var py = y; py < Mathf.Min(y + tile, height); py++)
+                    for (var px = x; px < Mathf.Min(x + tile, width); px++)
                     {
                         var grain = random.Next(20);
                         pixels[py * width + px] = grain == 0 ? light : grain == 1 || px == x || py == y ? dark : baseColor;
@@ -702,23 +736,29 @@ namespace IOSVN.TuTien.Core
 
         private Sprite[] GetPlayerFrames(AppearanceColors appearance, string variant)
         {
+            var commissioned = PixelCreatureArt.Frames("player_cultivator");
+            if (commissioned != null) return commissioned;
             var hair = ParsePixelColor(appearance?.hair, new Color32(45, 36, 37, 255));
             var robe = ParsePixelColor(appearance?.outfit, variant == "opponent" ? new Color32(76, 102, 152, 255) : new Color32(61, 121, 99, 255));
             var eyes = ParsePixelColor(appearance?.eyes, new Color32(70, 177, 165, 255));
             var key = $"player:{variant}:{robe.r}-{robe.g}-{robe.b}:{hair.r}-{hair.g}-{hair.b}";
-            if (!FighterCache.TryGetValue(key, out var frames)) FighterCache[key] = frames = MakePlayerFrames(robe, hair, eyes);
+            if (!FighterCache.TryGetValue(key, out var frames) || frames == null || frames.Length == 0 || frames[0] == null)
+                FighterCache[key] = frames = MakePlayerFrames(robe, hair, eyes);
             return frames;
         }
 
-        private Sprite[] GetBeastFrames(bool immortal, string monsterName, int variant)
+        private Sprite[] GetBeastFrames(bool immortal, string monsterId, string monsterName, int variant)
         {
+            var catalogFrames = PixelCreatureArt.Frames(monsterId, variant);
+            if (catalogFrames != null) return catalogFrames;
             var name = (monsterName ?? string.Empty).ToLowerInvariant();
             var archetype = name.Contains("hồ") || name.Contains("ly") || name.Contains("fox") || name.Contains("cửu vĩ") ? "fox"
                 : name.Contains("long") || name.Contains("rồng") || name.Contains("giao") ? "dragon"
                 : name.Contains("phượng") || name.Contains("điểu") || name.Contains("chim") ? "bird"
                 : "demon";
             var key = $"beast:{(immortal ? "tien" : "pham")}:{archetype}:{variant}";
-            if (!FighterCache.TryGetValue(key, out var frames)) FighterCache[key] = frames = MakeBeastFrames(immortal, archetype, variant);
+            if (!FighterCache.TryGetValue(key, out var frames) || frames == null || frames.Length == 0 || frames[0] == null)
+                FighterCache[key] = frames = MakeBeastFrames(immortal, archetype, variant);
             return frames;
         }
 
@@ -735,9 +775,6 @@ namespace IOSVN.TuTien.Core
                 var shift = frame == 1 ? -2 : frame == 3 ? 2 : 0;
                 DrawRect(p, size, size, 11 + shift, 2, 4, 7, new Color32(41, 48, 48, 255)); DrawRect(p, size, size, 19 - shift, 2, 4, 7, new Color32(41, 48, 48, 255));
                 DrawRect(p, size, size, 4, 13 - bob, 6, 4, robe); DrawRect(p, size, size, 21, 13 - bob, 5, 4, robe);
-                var swordX = frame == 2 ? 25 : frame == 3 ? 23 : 26;
-                DrawRect(p, size, size, swordX, 9, 2, 13, new Color32(190, 214, 213, 255)); DrawRect(p, size, size, swordX - 2, 9, 6, 2, trim);
-                if (frame == 2) DrawRect(p, size, size, 22, 23, 8, 2, new Color32(113, 222, 248, 255));
                 frames[frame] = MakeSprite(p, size, size, "PixelCultivator_" + frame);
             }
             return frames;
