@@ -34,7 +34,7 @@ namespace IOSVN.TuTien.Editor
             var serverConfig = AssetDatabase.LoadAssetAtPath<GameServerConfig>("Assets/Resources/GameServerConfig.asset");
             if (serverConfig != null && configuredUrl != null)
             {
-                serverConfig.apiBaseUrl = configuredUrl.Trim().TrimEnd('/');
+                serverConfig.apiBaseUrl = string.IsNullOrWhiteSpace(configuredUrl) ? GameServerConfig.DefaultApiBaseUrl : configuredUrl.Trim().TrimEnd('/');
                 var assetCdnUrl = Argument("-assetCdnUrl", null);
                 if (assetCdnUrl != null) serverConfig.assetCdnBaseUrl = assetCdnUrl.Trim().TrimEnd('/');
                 EditorUtility.SetDirty(serverConfig);

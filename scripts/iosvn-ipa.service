@@ -1,0 +1,24 @@
+[Unit]
+Description=Tu Tien Gioi dedicated IPA account and gameplay API
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=iosvn-ipa
+Group=iosvn-ipa
+WorkingDirectory=/opt/iosvn-ipa/current
+EnvironmentFile=/etc/iosvn-ipa.env
+ExecStart=/usr/bin/node /opt/iosvn-ipa/current/ipa_server.js
+Restart=on-failure
+RestartSec=5
+UMask=0077
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/iosvn-ipa
+MemoryMax=400M
+
+[Install]
+WantedBy=multi-user.target

@@ -5,16 +5,25 @@
 const fs = require('fs');
 const path = require('path');
 const http = require('http');
+const net = require('net');
 const { Game, GameError } = require('./ipa_core/engine');
 const { GameStore } = require('./ipa_core/store');
 const C = require('./ipa_core/catalog');
 const { getBattleMapSets } = require('./ipa_core/mode_maps');
 const { EmailAuthStore } = require('./email_auth_store');
 const { createGmailMailer } = require('./gmail_mailer');
+const { createAccountOAuth } = require('./account_oauth');
 
 const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.IPA_DATA_DIR || path.join(ROOT, 'server_data'));
 const MAX_BODY_BYTES = 32 * 1024;
+
+function clientAddress(req, trustedProxy = process.env.IPA_TRUSTED_PROXY_IP || '172.26.2.254') {
+    const peer = String(req.socket.remoteAddress || 'unknown').replace(/^::ffff:/, '');
+    if (peer !== trustedProxy) return peer;
+    const forwarded = String(req.headers['x-forwarded-for'] || '').split(',').pop().trim();
+    return net.isIP(forwarded) ? forwarded : peer;
+}
 
 function createRealmProgress(store) {
     const rows = store.data.realmProgress || (store.data.realmProgress = {});
@@ -91,11 +100,13 @@ function createRealmProgress(store) {
     };
 }
 
-function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = process.env.IPA_HOST || '127.0.0.1', logger = console } = {}) {
-    fs.mkdirSync(DATA_DIR, { recursive: true });
-    const store = new GameStore(path.join(DATA_DIR, 'ipa_game_data.json'));
-    const auth = new EmailAuthStore(path.join(DATA_DIR, 'ipa_auth_data.json'));
-    const gmail = createGmailMailer();
+function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = process.env.IPA_HOST || '127.0.0.1', logger = console,
+    dataDir = DATA_DIR, mailer = null, oauthEnv = process.env } = {}) {
+    fs.mkdirSync(dataDir, { recursive: true });
+    const store = new GameStore(path.join(dataDir, 'ipa_game_data.json'));
+    const auth = new EmailAuthStore(path.join(dataDir, 'ipa_auth_data.json'));
+    const gmail = mailer || createGmailMailer();
+    const oauth = createAccountOAuth(auth, oauthEnv);
     const realms = createRealmProgress(store);
     const game = new Game({ store, realms });
     const rates = new Map();
@@ -246,6 +257,16 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     }
 
     const routes = {
+        'GET /api/auth/account/profile': ({ user }) => ({ ...auth.profile(user.id), emailAvailable: gmail.isConfigured(),
+            googleAvailable: oauth.isConfigured('google'), facebookAvailable: oauth.isConfigured('facebook') }),
+        'POST /api/auth/account/email/link': async ({ user, body }) => {
+            if (!gmail.isConfigured()) throw Object.assign(new Error('Liên kết email hiện chưa được mở. Hãy thử lại sau.'), { status: 503 });
+            const result = auth.requestEmailLink(user.id, body.email);
+            try { await gmail.sendVerificationCode(result.email, result.verificationCode); }
+            catch { throw Object.assign(new Error('Không gửi được mã xác minh. Hãy thử lại sau.'), { status: 503 }); }
+            return { ok: true, email: result.email, message: 'Đã gửi mã xác minh tới email của bạn.' };
+        },
+        'POST /api/auth/account/email/verify': ({ user, body }) => auth.verifyEmailLink(user.id, body.email, body.code),
         'GET /api/state': ({ user }) => game.view(user.id),
         'GET /api/map/catalog': () => ({
             maps: C.MAPS,
@@ -331,10 +352,26 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         if (!url.pathname.startsWith('/api/')) return send(res, 404, { error: 'Không tìm thấy API.' });
         try {
             const body = req.method === 'POST' ? await readBody(req) : {};
-            const peer = req.socket.remoteAddress || 'unknown';
-            if (url.pathname === '/api/auth/email/register' && req.method === 'POST') {
+            const peer = clientAddress(req);
+            const providerCallback = /^\/api\/auth\/link\/(google|facebook)\/callback$/.exec(url.pathname);
+            if (providerCallback && req.method === 'GET') {
+                let status = 200;
+                let message = 'Đã liên kết tài khoản. Hãy quay lại Tu Tiên Giới để tiếp tục.';
+                try { await oauth.complete(providerCallback[1], url.searchParams); }
+                catch (error) { status = Number(error.status) || 400; message = error.message; }
+                const escaped = String(message).replace(/[&<>"']/g, char => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[char]));
+                res.writeHead(status, { 'Content-Type': 'text/html; charset=utf-8', 'Cache-Control': 'no-store', 'Referrer-Policy': 'no-referrer',
+                    'Content-Security-Policy': "default-src 'none'; style-src 'unsafe-inline'", 'X-Content-Type-Options': 'nosniff' });
+                return res.end(`<!doctype html><html lang="vi"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Tu Tiên Giới</title><body style="background:#101c24;color:#efdfbf;font:18px system-ui;padding:12vh 8vw;text-align:center"><h1>Tu Tiên Giới</h1><p>${escaped}</p></body></html>`);
+            }
+            const accountRegistration = url.pathname === '/api/auth/account/register';
+            if ((url.pathname === '/api/auth/email/register' || accountRegistration) && req.method === 'POST') {
                 if (limited(`signup:${peer}`, 10)) return send(res, 429, { error: 'Thử tạo tài khoản quá nhiều lần. Hãy chờ rồi thử lại.' });
-                const result = await auth.register(body.email, body.password);
+                const identity = accountRegistration ? String(body.identity || '').trim() : body.email;
+                if (accountRegistration && !identity.includes('@')) return send(res, 201, await auth.registerUsername(identity, body.password));
+                if (!gmail.isConfigured()) return send(res, 503, { ok: false, code: 'email_delivery_not_configured',
+                    error: 'Đăng ký email hiện chưa mở. Hãy dùng tên tài khoản hoặc thử lại sau.' });
+                const result = await auth.register(identity, body.password);
                 try {
                     await gmail.sendVerificationCode(result.email, result.verificationCode);
                 } catch (error) {
@@ -367,15 +404,20 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
                 }
                 return send(res, 200, { ok: true, message: 'Nếu email đang chờ xác minh, mã mới đã được gửi.' });
             }
-            if (url.pathname === '/api/auth/email/login' && req.method === 'POST') {
+            if ((url.pathname === '/api/auth/email/login' || url.pathname === '/api/auth/account/login') && req.method === 'POST') {
                 if (limited(`login:${peer}`, 20)) return send(res, 429, { error: 'Đăng nhập quá nhiều lần. Hãy chờ rồi thử lại.' });
-                const result = await auth.login(body.email, body.password);
+                const result = await auth.login(body.identity ?? body.email, body.password);
                 return send(res, 200, result);
             }
 
             const user = auth.authenticate(getBearer(req));
             if (!user) return send(res, 401, { error: 'Phiên email không hợp lệ hoặc đã hết hạn.' });
             if (limited(`game:${user.id}`, 60, 10_000)) return send(res, 429, { error: 'Thao tác quá nhanh.' });
+            const providerStart = /^\/api\/auth\/link\/(google|facebook)\/start$/.exec(url.pathname);
+            if (providerStart && req.method === 'POST') {
+                if (limited(`link:${user.id}`, 5)) return send(res, 429, { ok: false, error: 'Hãy chờ rồi thử liên kết lại.' });
+                return send(res, 200, oauth.start(providerStart[1], user.id, getBearer(req)));
+            }
             if (req.method === 'POST' && url.pathname === '/api/auth/logout') {
                 auth.revoke(getBearer(req));
                 return send(res, 200, { ok: true });
@@ -399,9 +441,9 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     const ticker = setInterval(() => game.tickAll(game.now()), 250);
     ticker.unref?.();
     server.on('error', error => logger.error('[IPA server]', error.message));
-    server.listen(port, host, () => logger.log(`[IPA server] Listening on http://${host}:${port}; saves: ${DATA_DIR}`));
-    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); gmail.close(); server.close(); } };
+    server.listen(port, host, () => logger.log(`[IPA server] Listening on http://${host}:${port}; saves: ${dataDir}`));
+    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); gmail.close(); oauth.clear(); server.close(); } };
 }
 
 if (require.main === module) createIpaServer();
-module.exports = { createIpaServer, createRealmProgress };
+module.exports = { createIpaServer, createRealmProgress, clientAddress };

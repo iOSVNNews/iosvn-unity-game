@@ -15,17 +15,19 @@ class EmailAuthStore {
     constructor(filePath, { clock = Date.now } = {}) {
         this.filePath = path.resolve(filePath);
         this.clock = clock;
-        this.data = { version: 2, accounts: {}, sessions: {} };
+        this.data = { version: 3, accounts: {}, sessions: {}, emailLinks: {}, emailLinkRequests: {} };
         this._load();
     }
 
     _load() {
         if (!fs.existsSync(this.filePath)) return;
         const parsed = JSON.parse(fs.readFileSync(this.filePath, 'utf8'));
-        if (!parsed || typeof parsed !== 'object' || ![1, 2].includes(parsed.version)) throw new Error('Unsupported IPA auth data version.');
+        if (!parsed || typeof parsed !== 'object' || ![1, 2, 3].includes(parsed.version)) throw new Error('Unsupported IPA auth data version.');
         this.data.accounts = parsed.accounts && typeof parsed.accounts === 'object' ? parsed.accounts : {};
         this.data.sessions = parsed.sessions && typeof parsed.sessions === 'object' ? parsed.sessions : {};
-        this.data.version = 2;
+        this.data.emailLinks = parsed.emailLinks || {};
+        this.data.emailLinkRequests = parsed.emailLinkRequests || {};
+        this.data.version = 3;
         if (parsed.version === 1) {
             for (const account of Object.values(this.data.accounts)) account.emailVerified = true;
             this._save();
@@ -49,12 +51,12 @@ class EmailAuthStore {
     async register(email, password) {
         const cleanEmail = normalizeEmail(email);
         validatePassword(password);
-        if (this.data.accounts[cleanEmail]) throw authError('Email này đã có tài khoản.', 409);
+        if (this._findIdentity(cleanEmail)) throw authError('Email này đã có tài khoản.', 409);
 
         const id = crypto.randomBytes(18).toString('base64url');
         const salt = crypto.randomBytes(16);
         const derived = await scrypt(password, salt, 64, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
-        if (this.data.accounts[cleanEmail]) throw authError('Email này đã có tài khoản.', 409);
+        if (this._findIdentity(cleanEmail)) throw authError('Email này đã có tài khoản.', 409);
         const verificationCode = makeVerificationCode();
         const now = this.clock();
         this.data.accounts[cleanEmail] = {
@@ -73,19 +75,109 @@ class EmailAuthStore {
         return { ok: true, email: cleanEmail, verificationRequired: true, verificationCode };
     }
 
+    async registerUsername(username, password) {
+        const clean = normalizeUsername(username);
+        validatePassword(password);
+        const key = `username:${clean}`;
+        if (this.data.accounts[key]) throw authError('Tên tài khoản này đã được sử dụng.', 409);
+        const salt = crypto.randomBytes(16);
+        const derived = await scrypt(password, salt, 64, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 });
+        if (this.data.accounts[key]) throw authError('Tên tài khoản này đã được sử dụng.', 409);
+        const account = {
+            id: crypto.randomBytes(18).toString('base64url'), username: clean, email: '', emailVerified: false,
+            passwordSalt: salt.toString('base64url'), passwordHash: Buffer.from(derived).toString('base64url'),
+            createdAt: new Date(this.clock()).toISOString(), providers: {},
+        };
+        this.data.accounts[key] = account;
+        return this._newSession(account);
+    }
+
+    _findIdentity(identity) {
+        const value = String(identity || '').trim().toLowerCase();
+        const key = value.includes('@') ? (this.data.emailLinks[value] || value) : `username:${value}`;
+        return Object.hasOwn(this.data.accounts, key) ? this.data.accounts[key] : null;
+    }
+
+    _accountForUser(userId) {
+        const id = String(userId || '').replace(/^ipa_/, '');
+        const account = Object.values(this.data.accounts).find(row => row.id === id);
+        if (!account) throw authError('Phiên đăng nhập không hợp lệ.', 401);
+        return account;
+    }
+
+    profile(userId) {
+        const account = this._accountForUser(userId);
+        return { ok: true, username: account.username || '', email: account.email || '', emailVerified: account.emailVerified === true,
+            googleLinked: Boolean(account.providers?.google), facebookLinked: Boolean(account.providers?.facebook) };
+    }
+
+    requestEmailLink(userId, email) {
+        const account = this._accountForUser(userId);
+        const clean = normalizeEmail(email);
+        const existing = this._findIdentity(clean);
+        if (existing && existing.id !== account.id) throw authError('Email này đã thuộc một tài khoản khác.', 409);
+        const previous = this.data.emailLinkRequests[account.id];
+        if (previous && this.clock() - previous.sentAt < VERIFICATION_RESEND_COOLDOWN_MS)
+            throw authError('Hãy chờ một phút rồi gửi lại mã.', 429);
+        const code = makeVerificationCode();
+        this.data.emailLinkRequests[account.id] = { email: clean, codeHash: hashVerificationCode(account.id, code),
+            expiresAt: this.clock() + VERIFICATION_TTL_MS, attempts: 0, sentAt: this.clock() };
+        this._save();
+        return { email: clean, verificationCode: code };
+    }
+
+    verifyEmailLink(userId, email, code) {
+        const account = this._accountForUser(userId);
+        const clean = normalizeEmail(email);
+        const pending = this.data.emailLinkRequests[account.id];
+        if (!pending || pending.email !== clean || pending.expiresAt <= this.clock()) throw authError('Mã đã hết hạn. Hãy yêu cầu mã mới.');
+        if (pending.attempts >= MAX_VERIFICATION_ATTEMPTS) throw authError('Đã nhập sai mã quá nhiều lần. Hãy yêu cầu mã mới.', 429);
+        const actual = Buffer.from(hashVerificationCode(account.id, String(code || '').trim()), 'hex');
+        const expected = Buffer.from(pending.codeHash, 'hex');
+        if (!/^\d{6}$/.test(String(code || '').trim()) || !crypto.timingSafeEqual(actual, expected)) {
+            pending.attempts++;
+            this._save();
+            throw authError('Mã xác minh chưa đúng.');
+        }
+        this._linkVerifiedEmail(account, clean);
+        delete this.data.emailLinkRequests[account.id];
+        this._save();
+        return { ok: true, message: 'Đã liên kết email với hồ sơ hiện tại.' };
+    }
+
+    _linkVerifiedEmail(account, email) {
+        const existing = this._findIdentity(email);
+        if (existing && existing.id !== account.id) throw authError('Email này đã thuộc một tài khoản khác.', 409);
+        if (account.email && account.email !== email) throw authError('Tài khoản đã có email khác. Hãy dùng email đã liên kết.', 409);
+        account.email = email;
+        account.emailVerified = true;
+        this.data.emailLinks[email] = account.username ? `username:${account.username}` : account.email;
+    }
+
+    linkProvider(userId, provider, subject, verifiedEmail = '') {
+        if (!['google', 'facebook'].includes(provider) || !subject) throw authError('Nhà cung cấp không hợp lệ.');
+        const account = this._accountForUser(userId);
+        for (const other of Object.values(this.data.accounts))
+            if (other.id !== account.id && other.providers?.[provider] === subject) throw authError('Tài khoản này đã liên kết với hồ sơ khác.', 409);
+        if (account.providers?.[provider] && account.providers[provider] !== subject) throw authError('Hồ sơ đã liên kết với một tài khoản khác của dịch vụ này.', 409);
+        if (verifiedEmail) this._linkVerifiedEmail(account, normalizeEmail(verifiedEmail));
+        account.providers ||= {};
+        account.providers[provider] = subject;
+        this._save();
+        return { ok: true };
+    }
+
     async login(email, password) {
         validatePassword(password);
-        let cleanEmail;
-        try { cleanEmail = normalizeEmail(email); } catch (_) { cleanEmail = ''; }
-        const account = this.data.accounts[cleanEmail];
+        const account = this._findIdentity(email);
         const salt = account ? Buffer.from(account.passwordSalt, 'base64url') : Buffer.alloc(16, 7);
         const expected = account ? Buffer.from(account.passwordHash, 'base64url') : Buffer.alloc(64, 3);
         const actual = Buffer.from(await scrypt(String(password || ''), salt, 64, { N: 1 << 15, r: 8, p: 1, maxmem: 64 * 1024 * 1024 }));
         const match = actual.length === expected.length && crypto.timingSafeEqual(actual, expected);
         if (!account || !match) throw authError('Email hoặc mật khẩu chưa đúng.', 401);
-        if (account.emailVerified !== true) {
+        if (!account.username && account.emailVerified !== true) {
             const error = authError('Email chưa được xác minh. Nhập mã đã gửi tới hộp thư Gmail.', 403, 'email_not_verified');
-            error.email = cleanEmail;
+            error.email = account.email;
             error.verificationRequired = true;
             throw error;
         }
@@ -96,7 +188,7 @@ class EmailAuthStore {
         const cleanEmail = normalizeEmail(email);
         const account = this.data.accounts[cleanEmail];
         if (!account) throw authError('Email hoặc mã xác minh chưa đúng.', 400);
-        if (account.emailVerified === true) return this._newSession(account);
+        if (account.emailVerified === true) throw authError('Email đã được xác minh. Hãy đăng nhập bằng mật khẩu.', 409);
         if (Number(account.verificationExpiresAt) <= this.clock()) {
             clearVerification(account);
             this._save();
@@ -157,9 +249,9 @@ class EmailAuthStore {
             this._save();
             return null;
         }
-        const account = this.data.accounts[session.email];
+        const account = this.data.accounts[session.accountKey || session.email];
         if (!account || account.id !== session.accountId) return null;
-        return { id: `ipa_${account.id}`, email: account.email, first_name: account.email.split('@')[0] };
+        return { id: `ipa_${account.id}`, email: account.email || '', first_name: account.username || account.email.split('@')[0] };
     }
 
     revoke(token) {
@@ -174,7 +266,7 @@ class EmailAuthStore {
     _newSession(account) {
         const accessToken = crypto.randomBytes(32).toString('base64url');
         const expiresAt = this.clock() + SESSION_TTL_MS;
-        this.data.sessions[hashToken(accessToken)] = { accountId: account.id, email: account.email, expiresAt };
+        this.data.sessions[hashToken(accessToken)] = { accountId: account.id, accountKey: account.username ? `username:${account.username}` : account.email, expiresAt };
         this._pruneSessions();
         this._save();
         return { ok: true, accessToken, expiresAt };
@@ -190,6 +282,12 @@ class EmailAuthStore {
 function normalizeEmail(email) {
     const value = String(email || '').trim().toLowerCase();
     if (value.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/.test(value)) throw authError('Hãy nhập địa chỉ email hợp lệ.');
+    return value;
+}
+
+function normalizeUsername(username) {
+    const value = String(username || '').trim().toLowerCase();
+    if (!/^[a-z0-9][a-z0-9_.]{2,23}$/.test(value)) throw authError('Tên tài khoản cần 3–24 ký tự: chữ không dấu, số, dấu chấm hoặc gạch dưới.');
     return value;
 }
 

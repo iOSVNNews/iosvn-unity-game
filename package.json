@@ -5,9 +5,12 @@
   "main": "standalone_server.js",
   "scripts": {
     "start": "node standalone_server.js",
-    "start:ipa": "node ipa_server.js"
+    "start:ipa": "node ipa_server.js",
+    "test": "node --test tests/*.test.js",
+    "deploy:ipa": "node scripts/deploy_ipa_server.js"
   },
   "dependencies": {
+    "google-auth-library": "^11.1.0",
     "nodemailer": "^10.0.13"
   }
 }

@@ -32,6 +32,9 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class MapCatalogEnvelope { public MapCatalog catalog; }
     [Serializable] public class MonsterList { public WorldMonster[] list; }
     [Serializable] public class EmailCredentials { public string email; public string password; }
+    [Serializable] public class AccountCredentials { public string identity; public string password; }
+    [Serializable] public class AccountProfileResult : ApiResult { public string username; public bool emailVerified; public bool googleLinked; public bool facebookLinked; public bool emailAvailable; public bool googleAvailable; public bool facebookAvailable; }
+    [Serializable] public class ProviderLinkResult : ApiResult { public string url; }
     [Serializable] public class EmailVerificationChoice { public string email; public string code; }
     [Serializable] public class EmptyPayload { }
     [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; public string appearance; public string[] talents; }
@@ -81,12 +84,29 @@ namespace IOSVN.TuTien.Core
             Instance = this;
             DontDestroyOnLoad(gameObject);
             apiBaseUrl = Resources.Load<GameServerConfig>("GameServerConfig")?.apiBaseUrl?.Trim().TrimEnd('/');
+            if (string.IsNullOrWhiteSpace(apiBaseUrl)) apiBaseUrl = GameServerConfig.DefaultApiBaseUrl;
         }
 
         public void SetAccessToken(string token) => accessToken = token;
 
+        public void LoadAccountProfile(Action<AccountProfileResult> done) => StartCoroutine(GetJson("/auth/account/profile", response =>
+            done?.Invoke(Parse<AccountProfileResult>(response) ?? new AccountProfileResult { error = response.error })));
+
+        public void SendEmailLink(string email, Action<ApiResult> done) => StartCoroutine(PostJson("/auth/account/email/link", new EmailCredentials { email = email }, response =>
+            done?.Invoke(Parse<ApiResult>(response) ?? new ApiResult { error = response.error })));
+
+        public void ConfirmEmailLink(string email, string code, Action<ApiResult> done) => StartCoroutine(PostJson("/auth/account/email/verify", new EmailVerificationChoice { email = email, code = code }, response =>
+            done?.Invoke(Parse<ApiResult>(response) ?? new ApiResult { error = response.error })));
+
+        public void StartProviderLink(string provider, Action<ProviderLinkResult> done)
+        {
+            if (provider != "google" && provider != "facebook") { done?.Invoke(new ProviderLinkResult { error = "Dịch vụ chưa được hỗ trợ." }); return; }
+            StartCoroutine(PostJson("/auth/link/" + provider + "/start", new EmptyPayload(), response =>
+                done?.Invoke(Parse<ProviderLinkResult>(response) ?? new ProviderLinkResult { error = response.error })));
+        }
+
         public void Login(string email, string password, Action<ApiResult> done) =>
-            StartCoroutine(PostJson("/auth/email/login", new EmailCredentials { email = email, password = password }, response =>
+            StartCoroutine(PostJson("/auth/account/login", new AccountCredentials { identity = email, password = password }, response =>
             {
                 var result = Parse<ApiResult>(response);
                 if (response.ok && result != null && !string.IsNullOrEmpty(result.accessToken)) accessToken = result.accessToken;
@@ -94,7 +114,7 @@ namespace IOSVN.TuTien.Core
             }, authenticated: false));
 
         public void SignUp(string email, string password, Action<ApiResult> done) =>
-            StartCoroutine(PostJson("/auth/email/register", new EmailCredentials { email = email, password = password }, response =>
+            StartCoroutine(PostJson("/auth/account/register", new AccountCredentials { identity = email, password = password }, response =>
             {
                 var result = Parse<ApiResult>(response);
                 if (response.ok && result != null && !string.IsNullOrEmpty(result.accessToken)) accessToken = result.accessToken;
@@ -270,7 +290,7 @@ namespace IOSVN.TuTien.Core
                 if (!string.IsNullOrWhiteSpace(parsed?.message)) return parsed.message;
             }
             catch { }
-            return body.Length > 180 ? body.Substring(0, 180) : body;
+            return "Máy chủ game chưa sẵn sàng. Hãy thử lại sau.";
         }
 
         private static T Parse<T>(Response response) where T : class
