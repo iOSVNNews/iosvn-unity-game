@@ -448,6 +448,17 @@ jobs:
           mkdir -p "$RUNNER_TEMP/unsigned-ipa/Payload"
           APP_NAME="$(basename "$APP_PATH")"
           ditto "$APP_PATH" "$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
+          UNSIGNED_APP="$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
+          # Unity ships UnityRuntime.framework with its own signature even when
+          # Xcode builds the outer app with CODE_SIGNING_ALLOWED=NO. Some
+          # on-device signers reject this mixed-signature IPA, so leave every
+          # nested bundle unsigned for the user's selected certificate to sign.
+          find "$UNSIGNED_APP" -type d -name '_CodeSignature' -prune -exec rm -rf {} +
+          find "$UNSIGNED_APP" -type f -name 'embedded.mobileprovision' -delete
+          if find "$UNSIGNED_APP" \( -type d -name '_CodeSignature' -o -type f -name 'embedded.mobileprovision' \) -print -quit | grep -q .; then
+            echo 'Unsigned IPA still contains an old code signature or provisioning profile.' >&2
+            exit 1
+          fi
           (cd "$RUNNER_TEMP/unsigned-ipa" && /usr/bin/zip -qry "$RUNNER_TEMP/TuTienGioi-unsigned.ipa" Payload)
           /usr/bin/unzip -tq "$RUNNER_TEMP/TuTienGioi-unsigned.ipa"
 
