@@ -1,6 +1,13 @@
 # Tu Tiên Giới
 
-Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản AWS sang `ipa_core/`; server IPA dùng tài khoản email và dữ liệu lưu riêng. Server IPA chưa được deploy.
+Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản AWS sang `ipa_core/`. API IPA đã chạy chung host với bot tại `https://tutien.iosvn.com.vn/ipa/api`, dùng service và kho dữ liệu riêng. Đăng ký/đăng nhập tên tài khoản hoạt động ngay; đăng ký email và liên kết Google/Facebook cần cấu hình dịch vụ tương ứng trên server. Xem [hướng dẫn tài khoản](unity_project/docs/ACCOUNT_SERVER_SETUP.md).
+
+## Trang chủ và tài khoản
+
+Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ và bảng tài khoản ở giữa. Tab tạo tài khoản mở form riêng có xác nhận mật khẩu; đăng nhập và đăng ký gọi API thật, có kiểm tra dữ liệu và thông báo lỗi. Các ảnh dưới đây được render từ mã Unity hiện tại.
+
+![Trang đăng nhập](unity_project/docs/login-home.png)
+![Trang đăng ký](unity_project/docs/login-register.png)
 
 ## Build trên GitHub
 
@@ -20,7 +27,7 @@ Mỗi lần build từ artifact sẽ lưu lại Xcode export để làm nguồn 
 
 - Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
 - App dùng tên **Tu Tiên Giới** và Bundle ID mặc định `com.iosvn.tutiengioi`; chỉ đặt variable `IOS_BUNDLE_ID` nếu cần ghi đè. Mỗi người ký bằng chứng chỉ riêng phải dùng provisioning profile cho phép Bundle ID này. Profile wildcard tương thích cũng có thể cho phép app mà không cần đăng ký ID tường minh.
-- Variable `IPA_SERVER_URL` is the HTTPS base URL of the dedicated IPA API and ends in `/api`.
+- Variable `IPA_SERVER_URL` có thể ghi đè địa chỉ API mặc định `https://tutien.iosvn.com.vn/ipa/api`.
 - Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
 - Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
 - Gmail sender for the dedicated server: environment values `GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD`.
@@ -39,15 +46,15 @@ docker run --name iosvn-ipa-server --env-file ipa_server.env -p 8788:8788 -v ios
 
 Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA. Đăng ký email gửi mã xác minh 6 số qua Gmail; cần tạo Google App Password cho mailbox gửi thư rồi đặt vào `GMAIL_SMTP_APP_PASSWORD` trên máy chủ. Không nhúng mật khẩu Gmail vào IPA hoặc Git.
 
-Khi chưa chọn máy chủ, màn đăng nhập có nút **XEM BẢN ĐỒ NGOẠI TUYẾN** để chơi vòng săn quái lưu cục bộ: đi bộ trên map, gặp quái tuần tra, đánh bằng kỹ năng, nhận vật phẩm, tích lũy tu vi và mở thành theo cảnh giới. Đây là chế độ PVE trên thiết bị. Ghép trận PVP với người chơi thật vẫn cần triển khai và cấu hình server HTTPS riêng.
+Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ trên map, gặp quái tuần tra, đánh bằng kỹ năng, nhận vật phẩm, tích lũy tu vi và mở thành theo cảnh giới. Đây là chế độ PVE trên thiết bị. Tài khoản và nhân vật online dùng API `/ipa/api`; PVP với người chơi thật cần người chơi khác cùng đăng nhập server IPA.
 
 ## Hiện trạng
 
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
-- Server IPA: `ipa_server.js`; chưa có domain HTTPS hoặc nhà cung cấp máy chủ.
+- Server IPA: `ipa_server.js`, HTTPS `/ipa/api` trên domain `tutien.iosvn.com.vn`.
 - Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái, 1.589 vật phẩm và 245 kỹ năng; quái và vật phẩm dùng pixel art từ game Telegram. Ba quái cảnh giới 12 được vẽ bổ sung vì nguồn thiếu sprite. Tất cả 245 kỹ năng có pixel icon riêng; nút chọn chiêu và hiệu ứng đánh dùng hình đúng kỹ năng.
-- Hồ sơ ngoại tuyến lưu trên thiết bị. Đăng nhập email, đồng bộ nhân vật và PVP giữa người chơi cần máy chủ HTTPS riêng.
-- Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; workflow có thể build image server nhưng chưa triển khai máy chủ.
+- Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
+- Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
 
 Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`.

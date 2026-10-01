@@ -13,7 +13,7 @@ namespace IOSVN.TuTien.Core
     /// server-authoritative world-hunt list. Visual assets can replace these UI
     /// primitives without changing the network flow.
     /// </summary>
-    public sealed class PrototypeBootstrap : MonoBehaviour
+    public sealed partial class PrototypeBootstrap : MonoBehaviour
     {
         private enum WorldPointKind { Town, Dungeon, MonsterZone }
         private sealed class WorldMapPoint
@@ -96,6 +96,12 @@ namespace IOSVN.TuTien.Core
         private InputField nameInput;
         private InputField emailInput;
         private InputField passwordInput;
+        private InputField passwordConfirmationInput;
+        private GameObject authBackdrop;
+        private readonly List<Selectable> authControls = new List<Selectable>();
+        private Button authPrimaryButton;
+        private bool authRequestPending;
+        private int authScreenVersion;
         private InputField verificationCodeInput;
         private string pendingVerificationEmail;
         private bool offlinePreview;
@@ -310,35 +316,96 @@ namespace IOSVN.TuTien.Core
 
         private void ShowLogin(string patchMessage = null)
         {
-            ClearContent();
-            statusMin = new Vector2(0.02f, 0.005f); statusMax = new Vector2(0.98f, 0.035f);
-            GameLogo(new Vector2(0.035f, 0.20f), new Vector2(0.465f, 0.86f));
-            Label("TU TIÊN GIỚI", 34, Gold, TextAnchor.MiddleCenter, new Vector2(0.06f, 0.12f), new Vector2(0.44f, 0.19f));
-            Label("PHÀM GIỚI  ·  TIÊN GIỚI  ·  VẠN ĐẠO", 16, Muted, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.065f), new Vector2(0.46f, 0.12f));
+            ShowAccountForm(false);
+        }
 
-            var card = PanelObject("LandscapeAuthCard", content.transform, new Vector2(.52f, .10f), new Vector2(.96f, .90f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
-            ChildText(card.transform, "AuthTitle", 28, Gold, TextAnchor.MiddleLeft, new Vector2(.07f, .83f), new Vector2(.93f, .95f)).text = "ĐĂNG NHẬP";
-            ChildText(card.transform, "AuthSubtitle", 16, Muted, TextAnchor.MiddleLeft, new Vector2(.07f, .77f), new Vector2(.93f, .85f)).text = "Lưu hồ sơ tu luyện trên tài khoản email";
-            emailInput = Input("email", "Email", new Vector2(.07f, .64f), new Vector2(.93f, .75f), false, card.transform);
-            passwordInput = Input("password", "Mật khẩu", new Vector2(.07f, .50f), new Vector2(.93f, .61f), true, card.transform);
-            Button("ĐĂNG NHẬP", new Vector2(.07f, .36f), new Vector2(.50f, .47f), Gold, () => SubmitAuth(false), card.transform);
-            Button("TẠO TÀI KHOẢN", new Vector2(.53f, .36f), new Vector2(.93f, .47f), Panel, () => SubmitAuth(true), card.transform);
-            Button("CHƠI THỬ NGOẠI TUYẾN", new Vector2(.07f, .20f), new Vector2(.93f, .31f), new Color32(42, 75, 67, 255), EnterOfflinePreview, card.transform);
-            Button("THỬ TẠO NHÂN VẬT", new Vector2(.07f, .06f), new Vector2(.93f, .17f), Panel, EnterOfflineCharacterCreationPreview, card.transform);
-            ShowStatus(string.IsNullOrEmpty(patchMessage) ? "Kết nối tới máy chủ game IPA." : patchMessage);
+        private void PrepareAccountScreen()
+        {
+            ClearContent();
+            authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
+            GameLogo(new Vector2(.005f, .77f), new Vector2(.125f, .98f));
+            Label("PHÀM GIỚI · TIÊN GIỚI", 16, Cream, TextAnchor.MiddleCenter, new Vector2(.005f, .72f), new Vector2(.145f, .765f));
+        }
+
+        private void ShowAccountForm(bool createAccount)
+        {
+            var previousEmail = emailInput != null ? emailInput.text : string.Empty;
+            PrepareAccountScreen();
+            passwordConfirmationInput = null;
+            PanelObject("AuthShadow", content.transform, new Vector2(.30f, .105f), new Vector2(.70f, .945f), new Vector2(10, -12), new Vector2(10, -12), new Color32(4, 12, 17, 130));
+            var card = PanelObject("LandscapeAuthCard", content.transform, new Vector2(.30f, .105f), new Vector2(.70f, .945f), Vector2.zero, Vector2.zero, new Color32(14, 27, 35, 242));
+            ChildText(card.transform, "AuthTitle", 32, Gold, TextAnchor.MiddleCenter, new Vector2(.07f, .90f), new Vector2(.93f, .965f)).text = createAccount ? "KHỞI ĐẦU TIÊN LỘ" : "CHÀO MỪNG ĐẠO HỮU";
+            ChildText(card.transform, "AuthSubtitle", 20, Cream, TextAnchor.MiddleCenter, new Vector2(.07f, .85f), new Vector2(.93f, .90f)).text = createAccount ? "Tạo tài khoản để lưu hành trình tu luyện" : "Đăng nhập để tiếp tục hành trình tu luyện";
+            AuthControl(Button("ĐĂNG NHẬP", new Vector2(.085f, .755f), new Vector2(.49f, .83f), createAccount ? Panel : Gold, () => { if (createAccount) ShowAccountForm(false); }, card.transform));
+            AuthControl(Button("TẠO TÀI KHOẢN", new Vector2(.51f, .755f), new Vector2(.915f, .83f), createAccount ? Gold : Panel, () => { if (!createAccount) ShowAccountForm(true); }, card.transform));
+            ChildText(card.transform, "EmailLabel", 19, Cream, TextAnchor.MiddleLeft, new Vector2(.085f, .69f), new Vector2(.915f, .735f)).text = "TÀI KHOẢN HOẶC EMAIL";
+            emailInput = Input("account", "Tên tài khoản hoặc email", new Vector2(.085f, .59f), new Vector2(.915f, .685f), false, card.transform);
+            emailInput.text = previousEmail;
+            emailInput.characterLimit = 254;
+            AuthControl(emailInput);
+            ChildText(card.transform, "PasswordLabel", 19, Cream, TextAnchor.MiddleLeft, new Vector2(.085f, .55f), new Vector2(.915f, .585f)).text = "MẬT KHẨU";
+            passwordInput = Input("password", createAccount ? "Từ 10 đến 128 ký tự" : "Nhập mật khẩu", new Vector2(.085f, .445f), new Vector2(.915f, .54f), true, card.transform);
+            passwordInput.characterLimit = 128;
+            AuthControl(passwordInput);
+            if (createAccount)
+            {
+                passwordConfirmationInput = Input("passwordConfirmation", "Nhập lại mật khẩu", new Vector2(.085f, .335f), new Vector2(.915f, .43f), true, card.transform);
+                passwordConfirmationInput.characterLimit = 128;
+                AuthControl(passwordConfirmationInput);
+            }
+            status = ChildText(card.transform, "AuthFeedback", 21, Muted, TextAnchor.MiddleCenter, new Vector2(.085f, .215f), new Vector2(.915f, .315f));
+            status.text = createAccount ? "Tên tài khoản: 3–24 ký tự không dấu.\nĐăng ký bằng email cần mã xác minh." : "Hồ sơ của bạn được lưu trên máy chủ game.";
+            authPrimaryButton = Button(createAccount ? "TẠO TÀI KHOẢN" : "VÀO GAME", new Vector2(.085f, .085f), new Vector2(.915f, .195f), Gold, () => SubmitAuth(createAccount), card.transform);
+            AuthControl(authPrimaryButton);
+            AuthControl(Button("CHƠI NGOẠI TUYẾN", new Vector2(.30f, .018f), new Vector2(.495f, .085f), new Color32(28, 66, 61, 240), EnterOfflinePreview));
+            AuthControl(Button("THỬ TẠO NHÂN VẬT", new Vector2(.505f, .018f), new Vector2(.70f, .085f), new Color32(17, 33, 43, 240), EnterOfflineCharacterCreationPreview));
+        }
+
+        private void AuthControl(Selectable control) => authControls.Add(control);
+
+        private void SetAuthBusy(bool busy)
+        {
+            authRequestPending = busy;
+            foreach (var control in authControls) if (control != null) control.interactable = !busy;
+        }
+
+        private void AuthFeedback(string message, bool error = false)
+        {
+            ShowStatus(message);
+            if (status != null) status.color = error ? new Color32(255, 164, 138, 255) : Cream;
         }
 
         private void SubmitAuth(bool createAccount)
         {
-            if (string.IsNullOrWhiteSpace(emailInput.text) || string.IsNullOrWhiteSpace(passwordInput.text))
+            if (authRequestPending) return;
+            var email = emailInput.text.Trim();
+            var validIdentity = email.Contains("@")
+                ? email.Length <= 254 && System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
+                : System.Text.RegularExpressions.Regex.IsMatch(email, @"^[a-zA-Z0-9][a-zA-Z0-9_.]{2,23}$");
+            if (!validIdentity)
             {
-                ShowStatus("Nhập email và mật khẩu trước.");
+                AuthFeedback("Nhập tên tài khoản 3–24 ký tự không dấu hoặc email hợp lệ.", true);
+                emailInput.ActivateInputField();
                 return;
             }
-            var email = emailInput.text.Trim();
-            ShowStatus(createAccount ? "Đang tạo tài khoản..." : "Đang đăng nhập...");
+            if (passwordInput.text.Length < 10 || passwordInput.text.Length > 128)
+            {
+                AuthFeedback("Mật khẩu cần có từ 10 đến 128 ký tự.", true);
+                passwordInput.ActivateInputField();
+                return;
+            }
+            if (createAccount && passwordConfirmationInput.text != passwordInput.text)
+            {
+                AuthFeedback("Mật khẩu nhập lại chưa khớp.", true);
+                passwordConfirmationInput.ActivateInputField();
+                return;
+            }
+            var screenVersion = authScreenVersion;
+            SetAuthBusy(true);
+            AuthFeedback(createAccount ? "Đang tạo tài khoản..." : "Đang đăng nhập...");
             Action<ApiResult> finish = result =>
             {
+                if (screenVersion != authScreenVersion) return;
                 if (result?.verificationRequired == true)
                 {
                     ShowEmailVerification(result.email ?? email, result.message ?? result.error);
@@ -346,10 +413,17 @@ namespace IOSVN.TuTien.Core
                 }
                 if (result == null || !result.ok)
                 {
+                    SetAuthBusy(false);
                     var detail = result?.error;
                     if (string.IsNullOrWhiteSpace(detail) || detail.Contains("Not found"))
                         detail = "Server game IPA chưa bật API đăng nhập email.";
-                    ShowStatus(detail);
+                    AuthFeedback(detail, true);
+                    return;
+                }
+                if (string.IsNullOrWhiteSpace(result.accessToken))
+                {
+                    SetAuthBusy(false);
+                    AuthFeedback("Máy chủ chưa trả phiên đăng nhập. Hãy thử lại.", true);
                     return;
                 }
                 LoadState();
@@ -361,33 +435,37 @@ namespace IOSVN.TuTien.Core
         private void ShowEmailVerification(string email, string message = null)
         {
             pendingVerificationEmail = email?.Trim();
-            statusMin = new Vector2(0.02f, 0.015f); statusMax = new Vector2(0.98f, 0.075f);
-            ClearContent();
-            GameLogo(new Vector2(0.035f, 0.19f), new Vector2(0.465f, 0.81f));
-            var card = PanelObject("LandscapeVerificationCard", content.transform, new Vector2(.52f, .13f), new Vector2(.96f, .87f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
-            ChildText(card.transform, "VerificationTitle", 28, Gold, TextAnchor.MiddleLeft, new Vector2(.07f, .79f), new Vector2(.93f, .94f)).text = "XÁC MINH EMAIL";
-            ChildText(card.transform, "VerificationEmail", 17, Muted, TextAnchor.MiddleLeft, new Vector2(.07f, .64f), new Vector2(.93f, .79f)).text = "Nhập mã 6 số đã gửi tới  " + pendingVerificationEmail;
-            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(.07f, .48f), new Vector2(.93f, .61f), false, card.transform);
+            PrepareAccountScreen();
+            var card = PanelObject("LandscapeVerificationCard", content.transform, new Vector2(.30f, .15f), new Vector2(.70f, .89f), Vector2.zero, Vector2.zero, new Color32(14, 27, 35, 242));
+            ChildText(card.transform, "VerificationTitle", 32, Gold, TextAnchor.MiddleCenter, new Vector2(.07f, .82f), new Vector2(.93f, .94f)).text = "XÁC MINH EMAIL";
+            ChildText(card.transform, "VerificationEmail", 22, Cream, TextAnchor.MiddleCenter, new Vector2(.085f, .65f), new Vector2(.915f, .81f)).text = "Nhập mã 6 số đã gửi tới\n" + pendingVerificationEmail;
+            verificationCodeInput = Input("Mã xác minh", "6 chữ số", new Vector2(.085f, .48f), new Vector2(.915f, .62f), false, card.transform);
             verificationCodeInput.contentType = InputField.ContentType.IntegerNumber;
             verificationCodeInput.characterLimit = 6;
             verificationCodeInput.keyboardType = TouchScreenKeyboardType.NumberPad;
-            Button("XÁC MINH VÀO GAME", new Vector2(.07f, .30f), new Vector2(.50f, .43f), Gold, SubmitEmailVerification, card.transform);
-            Button("GỬI LẠI MÃ", new Vector2(.53f, .30f), new Vector2(.93f, .43f), Panel, ResendEmailVerification, card.transform);
-            Button("QUAY LẠI ĐĂNG NHẬP", new Vector2(.07f, .11f), new Vector2(.93f, .24f), Panel, () => ShowLogin(), card.transform);
-            ShowStatus(string.IsNullOrWhiteSpace(message) ? "Mã có hiệu lực trong 10 phút." : message);
+            AuthControl(verificationCodeInput);
+            status = ChildText(card.transform, "AuthFeedback", 21, Cream, TextAnchor.MiddleCenter, new Vector2(.085f, .34f), new Vector2(.915f, .46f));
+            AuthControl(Button("XÁC MINH VÀO GAME", new Vector2(.085f, .20f), new Vector2(.915f, .32f), Gold, SubmitEmailVerification, card.transform));
+            AuthControl(Button("GỬI LẠI MÃ", new Vector2(.085f, .055f), new Vector2(.49f, .17f), Panel, ResendEmailVerification, card.transform));
+            AuthControl(Button("ĐĂNG NHẬP", new Vector2(.51f, .055f), new Vector2(.915f, .17f), Panel, () => ShowLogin(), card.transform));
+            AuthFeedback(string.IsNullOrWhiteSpace(message) ? "Mã có hiệu lực trong 10 phút." : message);
         }
 
         private void SubmitEmailVerification()
         {
-            if (string.IsNullOrWhiteSpace(pendingVerificationEmail) || string.IsNullOrWhiteSpace(verificationCodeInput?.text))
+            if (authRequestPending) return;
+            if (string.IsNullOrWhiteSpace(pendingVerificationEmail) || !System.Text.RegularExpressions.Regex.IsMatch(verificationCodeInput?.text ?? "", @"^\d{6}$"))
             {
-                ShowStatus("Nhập mã 6 số trong email trước.");
+                AuthFeedback("Nhập đầy đủ mã 6 số trong email.", true);
                 return;
             }
-            ShowStatus("Đang xác minh email...");
+            var screenVersion = authScreenVersion;
+            SetAuthBusy(true);
+            AuthFeedback("Đang xác minh email...");
             client.VerifyEmail(pendingVerificationEmail, verificationCodeInput.text.Trim(), result =>
             {
-                if (result == null || !result.ok) { ShowStatus(result?.error ?? "Không xác minh được email."); return; }
+                if (screenVersion != authScreenVersion) return;
+                if (result == null || !result.ok) { SetAuthBusy(false); AuthFeedback(result?.error ?? "Không xác minh được email.", true); return; }
                 pendingVerificationEmail = null;
                 LoadState();
             });
@@ -395,11 +473,16 @@ namespace IOSVN.TuTien.Core
 
         private void ResendEmailVerification()
         {
+            if (authRequestPending) return;
             if (string.IsNullOrWhiteSpace(pendingVerificationEmail)) { ShowLogin(); return; }
-            ShowStatus("Đang gửi lại mã xác minh...");
+            var screenVersion = authScreenVersion;
+            SetAuthBusy(true);
+            AuthFeedback("Đang gửi lại mã xác minh...");
             client.ResendEmailVerification(pendingVerificationEmail, result =>
             {
-                ShowStatus(result?.message ?? result?.error ?? "Đã yêu cầu gửi lại mã.");
+                if (screenVersion != authScreenVersion) return;
+                SetAuthBusy(false);
+                AuthFeedback(result?.message ?? result?.error ?? "Không gửi được mã. Hãy thử lại.", result?.ok != true);
             });
         }
 
@@ -622,7 +705,7 @@ namespace IOSVN.TuTien.Core
             ShowStatus("Đang tạo nhân vật trên máy chủ...");
             client.RegisterCharacter(choice, (state, error) =>
             {
-                if (state == null) { ShowStatus(error); return; }
+                if (state == null) { SetAuthBusy(false); ShowStatus(error); return; }
                 offlineCreationPreview = false;
                 SetAtlasOrientation(false);
                 ShowHome(state);
@@ -758,7 +841,7 @@ namespace IOSVN.TuTien.Core
             var scrollContent = CreateScrollList("MonsterList", 0.175f, 0.725f);
             if (state.worldMonsters != null) AddMonsterCards(state.worldMonsters, scrollContent);
             Button("BÍ CẢNH", new Vector2(.34f, .035f), new Vector2(.60f, .105f), Panel, () => ShowPveTown(state, state.town));
-            Button("CẬP NHẬT HỒ SƠ", new Vector2(.62f, .035f), new Vector2(.80f, .105f), Panel, LoadState);
+            Button("TÀI KHOẢN", new Vector2(.62f, .035f), new Vector2(.80f, .105f), Panel, () => ShowAccountLinks(state));
             Button("ĐĂNG XUẤT", new Vector2(.82f, .035f), new Vector2(.98f, .105f), Panel, () => client.Logout(_ => ShowLogin()));
             ShowStatus("Hồ sơ và mục tiêu được đồng bộ với máy chủ.");
         }
@@ -2441,7 +2524,7 @@ namespace IOSVN.TuTien.Core
                 rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f); rect.pivot = new Vector2(.5f, 1f);
                 rect.anchoredPosition = new Vector2(0f, -size * .42f); rect.sizeDelta = new Vector2(220f, 26f);
                 var label = labelObject.GetComponent<Text>();
-                label.font = Resources.GetBuiltinResource<Font>("Arial.ttf"); label.fontSize = 12; label.color = Cream;
+                label.font = BuiltinFont(); label.fontSize = 12; label.color = Cream;
                 label.alignment = TextAnchor.MiddleCenter; label.horizontalOverflow = HorizontalWrapMode.Wrap; label.verticalOverflow = VerticalWrapMode.Truncate;
                 label.text = caption; label.raycastTarget = false;
                 var outline = labelObject.GetComponent<Outline>(); outline.effectColor = new Color(0f, 0f, 0f, .94f); outline.effectDistance = new Vector2(1.2f, -1.2f);
@@ -3190,10 +3273,21 @@ namespace IOSVN.TuTien.Core
 
         private void ClearContent()
         {
+            authScreenVersion++;
+            accountLinksOpen = false;
+            authRequestPending = false;
+            authControls.Clear();
+            authPrimaryButton = null;
+            if (authBackdrop != null) { authBackdrop.SetActive(false); Destroy(authBackdrop); authBackdrop = null; }
             status = null;
             statusMin = new Vector2(0.02f, 0.12f); statusMax = new Vector2(0.98f, 0.19f);
             if (content == null) return;
-            for (var i = content.transform.childCount - 1; i >= 0; i--) Destroy(content.transform.GetChild(i).gameObject);
+            for (var i = content.transform.childCount - 1; i >= 0; i--)
+            {
+                var child = content.transform.GetChild(i).gameObject;
+                child.SetActive(false);
+                Destroy(child);
+            }
         }
 
         private Text Label(string value, int size, Color color, TextAnchor alignment, Vector2 min, Vector2 max, Transform parent = null)
@@ -3204,6 +3298,7 @@ namespace IOSVN.TuTien.Core
             var text = obj.GetComponent<Text>();
             text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = alignment;
             text.text = value; text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.raycastTarget = false;
             PixelUiSkin.ApplyTextTreatment(text);
             return text;
         }
@@ -3217,9 +3312,13 @@ namespace IOSVN.TuTien.Core
                 return;
             }
 
+            // FitInParent changes its own anchors: constrain it inside a fixed slot.
+            var slot = new GameObject("TuTienGioiLogoSlot", typeof(RectTransform));
+            slot.transform.SetParent(content.transform, false);
+            Place(slot.GetComponent<RectTransform>(), min, max);
             var obj = new GameObject("TuTienGioiLogo", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
-            obj.transform.SetParent(content.transform, false);
-            Place(obj.GetComponent<RectTransform>(), min, max);
+            obj.transform.SetParent(slot.transform, false);
+            Place(obj.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
             var image = obj.GetComponent<RawImage>();
             image.texture = texture;
             image.raycastTarget = false;
@@ -3236,8 +3335,11 @@ namespace IOSVN.TuTien.Core
             var hint = ChildText(root.transform, "Placeholder", 21, Muted, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             hint.text = placeholder;
             var input = root.AddComponent<InputField>();
+            input.targetGraphic = root.GetComponent<Image>();
             input.textComponent = valueText; input.placeholder = hint; input.contentType = secret ? InputField.ContentType.Password : (label == "email" ? InputField.ContentType.EmailAddress : InputField.ContentType.Standard);
             input.lineType = InputField.LineType.SingleLine;
+            input.caretWidth = 2;
+            input.selectionColor = new Color32(83, 129, 118, 180);
             return input;
         }
 
@@ -3264,7 +3366,8 @@ namespace IOSVN.TuTien.Core
         {
             var root = PanelObject("Button_" + label, parent ?? content.transform, min, max, Vector2.zero, Vector2.zero, color);
             var button = root.AddComponent<Button>();
-            var colors = button.colors; colors.normalColor = color; colors.highlightedColor = new Color(1f, 0.9f, 0.68f); colors.pressedColor = Gold; button.colors = colors;
+            button.targetGraphic = root.GetComponent<Image>();
+            var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(1f, .96f, .82f); colors.pressedColor = new Color(.76f, .83f, .79f); colors.disabledColor = new Color(.55f, .55f, .55f, .75f); button.colors = colors;
             var text = ChildText(root.transform, "Text", buttonFontSize, color == Gold ? Ink : Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
             text.text = label; text.fontStyle = FontStyle.Bold;
             text.resizeTextForBestFit = true;
@@ -3291,11 +3394,12 @@ namespace IOSVN.TuTien.Core
             Place(obj.GetComponent<RectTransform>(), min, max);
             var text = obj.GetComponent<Text>(); text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+            text.raycastTarget = false;
             PixelUiSkin.ApplyTextTreatment(text);
             return text;
         }
 
-        private static Font BuiltinFont() => Resources.GetBuiltinResource<Font>("Arial.ttf");
+        private static Font BuiltinFont() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
         private static string[] Names(ChoiceInfo[] choices)
         {
             if (choices == null) return Array.Empty<string>();

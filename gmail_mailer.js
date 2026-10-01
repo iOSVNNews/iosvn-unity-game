@@ -23,6 +23,9 @@ function createGmailMailer(env = process.env) {
                 pool: true,
                 maxConnections: 2,
                 maxMessages: 20,
+                connectionTimeout: 10000,
+                greetingTimeout: 10000,
+                socketTimeout: 15000,
             });
         }
         return transporter;

@@ -6,7 +6,8 @@ namespace IOSVN.TuTien.Core
     [CreateAssetMenu(menuName = "iOSVN/Online/Game Server Config", fileName = "GameServerConfig")]
     public sealed class GameServerConfig : ScriptableObject
     {
-        public string apiBaseUrl = "";
+        public const string DefaultApiBaseUrl = "https://tutien.iosvn.com.vn/ipa/api";
+        public string apiBaseUrl = DefaultApiBaseUrl;
         public string assetCdnBaseUrl = "";
     }
 }
