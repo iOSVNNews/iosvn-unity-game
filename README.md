@@ -9,6 +9,13 @@ Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuy
 ![Trang đăng nhập](unity_project/docs/login-home.png)
 ![Trang đăng ký](unity_project/docs/login-register.png)
 
+## Pixel chiến đấu PvE
+
+Màn chiến đấu lấy quái theo đúng ID từ catalog, cử động khi đứng, ra đòn và trúng đòn. Vũ khí trên nhân vật lấy theo món đang trang bị; kỹ năng và đòn nguyên tố của từng quái có hình pixel và hiệu ứng chuyển động riêng. Bộ `CombatPixel` hiện phủ 279/279 ID quái, 547/547 ID vũ khí duy nhất và 245/245 ID kỹ năng người chơi. Có thêm 279 hình hiệu ứng theo loài quái và 1.068 hình vật phẩm khác. Năm quái chủ lực được vẽ chi tiết riêng; các ID còn lại được dựng pixel theo dáng loài, màu nguyên tố và hoa văn từng ID. Xem [bảng phủ và giới hạn](unity_project/docs/combat-pixel-coverage.md).
+
+![PvE Cửu Vĩ Ma Hồ](unity_project/docs/pve-cuu-vi-ma-ho.png)
+![PvE Thanh Long Chân Linh](unity_project/docs/pve-thanh-long.png)
+
 ## Build trên GitHub
 
 Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS. Khi dùng Xcode export dựng sẵn, workflow giữ bản export thành Actions artifact trong 90 ngày để không cần công khai release kỹ thuật.
@@ -52,7 +59,7 @@ Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ t
 
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
 - Server IPA: `ipa_server.js`, HTTPS `/ipa/api` trên domain `tutien.iosvn.com.vn`.
-- Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái, 1.589 vật phẩm và 245 kỹ năng; quái và vật phẩm dùng pixel art từ game Telegram. Ba quái cảnh giới 12 được vẽ bổ sung vì nguồn thiếu sprite. Tất cả 245 kỹ năng có pixel icon riêng; nút chọn chiêu và hiệu ứng đánh dùng hình đúng kỹ năng.
+- Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái và 245 kỹ năng. Màn PvE ưu tiên sprite `CombatPixel` theo ID; hình cũ từ bot chỉ là dự phòng cho ID chưa có trong bộ mới.
 - Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
 - Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
