@@ -557,6 +557,7 @@ namespace IOSVN.TuTien.Core
             go.transform.SetParent(parent ?? transform, false);
             Place(go.GetComponent<RectTransform>(), min, max);
             go.GetComponent<Image>().color = color;
+            if (PixelUiSkin.NeedsFrame(name)) PixelUiSkin.ApplyFrame(go);
             return go;
         }
 
@@ -567,6 +568,7 @@ namespace IOSVN.TuTien.Core
             Place(go.GetComponent<RectTransform>(), min, max);
             var text = go.GetComponent<Text>(); text.font = Resources.GetBuiltinResource<Font>("Arial.ttf"); text.fontSize = size; text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+            PixelUiSkin.ApplyTextTreatment(text);
             return text;
         }
 
@@ -576,14 +578,17 @@ namespace IOSVN.TuTien.Core
             var button = rootButton.AddComponent<Button>();
             var colors = button.colors; colors.normalColor = color; colors.highlightedColor = new Color(1f, 0.9f, 0.68f); colors.pressedColor = Gold; button.colors = colors;
             var text = AddText(rootButton.transform, "Text", 17, color == Gold ? new Color32(22, 24, 27, 255) : Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
-            text.text = label; button.onClick.AddListener(() => click?.Invoke());
+            text.text = label; text.fontStyle = FontStyle.Bold;
+            text.resizeTextForBestFit = true; text.resizeTextMinSize = 11; text.resizeTextMaxSize = 17;
+            PixelUiSkin.ApplyFrame(rootButton);
+            button.onClick.AddListener(() => click?.Invoke());
             return button;
         }
 
         private static void SetButtonFont(Button button, int size)
         {
             var text = button.GetComponentInChildren<Text>();
-            if (text != null) text.fontSize = size;
+            if (text != null) { text.fontSize = size; text.resizeTextMaxSize = size; text.resizeTextMinSize = Mathf.Min(11, size); }
         }
 
         private void AddMeter(Transform parent, string name, string title, long value, long maximum, Color fillColor, Vector2 min, Vector2 max)

@@ -45,7 +45,6 @@ namespace IOSVN.TuTien.Core
         private GameObject atlasMapRoot;
         private GameObject explorationMapRoot;
         private RectTransform explorationViewport;
-        private RectTransform explorationLayer;
         private RectTransform explorationMapRect;
         private RawImage explorationMiniMap;
         private RectTransform explorationMiniPlayer;
@@ -691,20 +690,49 @@ namespace IOSVN.TuTien.Core
             atlasSelectionKind = "town";
             SetRealmMusic(state);
             ClearContent();
-            Label("TU TIÊN  •  CỬU CHÂU", 28, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.88f), new Vector2(0.98f, 0.96f));
             var playerName = string.IsNullOrEmpty(state.player?.fullName) ? state.player?.name : state.player.fullName;
-            Label($"{playerName ?? "Đạo hữu"}     •     {state.realm?.name ?? "Sơ nhập"}", 23, Cream, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.80f), new Vector2(0.98f, 0.87f));
-            Label($"{state.town?.name ?? "Chưa rõ thành"}     •     {Math.Max(0, state.player?.stones ?? 0):N0} linh thạch", 19, Muted, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.75f), new Vector2(0.98f, 0.80f));
-            Button(ActiveTitleNames(state.player?.titles), new Vector2(0.02f, 0.715f), new Vector2(0.98f, 0.75f), Panel, () => ShowTitles(state));
-            Button("BẢN ĐỒ", new Vector2(0.02f, 0.655f), new Vector2(0.32f, 0.71f), Panel, () => ShowMap(state));
-            Button("PVP", new Vector2(0.34f, 0.655f), new Vector2(0.63f, 0.71f), Gold, () => ShowPvp(state));
-            Button("LÀM MỚI PVE", new Vector2(0.65f, 0.655f), new Vector2(0.98f, 0.71f), Panel, RefreshMonsters);
-            Label("PVE  •  MỤC TIÊU TẠI THÀNH", 20, Gold, TextAnchor.MiddleLeft, new Vector2(0.02f, 0.615f), new Vector2(0.98f, 0.65f));
-            var scrollContent = CreateScrollList("MonsterList", 0.20f, 0.61f);
+            statusMin = new Vector2(.34f, .115f); statusMax = new Vector2(.98f, .15f);
+
+            var header = PanelObject("HomeHeader", content.transform, new Vector2(.02f, .855f), new Vector2(.98f, .98f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
+            ChildText(header.transform, "GameMark", 15, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .55f), new Vector2(.27f, .94f)).text = "TU TIÊN GIỚI  ·  CỬU CHÂU";
+            ChildText(header.transform, "Welcome", 23, Cream, TextAnchor.MiddleLeft, new Vector2(.025f, .06f), new Vector2(.56f, .60f)).text = playerName ?? "Đạo hữu";
+            ChildText(header.transform, "HeaderResources", 16, Gold, TextAnchor.MiddleRight, new Vector2(.58f, .12f), new Vector2(.975f, .88f)).text =
+                $"{state.realm?.name ?? "Sơ nhập"}     ·     {state.town?.name ?? "Chưa rõ thành"}     ·     {Math.Max(0, state.player?.stones ?? 0):N0} LINH THẠCH";
+
+            var profile = PanelObject("HomeProfileCard", content.transform, new Vector2(.02f, .185f), new Vector2(.315f, .835f), Vector2.zero, Vector2.zero, new Color32(23, 29, 36, 255));
+            PanelObject("HomePortraitFrame", profile.transform, new Vector2(.25f, .40f), new Vector2(.75f, .94f), Vector2.zero, Vector2.zero, new Color32(71, 57, 40, 255));
+            var portrait = new GameObject("HomePortrait", typeof(RectTransform), typeof(Image));
+            portrait.transform.SetParent(profile.transform, false);
+            Place(portrait.GetComponent<RectTransform>(), new Vector2(.275f, .425f), new Vector2(.725f, .915f));
+            var portraitImage = portrait.GetComponent<Image>();
+            portraitImage.sprite = CreateCultivatorSprite(state.player?.appearanceColors);
+            portraitImage.preserveAspect = true;
+            portraitImage.raycastTarget = false;
+            ChildText(profile.transform, "ProfileName", 20, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .32f), new Vector2(.95f, .41f)).text =
+                string.IsNullOrWhiteSpace(state.player?.name) ? "Đạo hữu" : state.player.name;
+            ChildText(profile.transform, "ProfileSect", 15, Muted, TextAnchor.MiddleCenter, new Vector2(.05f, .25f), new Vector2(.95f, .33f)).text =
+                $"{state.player?.monName ?? "Tán tu"}  ·  {state.player?.heName ?? "Linh căn chưa rõ"}";
+            var hp = Math.Max(0L, state.player?.hp ?? 0L);
+            var maxHp = Math.Max(0L, state.player?.maxHp ?? 0L);
+            var hpTrack = PanelObject("HomeHealthTrack", profile.transform, new Vector2(.08f, .18f), new Vector2(.92f, .23f), Vector2.zero, Vector2.zero, new Color32(37, 39, 40, 255));
+            var hpFill = PanelObject("HomeHealthFill", hpTrack.transform, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2), new Color32(79, 178, 104, 255)).GetComponent<Image>();
+            hpFill.type = Image.Type.Filled; hpFill.fillMethod = Image.FillMethod.Horizontal; hpFill.fillOrigin = (int)Image.OriginHorizontal.Left;
+            hpFill.fillAmount = maxHp == 0 ? 0f : Mathf.Clamp01((float)hp / maxHp);
+            ChildText(profile.transform, "ProfileVitals", 14, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .12f), new Vector2(.95f, .18f)).text =
+                maxHp == 0 ? "KHÍ HUYẾT  ·  CHƯA CÓ DỮ LIỆU" : $"KHÍ HUYẾT  ·  {hp:N0} / {maxHp:N0}";
+            Button("DANH HIỆU", new Vector2(.07f, .035f), new Vector2(.93f, .105f), Panel, () => ShowTitles(state), profile.transform);
+
+            Button("BẢN ĐỒ", new Vector2(.34f, .785f), new Vector2(.55f, .84f), Panel, () => ShowMap(state));
+            Button("LÔI ĐÀI  ·  PVP", new Vector2(.565f, .785f), new Vector2(.765f, .84f), Gold, () => ShowPvp(state));
+            Button("TRUY TUNG  ·  PVE", new Vector2(.78f, .785f), new Vector2(.98f, .84f), Panel, RefreshMonsters);
+            Label("YÊU THÚ QUANH THÀNH", 19, Gold, TextAnchor.MiddleLeft, new Vector2(.35f, .735f), new Vector2(.77f, .78f));
+            Button("LÀM MỚI", new Vector2(.82f, .735f), new Vector2(.98f, .78f), Panel, RefreshMonsters);
+            var scrollContent = CreateScrollList("MonsterList", 0.175f, 0.725f);
             if (state.worldMonsters != null) AddMonsterCards(state.worldMonsters, scrollContent);
-            Button("BÍ CẢNH", new Vector2(0.02f, 0.04f), new Vector2(0.48f, 0.105f), Panel, () => ShowPveTown(state, state.town));
-            Button("ĐĂNG XUẤT", new Vector2(0.52f, 0.04f), new Vector2(0.98f, 0.105f), Panel, () => client.Logout(_ => ShowLogin()));
-            ShowStatus("Hồ sơ và mục tiêu đồng bộ với máy chủ game IPA.");
+            Button("BÍ CẢNH", new Vector2(.34f, .035f), new Vector2(.60f, .105f), Panel, () => ShowPveTown(state, state.town));
+            Button("CẬP NHẬT HỒ SƠ", new Vector2(.62f, .035f), new Vector2(.80f, .105f), Panel, LoadState);
+            Button("ĐĂNG XUẤT", new Vector2(.82f, .035f), new Vector2(.98f, .105f), Panel, () => client.Logout(_ => ShowLogin()));
+            ShowStatus("Hồ sơ và mục tiêu được đồng bộ với máy chủ.");
         }
 
         private void ShowMap(GameState state)
@@ -738,7 +766,6 @@ namespace IOSVN.TuTien.Core
             explorationMapRoot = null;
             if (explorationTexture != null) Destroy(explorationTexture);
             explorationTexture = null;
-            explorationLayer = null;
             explorationViewport = null;
             if (atlasSelectedTown == null || !IsTownInAtlas(atlasSelectedTown, atlasImmortalRealm))
             {
@@ -2739,6 +2766,7 @@ namespace IOSVN.TuTien.Core
             var text = obj.GetComponent<Text>();
             text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = alignment;
             text.text = value; text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+            PixelUiSkin.ApplyTextTreatment(text);
             return text;
         }
 
@@ -2765,6 +2793,7 @@ namespace IOSVN.TuTien.Core
         private InputField Input(string label, string placeholder, Vector2 min, Vector2 max, bool secret, Transform parent = null)
         {
             var root = PanelObject(label, parent ?? content.transform, min, max, Vector2.zero, Vector2.zero, Panel);
+            PixelUiSkin.ApplyFrame(root);
             var valueText = ChildText(root.transform, "Value", 22, Cream, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             var hint = ChildText(root.transform, "Placeholder", 21, Muted, TextAnchor.MiddleLeft, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             hint.text = placeholder;
@@ -2777,6 +2806,7 @@ namespace IOSVN.TuTien.Core
         private Text ChoiceSelector(string label, string[] choices, Vector2 min, Vector2 max, Action<int> selected, int initialIndex = 0)
         {
             var root = PanelObject(label, content.transform, min, max, Vector2.zero, Vector2.zero, Panel);
+            PixelUiSkin.ApplyFrame(root);
             var button = root.AddComponent<Button>();
             var text = ChildText(root.transform, "Selected", 20, Cream, TextAnchor.MiddleCenter, new Vector2(0.04f, 0.05f), new Vector2(0.96f, 0.95f));
             var choiceIndex = choices == null || choices.Length == 0 ? 0 : Mathf.Clamp(initialIndex, 0, choices.Length - 1);
@@ -2798,7 +2828,12 @@ namespace IOSVN.TuTien.Core
             var button = root.AddComponent<Button>();
             var colors = button.colors; colors.normalColor = color; colors.highlightedColor = new Color(1f, 0.9f, 0.68f); colors.pressedColor = Gold; button.colors = colors;
             var text = ChildText(root.transform, "Text", buttonFontSize, color == Gold ? Ink : Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
-            text.text = label; button.onClick.AddListener(() => click?.Invoke());
+            text.text = label; text.fontStyle = FontStyle.Bold;
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 11;
+            text.resizeTextMaxSize = buttonFontSize;
+            PixelUiSkin.ApplyFrame(root);
+            button.onClick.AddListener(() => click?.Invoke());
             return button;
         }
 
@@ -2808,6 +2843,7 @@ namespace IOSVN.TuTien.Core
             obj.transform.SetParent(parent, false);
             Place(obj.GetComponent<RectTransform>(), min, max, offsetMin, offsetMax);
             obj.GetComponent<Image>().color = color;
+            if (PixelUiSkin.NeedsFrame(name)) PixelUiSkin.ApplyFrame(obj);
             return obj;
         }
 
@@ -2817,6 +2853,7 @@ namespace IOSVN.TuTien.Core
             Place(obj.GetComponent<RectTransform>(), min, max);
             var text = obj.GetComponent<Text>(); text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
+            PixelUiSkin.ApplyTextTreatment(text);
             return text;
         }
 
