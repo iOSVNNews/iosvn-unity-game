@@ -6,6 +6,7 @@ on:
     paths:
       - 'unity_project/**'
       - 'ipa_server.js'
+      - 'ipa_routes.js'
       - 'email_auth_store.js'
       - 'gmail_mailer.js'
       - 'account_oauth.js'
@@ -20,6 +21,7 @@ on:
     paths:
       - 'unity_project/**'
       - 'ipa_server.js'
+      - 'ipa_routes.js'
       - 'email_auth_store.js'
       - 'gmail_mailer.js'
       - 'account_oauth.js'

@@ -3212,7 +3212,7 @@ const TOWNS = Object.freeze([
         desc: 'Tiên giới mênh mông trong Phàm Nhân Tiên Giới Thiên, tiên đạo đỉnh phong, vạn kiếp bất diệt.',
         realmMin: 11,
         x: 160, y: 120,
-        monsterPool: ['bac_han_tien_hac', 'chan_tien_ma_khi', 'dai_la_kim_long', 'hon_don_to_long', 'thien_dao_loi_thu'],
+        monsterPool: ['ty_tuyet_vien', 'chan_tien_ma_khi', 'bang_phuong', 'linh_te_khong_tuoc', 'tien_canh_12_huyen_hai_giao', 'tien_canh_12_tinh_thu', 'tien_canh_12_kiem_linh', 'ty_loi_thu', 'dai_la_kim_long', 'thien_kiep_loi_ngao', 'thanh_long_anh'],
         healingCost: 16000,
     },
     {
@@ -3223,7 +3223,7 @@ const TOWNS = Object.freeze([
         desc: 'Tiên điện đạo gia chí cao, đan hỏa cửu chuyển, nơi Thái Thượng Đạo Tổ ban phát tiên đan.',
         realmMin: 13,
         x: 168, y: 125,
-        monsterPool: ['chan_tien_ma_khi', 'dai_la_kim_long', 'hon_don_to_long', 'thai_co_to_than'],
+        monsterPool: ['ty_kim_dieu', 'bach_ho_anh', 'kim_thien_ong', 'hon_don_to_long', 'ty_moc_tinh', 'huyen_vu_anh', 'hinh_nha_thu', 'thien_dao_loi_thu', 'ty_thach_linh', 'chu_tuoc_anh', 'du_thien_con_bang', 'thai_co_to_than'],
         healingCost: 18000,
     },
     {
@@ -3234,7 +3234,7 @@ const TOWNS = Object.freeze([
         desc: 'Đô thành ngự trị trên Cửu Trọng Thiên, nơi chư vị Đại La Kim Tiên hội tụ luận bàn quy tắc vạn cổ.',
         realmMin: 14,
         x: 175, y: 130,
-        monsterPool: ['dai_la_kim_long', 'hon_don_to_long', 'thien_dao_loi_thu', 'thai_co_to_than', 'tien_de_tan_niem'],
+        monsterPool: ['ty_phong_linh', 'hon_don_thu', 'la_hau_co_thu', 'tien_de_tan_niem', 'hon_don_thuc_tinh', 'loi_bang_thien_tac', 'ty_thuy_linh', 'thao_thiet', 'thao_thiet_co_than', 'ty_hoa_linh', 'cung_ky', 'cung_ky_hoang_thu', 'thien_ma', 'hu_khong_thien_ma_ton'],
         healingCost: 20000,
     },
     {
@@ -3245,7 +3245,7 @@ const TOWNS = Object.freeze([
         desc: 'Tiên đình cổ xưa cai quản chư thiên vạn giới, chấp chưởng lôi kiếp luân hồi.',
         realmMin: 15,
         x: 182, y: 135,
-        monsterPool: ['hon_don_to_long', 'thien_dao_loi_thu', 'thai_co_to_than', 'tien_de_tan_niem'],
+        monsterPool: ['ty_huyen_tinh_xa', 'thai_at_huyen_lan', 'van_co_huyet_phuong', 'ty_kim_tuy_dieu', 'thai_at_kim_long', 'ty_dai_la_yeu_tinh', 'dai_la_hac_nguu', 'ty_thien_hoa_vuong', 'dai_la_bach_ho', 'ty_hon_nguyen_ma_linh', 'hon_don_to_long_vi_dai', 'vo_cuc_tinh_thu'],
         healingCost: 22000,
     },
     {
@@ -3257,7 +3257,7 @@ const TOWNS = Object.freeze([
         realmMin: 16,
         realmCap: 30,
         x: 190, y: 140,
-        monsterPool: ['thien_dao_loi_thu', 'thai_co_to_than', 'tien_de_tan_niem'],
+        monsterPool: ['ty_tien_quan_ho_ve', 'u_minh_tien_quan', 'ty_van_co_oan_hon', 'cuu_u_tien_ton', 'ty_loan_co_hung_thu', 'chuan_tien_vuong_thu', 'ty_tien_vuong_chien_linh', 'bat_hoang_tien_vuong', 'ty_hon_don_diet_the', 'thai_so_tien_de_hon'],
         healingCost: 25000,
     },
     ...POST_TIEN_DE_TOWNS
@@ -4079,6 +4079,10 @@ const SECT_SHOP_BY_ID = new Map(SECT_SHOP.map(it => [it.id, it]));
 const POST_TIEN_DE_DUNGEONS = Object.freeze(POST_TIEN_DE_MAP_CONFIGS.flatMap(map => map.townIds.map((townId, townIndex) => {
     const townRealm = townIndex === 0 ? map.realmMin : Math.ceil((map.realmMin + map.realmMax) / 2);
     const nextRealm = Math.min(map.realmMax, townRealm + 1);
+    const guaranteedPill = (map.id === 'map_10' && townIndex === 0) ? 'dan_hau_tien_de_31' : `dan_hau_tien_de_${Math.min(65, townRealm + 1)}`;
+    const bonusPill1 = (map.id === 'map_10' && townIndex === 0) ? 'dan_hau_tien_de_32' : `dan_hau_tien_de_${Math.min(65, townRealm + 2)}`;
+    const bonusPill2 = (map.id === 'map_10' && townIndex === 0) ? 'dan_hau_tien_de_33' : `dan_hau_tien_de_${Math.min(65, townRealm + 3)}`;
+    const subPill = `dan_tieu_canh_${townRealm}`;
     return {
         id: `dong_${townId}`, townId, name: `${map.towns[townIndex]} Cổ Động`, novel: 'Tiên Giới', icon: map.icon,
         realmMin: townRealm, stamina: 55 + townIndex * 5,
@@ -4088,8 +4092,8 @@ const POST_TIEN_DE_DUNGEONS = Object.freeze(POST_TIEN_DE_MAP_CONFIGS.flatMap(map
             { id: 'stg_2', name: 'Đạo Tắc Thâm Uyên', monsterId: `tiengioi_tieuyeu_${nextRealm}` },
             { id: 'boss', name: 'Trấn Giới Cự Thú', monsterId: `tiengioi_boss_${map.realmMax}`, isBoss: true },
         ],
-        guaranteedPill: `dan_hau_tien_de_${Math.min(65, townRealm + 1)}`,
-        bonusPills: [`dan_hau_tien_de_${Math.min(65, townRealm + 2)}`, `dan_hau_tien_de_${Math.min(65, townRealm + 3)}`],
+        guaranteedPill,
+        bonusPills: [bonusPill1, bonusPill2, subPill],
         stones: 250000 + townRealm * 25000, expReward: 1000000 + townRealm * 50000,
     };
 })));
@@ -5493,7 +5497,9 @@ const RAW_DUNGEONS = [
         ],
         "guaranteedPill": "dan_ban_tien",
         "bonusPills": [
-            "dan_bo_thien"
+            "dan_dang_tien",
+            "dan_bo_thien",
+            "dan_tieu_canh_10"
         ],
         "equipDrop": "thien_tien_dong_y",
         "stones": 132500,
@@ -5525,9 +5531,13 @@ const RAW_DUNGEONS = [
                 "isBoss": true
             }
         ],
-        "guaranteedPill": "dan_dia_tien",
+        "guaranteedPill": "dan_dang_tien",
         "bonusPills": [
-            "dan_nhan_tien"
+            "dan_ban_tien",
+            "dan_bo_thien",
+            "dan_dia_tien",
+            "dan_tieu_canh_11",
+            "dan_tieu_canh_12"
         ],
         "equipDrop": "tram_tien_kiem",
         "stones": 250000,
@@ -5561,10 +5571,14 @@ const RAW_DUNGEONS = [
                 "isBoss": true
             }
         ],
-        "guaranteedPill": "dan_chan_tien",
+        "guaranteedPill": "dan_bo_thien",
         "bonusPills": [
-            "dan_huyen_tien",
-            "dan_thien_tien"
+            "dan_dia_tien",
+            "dan_nhan_tien",
+            "dan_chan_tien",
+            "dan_tieu_canh_13",
+            "dan_tieu_canh_14",
+            "dan_tieu_canh_15"
         ],
         "equipDrop": "thien_tien_dong_y",
         "stones": 157500,
@@ -5597,10 +5611,16 @@ const RAW_DUNGEONS = [
                 "isBoss": true
             }
         ],
-        "guaranteedPill": "dan_kim_tien",
+        "guaranteedPill": "dan_chan_tien",
         "bonusPills": [
-            "dan_thai_at_chan_tien",
-            "dan_thai_at_huyen_tien"
+            "dan_huyen_tien",
+            "dan_thien_tien",
+            "dan_kim_tien",
+            "dan_tieu_canh_16",
+            "dan_tieu_canh_17",
+            "dan_tieu_canh_18",
+            "dan_tieu_canh_19",
+            "dan_tieu_canh_20"
         ],
         "equipDrop": "thien_tien_dong_y",
         "stones": 170000,
@@ -5635,9 +5655,16 @@ const RAW_DUNGEONS = [
         ],
         "guaranteedPill": "dan_thai_at",
         "bonusPills": [
+            "dan_thai_at_chan_tien",
+            "dan_thai_at_huyen_tien",
             "dan_dai_la_chan_tien",
             "dan_dai_la",
-            "dan_hon_nguyen"
+            "dan_hon_nguyen",
+            "dan_tieu_canh_21",
+            "dan_tieu_canh_22",
+            "dan_tieu_canh_23",
+            "dan_tieu_canh_24",
+            "dan_tieu_canh_25"
         ],
         "equipDrop": "thien_tien_dong_y",
         "stones": 182500,
@@ -5675,7 +5702,13 @@ const RAW_DUNGEONS = [
             "dan_tien_ton",
             "dan_chuan_tien_vuong",
             "dan_tien_vuong",
-            "dan_tien_de"
+            "dan_tien_de",
+            "dan_hau_tien_de_31",
+            "dan_tieu_canh_26",
+            "dan_tieu_canh_27",
+            "dan_tieu_canh_28",
+            "dan_tieu_canh_29",
+            "dan_tieu_canh_30"
         ],
         "equipDrop": "thien_tien_dong_y",
         "stones": 195000,
@@ -5899,7 +5932,7 @@ const DUNGEONS = Object.freeze(RAW_DUNGEONS.map(raw => {
     };
 }));
 const DUNGEON_BY_TOWN_ID = new Map(DUNGEONS.map(d => [d.townId, d]));
-const DUNGEON_BY_ID = new Map(DUNGEONS.map(d => [d.id, d]));
+let DUNGEON_BY_ID = new Map(DUNGEONS.map(d => [d.id, d]));
 
 // Công thức Chế Phù (Bàn Chế Phù)
 const CRAFT_TALISMAN_RECIPES_BASE = Object.freeze([
@@ -6047,6 +6080,105 @@ const EQUIP_BY_ID = new Map(EQUIPMENT.map(e => [e.id, e]));
 const CONSUMABLE_BY_ID = new Map(CONSUMABLES.map(c => [c.id, c]));
 const MONSTER_BY_ID = new Map(MONSTERS.map(m => [m.id, m]));
 const MATERIAL_BY_ID = new Map(MATERIALS.map(m => [m.id, m]));
+
+// Gán biên giới cảnh giới cho các trang bị gốc chưa có srcMinRealm / srcMaxRealm
+for (const item of EQUIPMENT) {
+    if (item.srcMinRealm === undefined) {
+        if (item.tier === 'pham') item.srcMinRealm = 0;
+        else if (item.tier === 'hoang') item.srcMinRealm = 2;
+        else if (item.tier === 'huyen') item.srcMinRealm = 3;
+        else if (item.tier === 'dia') item.srcMinRealm = 5;
+        else if (item.tier === 'thien') item.srcMinRealm = 7;
+        else if (item.tier === 'tien') item.srcMinRealm = 11;
+        else item.srcMinRealm = 0;
+    }
+    if (item.srcMaxRealm === undefined) {
+        if (item.tier === 'pham') item.srcMaxRealm = 1;
+        else if (item.tier === 'hoang') item.srcMaxRealm = 3;
+        else if (item.tier === 'huyen') item.srcMaxRealm = 4;
+        else if (item.tier === 'dia') item.srcMaxRealm = 6;
+        else if (item.tier === 'thien') item.srcMaxRealm = 10;
+        else if (item.tier === 'tien') item.srcMaxRealm = 65;
+        else item.srcMaxRealm = 65;
+    }
+}
+
+const MAP_TIER_ALLOWLIST = {
+    map_1: ['pham'],
+    map_2: ['pham', 'hoang'],
+    map_3: ['hoang'],
+    map_4: ['huyen'],
+    map_5: ['dia'],
+    map_6: ['dia'],
+    map_7: ['thien'],
+    map_8: ['thien'],
+    map_9: ['tien'],
+};
+
+// PA 1: Bí Cảnh Thí Luyện Trang Bị theo từng Bản Đồ (19 Maps)
+// Tách biệt hoàn toàn với Cổ Động Đan Dược: Chuyên thí luyện rèn luyện và săn trang bị theo cảnh giới bản đồ
+const EQUIP_DUNGEONS = Object.freeze(MAPS.map(map => {
+    const townIds = map.townIds || [];
+    const pool = [];
+    for (const tId of townIds) {
+        const t = TOWN_BY_ID.get(tId);
+        if (t?.monsterPool) {
+            for (const mId of t.monsterPool) {
+                const m = MONSTER_BY_ID.get(mId);
+                if (m && !m.worldBoss && !pool.some(x => x.id === m.id)) {
+                    pool.push(m);
+                }
+            }
+        }
+    }
+    pool.sort((a, b) => (a.realm || 0) - (b.realm || 0) || (a.atk || 0) - (b.atk || 0));
+
+    let m1 = pool[0] || MONSTERS[0];
+    let m2 = pool[Math.floor(pool.length / 2)] || pool[0] || MONSTERS[0];
+    if (m2.id === m1.id && pool.length > 1) m2 = pool[1];
+    let m3 = pool[pool.length - 1] || pool[0] || MONSTERS[0];
+    if (m3.id === m2.id && pool.length > 2) m3 = pool[pool.length - 1];
+
+    const allowedTiers = MAP_TIER_ALLOWLIST[map.id] || ['tien'];
+    const equipPool = EQUIPMENT.filter(eq => {
+        if (!allowedTiers.includes(eq.tier)) return false;
+        const minR = eq.srcMinRealm ?? (eq.tier === 'pham' ? 0 : (TIER[eq.tier]?.realm ?? 0));
+        const maxR = eq.srcMaxRealm ?? (eq.tier === 'pham' ? 1 : (minR + 3));
+        return (minR <= map.realmMax && maxR >= map.realmMin);
+    }).map(eq => eq.id);
+
+    return {
+        id: `thi_luyen_${map.id}`,
+        mapId: map.id,
+        mapName: map.provinceName || map.name,
+        name: `Thí Luyện ${map.provinceName || map.name}`,
+        category: 'thi_luyen',
+        isEquipTrial: true,
+        icon: map.ascensionRequired ? '⚔️' : '🛡️',
+        realmMin: map.realmMin,
+        realmMax: map.realmMax,
+        stamina: 20,
+        ascensionRequired: Boolean(map.ascensionRequired),
+        desc: `Bí cảnh thí luyện trang bị trấn thủ tại ${map.provinceName || map.name}. Trảm sát 3 ải thủ hộ chắc chắn nhận 1 Trang Bị theo cảnh giới và Mảnh Tàn Đồ!`,
+        stages: [
+            { id: 'stg_1', name: `Ngoại Vi: ${m1.name}`, monsterId: m1.id, isBoss: false },
+            { id: 'stg_2', name: `Thâm Uyên: ${m2.name}`, monsterId: m2.id, isBoss: false },
+            { id: 'boss', name: `Thần Tướng: ${m3.name}`, monsterId: m3.id, isBoss: true },
+        ],
+        equipPool: equipPool.length ? equipPool : ['moc_kiem', 'bo_y', 'dong_boi'],
+        stones: 5000 + map.realmMin * 2000,
+        expReward: 15000 + map.realmMin * 5000,
+    };
+}));
+
+const EQUIP_DUNGEON_BY_ID = new Map(EQUIP_DUNGEONS.map(d => [d.id, d]));
+const EQUIP_DUNGEON_BY_MAP_ID = new Map(EQUIP_DUNGEONS.map(d => [d.mapId, d]));
+
+// Cập nhật DUNGEON_BY_ID bao gồm cả 65 Cổ Động và 19 Thí Luyện Trang Bị
+DUNGEON_BY_ID = new Map([
+    ...DUNGEONS.map(d => [d.id, d]),
+    ...EQUIP_DUNGEONS.map(d => [d.id, d]),
+]);
 
 // Dị hỏa chỉ có bốn phẩm: Tím, Vàng, Cam, Đỏ. Không có phẩm Thường/Phổ thông.
 // Nguồn rơi gắn với đúng yêu thú/boss để Thư Các và hệ thống săn dùng cùng dữ liệu.
@@ -6859,5 +6991,6 @@ module.exports = {
     MAPS, MAP_BY_ID,
     BLUEPRINTS, BLUEPRINT_BY_MAT_ID, BLUEPRINT_BY_ID,
     BREAKTHROUGH_ITEMS, BREAKTHROUGH_BY_REALM, SUBSTAGE_BREAKTHROUGH_ITEMS, SUBSTAGE_BY_REALM, DUNGEONS, DUNGEON_BY_ID, DUNGEON_BY_TOWN_ID,
+    EQUIP_DUNGEONS, EQUIP_DUNGEON_BY_ID, EQUIP_DUNGEON_BY_MAP_ID,
     SECT_SHOP, SECT_SHOP_BY_ID,
 };

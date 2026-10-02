@@ -1,0 +1,947 @@
+using System;
+using System.Collections.Generic;
+using UnityEngine;
+using UnityEngine.EventSystems;
+using UnityEngine.UI;
+
+namespace IOSVN.TuTien.Core
+{
+    /// <summary>
+    /// Real-time PvE battle with action-RPG controls: movement stick on the left, attack +
+    /// skill cluster and dodge on the right, quick consumables along the bottom. The server
+    /// resolves every hit; movement lets the player step out of telegraphed big attacks
+    /// (which triggers the server dodge window). Fighters are animated pixel figures: the hero
+    /// swings, casts and recoils, the monster's body moves and its aura burns, every skill and
+    /// each of the monster's five moves has its own staged effect.
+    /// </summary>
+    public sealed partial class PrototypeBootstrap
+    {
+        private ActionBattle actionBattle;
+        private bool actionBattleFailed;
+
+        /// <summary>Opens the action battle for the current server battle (falls back to the classic view).</summary>
+        private void ShowActionBattle(Action<bool> fallback = null)
+        {
+            ShowBusy(true);
+            client.Get("/battle/current", (data, error) =>
+            {
+                ShowBusy(false);
+                var battle = data["battle"];
+                if (error != null || !battle.IsObject) { fallback?.Invoke(false); if (error != null) Toast(error, true); return; }
+                try { BuildActionBattle(battle); }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                    actionBattleFailed = true;
+                    fallback?.Invoke(false);
+                }
+            });
+        }
+
+        private void BuildActionBattle(J battle)
+        {
+            SetAtlasOrientation(false);
+            ClearContent();
+            ClearBattleScene();
+            if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
+            if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
+            var root = new GameObject("ActionBattle", typeof(RectTransform), typeof(Image), typeof(RectMask2D)).GetComponent<RectTransform>();
+            root.SetParent(backgroundRoot, false);
+            root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one; root.offsetMin = root.offsetMax = Vector2.zero;
+            root.SetAsFirstSibling();
+            root.GetComponent<Image>().color = new Color32(30, 34, 36, 255);
+            actionBattle = root.gameObject.AddComponent<ActionBattle>();
+            var hud = HudRoot();
+            BuildOverlays();
+            var player = hub["player"];
+            var mapId = hub["town"]["mapId"].Str();
+            Texture painting = null;
+            Rect uv = new Rect(0, 0, 1, 1);
+            var data = WorldMapData.Load(mapId);
+            if (data != null)
+            {
+                painting = GetPainting(mapId);
+                var tile = worldReturnTile ?? (Vector2?)null;
+                var cx = tile.HasValue ? tile.Value.x : data.w * .5f;
+                var cy = tile.HasValue ? tile.Value.y : data.h * .5f;
+                var w = 30f / data.w;
+                var h = 16.9f / data.h;
+                var u = Mathf.Clamp(cx / data.w - w / 2, 0, 1 - w);
+                var v = Mathf.Clamp(1f - cy / data.h - h / 2, 0, 1 - h);
+                uv = new Rect(u, v, w, h);
+            }
+            actionBattle.Init(this, client, root, hud, battle, painting, uv, LookOf(player), AvatarComposer.AuraStrength(hub["realm"]["index"].Int()), hub["realm"]["index"].Int());
+        }
+
+        // ---- callbacks used by the battle component (keeps the partial's private helpers in reach)
+
+        internal Sprite BattleSkillIcon(J skill) => SkillIcon(skill);
+        internal Sprite BattleItemIcon(J item) => ItemSprite(item, "dan_duoc");
+        internal Sprite BattleMonsterSprite(string id) => MonsterSprite(id);
+        internal Sprite BattleUiIcon(string id) => UiPixelIcon(id);
+        internal void BattleToast(string message, bool error) => Toast(message, error);
+        internal RectTransform BattleAnchored(string name, Transform parent, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax) => Anchored(name, parent, min, max, offMin, offMax);
+        internal Text BattleText(Transform parent, string name, string value, Font font, int size, Color color, TextAnchor anchor, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax)
+            => AnchoredText(parent, name, value, font, size, color, anchor, min, max, offMin, offMax);
+        internal string BattleClean(string value) => Clean(value);
+
+        internal void BattleFinished(J battle)
+        {
+            actionBattle = null;
+            var won = battle["result"].Str().StartsWith("win");
+            if (won && !string.IsNullOrEmpty(battle["dungeonLeaderId"].Str()))
+            {
+                ShowBusy(true);
+                client.Post("/dungeon/next-stage", Body(), (result, error) =>
+                {
+                    ShowBusy(false);
+                    if (error != null) { Toast(error, true); RefreshHub(SafeShowWorld); return; }
+                    if (result["completed"].Bool()) { Toast("Bí cảnh đã được chinh phục!"); RefreshHub(SafeShowWorld); return; }
+                    if (result["battle"].IsObject) BuildActionBattle(result["battle"]);
+                    else RefreshHub(SafeShowWorld);
+                });
+                return;
+            }
+            RefreshHub(SafeShowWorld);
+        }
+
+        internal J HubPlayer() => hub["player"];
+
+        internal void BattleRefreshHub(J state)
+        {
+            if (state.IsObject) AcceptState(state);
+        }
+    }
+
+    /// <summary>The action battle scene and its controls.</summary>
+    internal sealed class ActionBattle : MonoBehaviour
+    {
+        private PrototypeBootstrap owner;
+        private NetworkGameClient client;
+        private RectTransform arena;
+        private RectTransform hud;
+        private J battle;
+        private double serverOffset;          // server ms - local ms
+        private bool over;
+        private bool requestPending;
+        private bool applied;
+        private float nextPoll;
+        private bool attackHeld;
+
+        private FighterView hero;
+        private Vector2 playerPos = new Vector2(260, -120);
+        private Vector2 moveInput;
+        private float playerLungeUntil, playerDashUntil;
+        private double lastPlayerHp = -1;
+
+        private MonsterView monster;
+        private Vector2 monsterPos = new Vector2(-300, -60);
+        private float monsterLungeUntil, monsterLungeTime = .35f;
+        private readonly List<MonsterView> minions = new List<MonsterView>();
+        private int lastMoveSeq = -1;
+        private string element = "kim";
+
+        private Image monsterHp, monsterHpTrail, playerHp, playerMp;
+        private Text monsterHpText, playerHpText, playerMpText, logText, monsterName, movesText, warnLabel, comboText;
+        private double lastStamp;
+        private Vector2 lastFloat;
+        private float lastFloatTime = -9f;
+        private RectTransform warnCircle;
+        private Vector2 warnCenter;
+        private bool warnActive;
+        private bool warnDodged;
+        private const float WarnRadius = 230f;
+        private int combo;
+        private float comboUntil;
+
+        private readonly List<(RectTransform rect, Image cooldown, Text seconds, Image icon, int index)> skillButtons = new List<(RectTransform, Image, Text, Image, int)>();
+        private readonly List<(RectTransform rect, Text qty, int index)> itemButtons = new List<(RectTransform, Text, int)>();
+        private Image attackCooldown;
+        private Image dodgeCooldown;
+        private RectTransform resultPanel;
+        private Vector2 shakeOffset;
+        private float shakeUntil, shakeAmp;
+        private Image dimImage;
+        private float dimFrom, dimUntil;
+        private RectTransform backLayer, fighterLayer, fxLayer;
+        private static readonly Color Cream = new Color32(244, 236, 220, 255);
+        private static readonly Color Gold = new Color32(232, 196, 120, 255);
+
+        private double ServerNow => (DateTimeOffset.UtcNow.ToUnixTimeMilliseconds() + serverOffset);
+
+        public void Init(PrototypeBootstrap owner, NetworkGameClient client, RectTransform root, RectTransform hud, J battle, Texture painting, Rect uv, LookSpec look, float auraStrength, int realmIndex)
+        {
+            this.owner = owner;
+            this.client = client;
+            this.hud = hud;
+            arena = root;
+            element = battle["p"]["element"].Str("kim");
+            // scenery: the painted province around the player, darkened toward the edges
+            if (painting != null)
+            {
+                var bg = new GameObject("Scenery", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                bg.transform.SetParent(root, false);
+                var r = bg.rectTransform;
+                r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
+                bg.texture = painting;
+                bg.uvRect = uv;
+                bg.raycastTarget = false;
+            }
+            var shade = InkUi.Simple(root, "Vignette", InkUi.Cloud, new Color(.05f, .06f, .08f, .35f), Vector2.zero);
+            shade.rectTransform.anchorMin = new Vector2(-.3f, -.4f); shade.rectTransform.anchorMax = new Vector2(1.3f, 1.4f);
+            shade.rectTransform.offsetMin = shade.rectTransform.offsetMax = Vector2.zero;
+            var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .22f), Vector2.zero);
+            tint.rectTransform.anchorMin = Vector2.zero; tint.rectTransform.anchorMax = Vector2.one;
+            tint.rectTransform.offsetMin = tint.rectTransform.offsetMax = Vector2.zero;
+            // great techniques darken the field under the fighters
+            dimImage = InkUi.Simple(root, "Dim", InkUi.White, new Color(.02f, .01f, .05f, 0f), Vector2.zero);
+            dimImage.rectTransform.anchorMin = Vector2.zero; dimImage.rectTransform.anchorMax = Vector2.one;
+            dimImage.rectTransform.offsetMin = dimImage.rectTransform.offsetMax = Vector2.zero;
+            // telegraph circle
+            warnCircle = InkUi.Simple(root, "Telegraph", InkUi.Glow, new Color(1f, .15f, .1f, 0f), new Vector2(WarnRadius * 2, WarnRadius * 1.1f)).rectTransform;
+            warnCircle.anchorMin = warnCircle.anchorMax = new Vector2(.5f, .5f);
+            var ring = InkUi.Simple(warnCircle, "Ring", InkUi.Ring, new Color(1f, .3f, .2f, .9f), Vector2.zero);
+            ring.rectTransform.anchorMin = Vector2.zero; ring.rectTransform.anchorMax = Vector2.one;
+            ring.rectTransform.offsetMin = ring.rectTransform.offsetMax = Vector2.zero;
+            warnCircle.gameObject.SetActive(false);
+            // draw order: effects behind the fighters, the fighters, effects and numbers over them
+            backLayer = BattleFx.Layer(root, "BackEffects");
+            fighterLayer = BattleFx.Layer(root, "Fighters");
+            fxLayer = BattleFx.Layer(root, "Effects");
+            BuildFighters(battle, look, auraStrength);
+            BuildHud(battle);
+            Apply(battle);
+            nextPoll = Time.time + .6f;
+            var m = battle["m"];
+            var kind = battle["kind"].Str();
+            var boss = kind == "boss" || kind == "worldBoss" || m["packSize"].Int(1) > 1;
+            var monsterRealm = m["realm"].Int(m["realmIndex"].Int(-1));
+            if (boss || monsterRealm > realmIndex) StartCoroutine(PressureIntro(owner.BattleClean(m["realmName"].Str()), owner.BattleClean(m["name"].Str())));
+        }
+
+        /// <summary>Uy áp: a powerful foe's pressure darkens the field, shakes it and announces its realm.</summary>
+        private System.Collections.IEnumerator PressureIntro(string realm, string name)
+        {
+            var veil = InkUi.Simple(arena, "Pressure", InkUi.Vignette, new Color(.25f, 0f, .03f, 0f), Vector2.zero);
+            veil.rectTransform.anchorMin = Vector2.zero; veil.rectTransform.anchorMax = Vector2.one;
+            veil.rectTransform.offsetMin = veil.rectTransform.offsetMax = Vector2.zero;
+            var title = owner.BattleText(hud, "UyAp", "UY ÁP", ModernUi.Display, 96, new Color32(255, 214, 160, 0), TextAnchor.MiddleCenter,
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-600, 20), new Vector2(600, 160));
+            title.gameObject.AddComponent<Outline>().effectColor = new Color(.3f, 0, 0, .9f);
+            var sub = owner.BattleText(hud, "UyApSub", name + (string.IsNullOrEmpty(realm) ? "" : "  ·  " + realm), ModernUi.SemiBold, 34, new Color32(244, 236, 220, 0), TextAnchor.MiddleCenter,
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-600, -40), new Vector2(600, 20));
+            sub.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+            var ring = InkUi.Simple(arena, "Shock", InkUi.Ring, new Color(1f, .35f, .25f, .9f), new Vector2(200, 90));
+            ring.rectTransform.anchorMin = ring.rectTransform.anchorMax = new Vector2(.5f, .5f);
+            ring.rectTransform.anchoredPosition = monsterPos;
+            var t = 0f;
+            while (t < 1.8f && this != null)
+            {
+                t += Time.deltaTime;
+                var k = Mathf.Clamp01(t / .25f) * Mathf.Clamp01((1.8f - t) / .5f);
+                veil.color = new Color(.25f, 0f, .03f, .7f * k);
+                title.color = new Color(1f, .84f, .63f, k);
+                title.rectTransform.localScale = Vector3.one * (1.25f - .25f * Mathf.Clamp01(t / .3f));
+                sub.color = new Color(.96f, .93f, .86f, k);
+                var u = Mathf.Clamp01(t / 1.1f);
+                ring.rectTransform.localScale = Vector3.one * (.3f + u * 7f);
+                ring.color = new Color(1f, .35f, .25f, (1 - u) * .9f);
+                if (t < .8f) Shake(1f - t / .8f);
+                yield return null;
+            }
+            if (veil != null) Destroy(veil.gameObject);
+            if (title != null) Destroy(title.gameObject);
+            if (sub != null) Destroy(sub.gameObject);
+            if (ring != null) Destroy(ring.gameObject);
+        }
+
+        // ------------------------------------------------------------------ scene
+
+        private void BuildFighters(J b, LookSpec look, float auraStrength)
+        {
+            var m = b["m"];
+            var id = m["id"].Str();
+            var boss = m["packSize"].Int(1) > 1 || b["kind"].Str() == "boss" || b["kind"].Str() == "worldBoss";
+            var still = owner.BattleMonsterSprite(id);
+            for (var i = 0; i < Mathf.Clamp(m["minionCount"].Int(), 0, 4); i++)
+                minions.Add(MonsterView.Create(fighterLayer, "Minion" + i, id, still, new Vector2(180, 180)));
+            var size = boss ? 500f : m["small"].Bool() ? 320f : 400f;
+            monster = MonsterView.Create(fighterLayer, "Monster", id, still, new Vector2(size, size), m["element"].Str("kim"));
+            hero = FighterView.Create(fighterLayer, "Player", look, 2.7f, auraStrength);
+        }
+
+        private StageContext HeroStage() => new StageContext
+        {
+            Host = this, Arena = fxLayer, Caster = () => playerPos, Target = () => monsterPos,
+            CasterHeight = hero.Height * .8f, TargetHeight = monster.Height * .8f, Element = element, Shake = Shake, Dim = Dim, Back = backLayer,
+        };
+
+        private StageContext MonsterStage() => new StageContext
+        {
+            Host = this, Arena = fxLayer, Caster = () => monsterPos, Target = () => playerPos,
+            CasterHeight = monster.Height * .8f, TargetHeight = hero.Height * .8f, Element = battle["m"]["element"].Str("kim"), Shake = Shake, Dim = Dim, Back = backLayer,
+        };
+
+        private void Dim(float seconds)
+        {
+            dimFrom = Time.unscaledTime;
+            dimUntil = Mathf.Max(dimUntil, Time.unscaledTime + seconds);
+        }
+
+        private void Shake(float strength)
+        {
+            shakeAmp = Mathf.Max(shakeAmp, 26f * Mathf.Clamp01(strength));
+            shakeUntil = Time.unscaledTime + .3f;
+        }
+
+        // ------------------------------------------------------------------ HUD
+
+        private void BuildHud(J b)
+        {
+            var A = (Func<string, Transform, Vector2, Vector2, Vector2, Vector2, RectTransform>)owner.BattleAnchored;
+            // enemy bar (top centre) with the monster's five moves listed under it
+            var enemy = A("EnemyBar", hud, new Vector2(.32f, 1), new Vector2(.8f, 1), new Vector2(0, -150), new Vector2(0, -24));
+            var brush = enemy.gameObject.AddComponent<Image>();
+            brush.sprite = InkUi.Brush; brush.type = Image.Type.Sliced; brush.raycastTarget = false;
+            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 30, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(40, 0), new Vector2(-40, -12));
+            monsterHp = Bar(enemy, new Vector2(70, 22), new Vector2(-70, 52), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
+            movesText = owner.BattleText(hud, "Moves", "", ModernUi.Regular, 19, new Color32(236, 214, 170, 255), TextAnchor.UpperCenter,
+                new Vector2(.2f, 1), new Vector2(.92f, 1), new Vector2(0, -186), new Vector2(0, -152));
+            movesText.supportRichText = true;
+            movesText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+            // player bars (top left)
+            var me = A("MeBar", hud, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -170), new Vector2(490, -24));
+            var meBrush = me.gameObject.AddComponent<Image>();
+            meBrush.sprite = InkUi.Brush; meBrush.type = Image.Type.Sliced; meBrush.raycastTarget = false;
+            owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 26, Gold, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 0), new Vector2(-30, -12));
+            playerHp = Bar(me, new Vector2(46, 62), new Vector2(-36, 92), new Color32(196, 62, 54, 255), out playerHpText, out _);
+            playerMp = Bar(me, new Vector2(46, 24), new Vector2(-36, 54), new Color32(72, 140, 214, 255), out playerMpText, out _);
+            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 21, Cream, TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-560, -290), new Vector2(560, -192));
+            logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
+            comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 50, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
+                new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(70, 20), new Vector2(620, 110));
+            // the pop scales from the left edge, so the number never leaves the screen
+            comboText.rectTransform.pivot = new Vector2(0, .5f);
+            comboText.rectTransform.anchoredPosition = new Vector2(70, 65);
+            comboText.gameObject.AddComponent<Outline>().effectColor = new Color(.35f, .08f, 0, .9f);
+            warnLabel = owner.BattleText(hud, "Warn", "", ModernUi.Bold, 36, new Color32(255, 120, 96, 255), TextAnchor.MiddleCenter,
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-640, 150), new Vector2(640, 214));
+            warnLabel.gameObject.AddComponent<Outline>().effectColor = new Color(.25f, 0, 0, .95f);
+            warnLabel.gameObject.SetActive(false);
+            // flee (top right)
+            var flee = A("Flee", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-250, -110), new Vector2(-24, -24));
+            RoundButton(flee, "road", "Rút lui", new Color32(30, 32, 34, 220), () => Send("flee", -1));
+            // joystick (bottom left)
+            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(70, 70), new Vector2(390, 390));
+            var baseImage = stickBase.gameObject.AddComponent<Image>();
+            baseImage.sprite = InkUi.Glow;
+            baseImage.color = new Color(0, 0, 0, .35f);
+            var baseRing = InkUi.Simple(stickBase, "Ring", InkUi.Ring, new Color(1, 1, 1, .55f), Vector2.zero);
+            baseRing.rectTransform.anchorMin = Vector2.zero; baseRing.rectTransform.anchorMax = Vector2.one;
+            baseRing.rectTransform.offsetMin = baseRing.rectTransform.offsetMax = Vector2.zero;
+            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(150, 150));
+            knob.rectTransform.anchorMin = knob.rectTransform.anchorMax = new Vector2(.5f, .5f);
+            var stick = stickBase.gameObject.AddComponent<BattleStick>();
+            stick.Knob = knob.rectTransform;
+            stick.OnMove = v => moveInput = v;
+            // attack + skills (bottom right)
+            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-370, 60), new Vector2(-110, 320));
+            RoundButton(attack, "swords", "Đánh", new Color32(150, 40, 34, 235), null, 40);
+            attackCooldown = Cooldown(attack);
+            var hold = attack.gameObject.AddComponent<BattleHold>();
+            hold.OnDown = () => { attackHeld = true; TryAttack(); };
+            hold.OnUp = () => attackHeld = false;
+            var center = new Vector2(-240, 190);
+            var angles = new[] { 172f, 140f, 108f, 76f, 205f };
+            var skills = b["skills"];
+            for (var i = 0; i < 5; i++)
+            {
+                var a = angles[i] * Mathf.Deg2Rad;
+                var pos = center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 255f;
+                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(78, 78), pos + new Vector2(78, 78));
+                var skill = skills[i];
+                var index = i;
+                var locked = skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str());
+                var skillElement = BattleFx.ElementOfSkill(skill["name"].Str(), element);
+                RoundButton(rect, null, null, new Color32(24, 30, 34, 225), locked ? (Action)null : () => Send("skill", index), 20,
+                    locked ? (Color?)null : Color.Lerp(BattleFx.ElementColor(skillElement), Color.white, .15f));
+                var icon = InkUi.Simple(rect, "Icon", locked ? owner.BattleUiIcon("lock") : owner.BattleSkillIcon(skill), locked ? new Color(1, 1, 1, .4f) : Color.white, Vector2.zero);
+                icon.rectTransform.anchorMin = new Vector2(.2f, .2f); icon.rectTransform.anchorMax = new Vector2(.8f, .8f);
+                icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
+                icon.preserveAspect = true;
+                var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "\n<color=#8cc8ff>" + skill["mp"].Int() + " LL</color>" : ""),
+                    ModernUi.SemiBold, 17, Cream, TextAnchor.UpperCenter, new Vector2(-.3f, 0), new Vector2(1.3f, 0), new Vector2(0, -50), new Vector2(0, -2));
+                label.supportRichText = true;
+                label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+                var cd = Cooldown(rect);
+                var seconds = owner.BattleText(rect, "Seconds", "", ModernUi.Bold, 34, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                seconds.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+                seconds.raycastTarget = false;
+                skillButtons.Add((rect, cd, seconds, icon, i));
+            }
+            // dodge sits on an outer arc to the left of the skills so it never leaves the screen
+            var dodgeA = 187f * Mathf.Deg2Rad;
+            var dpos = center + new Vector2(Mathf.Cos(dodgeA), Mathf.Sin(dodgeA)) * 415f;
+            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(64, 64), dpos + new Vector2(64, 64));
+            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), () => Send("dodge", -1), 22);
+            dodgeCooldown = Cooldown(dodge);
+            // quick consumables (bottom centre)
+            var items = b["items"];
+            var count = Mathf.Max(2, items.Count);
+            for (var i = 0; i < count; i++)
+            {
+                var x = (i - (count - 1) / 2f) * 150f;
+                var rect = A("Item" + i, hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(x - 62, 24), new Vector2(x + 62, 148));
+                var index = i;
+                var fill = rect.gameObject.AddComponent<Image>();
+                ModernUi.Fill(fill, 22f);
+                fill.color = new Color32(20, 24, 28, 220);
+                var icon = InkUi.Simple(rect, "Icon", InkUi.White, new Color(1, 1, 1, 0), Vector2.zero);
+                icon.rectTransform.anchorMin = new Vector2(.1f, .1f); icon.rectTransform.anchorMax = new Vector2(.9f, .9f);
+                icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
+                icon.preserveAspect = true;
+                var qty = owner.BattleText(rect, "Qty", "", ModernUi.Bold, 24, Cream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(4, 4), new Vector2(-10, -4));
+                qty.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+                var button = rect.gameObject.AddComponent<Button>();
+                button.targetGraphic = fill;
+                button.onClick.AddListener(() => Send("item", index));
+                rect.gameObject.AddComponent<UiPressScale>();
+                itemButtons.Add((rect, qty, i));
+            }
+        }
+
+        private Image Bar(RectTransform parent, Vector2 offMin, Vector2 offMax, Color color, out Text text, out Image trail)
+        {
+            var track = owner.BattleAnchored("Bar", parent, new Vector2(0, 0), new Vector2(1, 0), offMin, offMax);
+            var t = track.gameObject.AddComponent<Image>();
+            ModernUi.Fill(t, 12f);
+            t.color = new Color(0, 0, 0, .6f);
+            t.raycastTarget = false;
+            // the pale trail shows how much the last blows took before it drains away
+            trail = owner.BattleAnchored("Trail", track, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2)).gameObject.AddComponent<Image>();
+            trail.sprite = InkUi.White;
+            trail.type = Image.Type.Filled;
+            trail.fillMethod = Image.FillMethod.Horizontal;
+            trail.color = new Color(1f, .92f, .78f, .85f);
+            trail.raycastTarget = false;
+            var fill = owner.BattleAnchored("Fill", track, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2)).gameObject.AddComponent<Image>();
+            fill.sprite = InkUi.White;
+            fill.type = Image.Type.Filled;
+            fill.fillMethod = Image.FillMethod.Horizontal;
+            fill.color = color;
+            fill.raycastTarget = false;
+            text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, 18, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            return fill;
+        }
+
+        private void RoundButton(RectTransform rect, string iconId, string label, Color color, Action click, int fontSize = 20, Color? ringColor = null)
+        {
+            var disc = rect.gameObject.AddComponent<Image>();
+            disc.sprite = InkUi.Glow;
+            disc.color = color;
+            var ring = InkUi.Simple(rect, "Ring", InkUi.Ring, ringColor ?? (Color)new Color32(232, 196, 120, 200), Vector2.zero);
+            ring.rectTransform.anchorMin = new Vector2(.04f, .04f); ring.rectTransform.anchorMax = new Vector2(.96f, .96f);
+            ring.rectTransform.offsetMin = ring.rectTransform.offsetMax = Vector2.zero;
+            if (!string.IsNullOrEmpty(iconId))
+            {
+                var icon = InkUi.Simple(rect, "Icon", owner.BattleUiIcon(iconId), Color.white, Vector2.zero);
+                icon.rectTransform.anchorMin = new Vector2(.28f, .34f); icon.rectTransform.anchorMax = new Vector2(.72f, .8f);
+                icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
+                icon.preserveAspect = true;
+            }
+            if (!string.IsNullOrEmpty(label))
+            {
+                var text = owner.BattleText(rect, "Label", label, ModernUi.Bold, fontSize, Cream, TextAnchor.LowerCenter, Vector2.zero, Vector2.one, new Vector2(0, 14), Vector2.zero);
+                text.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+            }
+            if (click != null)
+            {
+                var button = rect.gameObject.AddComponent<Button>();
+                button.targetGraphic = disc;
+                button.onClick.AddListener(() => click());
+            }
+            rect.gameObject.AddComponent<UiPressScale>();
+        }
+
+        private Image Cooldown(RectTransform rect)
+        {
+            var cd = InkUi.Simple(rect, "Cooldown", InkUi.Glow, new Color(0, 0, 0, .65f), Vector2.zero);
+            cd.rectTransform.anchorMin = Vector2.zero; cd.rectTransform.anchorMax = Vector2.one;
+            cd.rectTransform.offsetMin = cd.rectTransform.offsetMax = Vector2.zero;
+            cd.type = Image.Type.Filled;
+            cd.fillMethod = Image.FillMethod.Radial360;
+            cd.fillOrigin = (int)Image.Origin360.Top;
+            cd.fillClockwise = false;
+            cd.fillAmount = 0;
+            return cd;
+        }
+
+        // ------------------------------------------------------------------ state
+
+        private void Apply(J b)
+        {
+            // A poll that left before the last action can be answered after it. Never step back in time:
+            // the bars would jump backwards and the same blow would be staged twice.
+            var stamp = b["now"].Num();
+            var sameFight = !battle.IsNull && battle["id"].Str() == b["id"].Str();
+            if (sameFight && stamp > 0 && stamp < lastStamp) return;
+            lastStamp = stamp;
+            battle = b;
+            serverOffset = b["now"].Num(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            var p = b["p"];
+            var m = b["m"];
+            monsterName.text = owner.BattleClean(m["name"].Str()) + "  ·  " + owner.BattleClean(m["realmName"].Str());
+            SetBar(monsterHp, monsterHpText, m["hp"].Num(), m["maxHp"].Num(1));
+            SetBar(playerHp, playerHpText, p["hp"].Num(), p["maxHp"].Num(1));
+            SetBar(playerMp, playerMpText, p["mp"].Num(), p["maxMp"].Num(1));
+            // the monster's move since the last update, staged with its own effect
+            var move = m["move"];
+            var staged = 0f;
+            var bigMove = false;
+            if (move.IsObject && move["seq"].Int() != lastMoveSeq)
+            {
+                var first = lastMoveSeq < 0 && !applied;
+                lastMoveSeq = move["seq"].Int();
+                if (!first && !over)
+                {
+                    bigMove = move["big"].Bool();
+                    staged = StageMonsterMove(move);
+                }
+            }
+            var hp = p["hp"].Num();
+            if (lastPlayerHp >= 0 && hp < lastPlayerHp - .5)
+            {
+                var lost = lastPlayerHp - hp;
+                var kick = bigMove ? .9f : .3f;
+                void Land()
+                {
+                    if (this == null || hero == null) return;
+                    hero.Play(FighterAction.Hurt);
+                    Float(playerPos + new Vector2(0, hero.Height * .86f), "−" + Vn(lost), new Color32(255, 110, 90, 255), bigMove ? 44 : 34);
+                    Shake(kick);
+                }
+                if (staged > 0f) BattleFx.After(this, staged, Land); else Land();
+            }
+            lastPlayerHp = hp;
+            var skills = m["skills"];
+            if (skills.Count > 0)
+            {
+                var parts = new List<string>();
+                for (var i = 0; i < skills.Count; i++)
+                {
+                    var name = owner.BattleClean(skills[i]["name"].Str());
+                    var cut = name.IndexOf(" · ", StringComparison.Ordinal);
+                    if (cut >= 0) name = name.Substring(cut + 3);
+                    var current = move.IsObject && move["i"].Int(-9) == skills[i]["i"].Int(i);
+                    var text = skills[i]["big"].Bool() ? "Tuyệt kỹ: " + name : name;
+                    parts.Add(current ? "<color=#ffd66e>" + text + "</color>" : skills[i]["big"].Bool() ? "<color=#ff9a7a>" + text + "</color>" : text);
+                }
+                movesText.text = string.Join("   ·   ", parts);
+            }
+            var lines = new List<string>();
+            var log = b["log"];
+            for (var i = Mathf.Max(0, log.Count - 3); i < log.Count; i++) lines.Add(owner.BattleClean(log[i]["text"].Str(log[i].Str())));
+            logText.text = string.Join("\n", lines);
+            var items = b["items"];
+            foreach (var (rect, qty, index) in itemButtons)
+            {
+                var item = items[index];
+                var icon = rect.Find("Icon").GetComponent<Image>();
+                var has = !string.IsNullOrEmpty(item["uid"].Str());
+                icon.sprite = has ? owner.BattleItemIcon(LookupItem(item)) : owner.BattleUiIcon("quick_slot");
+                icon.color = has ? Color.white : new Color(1, 1, 1, .35f);
+                qty.text = has && item["qty"].Int(1) > 1 ? item["qty"].Int().ToString() : "";
+            }
+            var warn = m["warn"];
+            if (warn.IsObject && !warnActive)
+            {
+                warnActive = true;
+                warnDodged = false;
+                warnCenter = playerPos;
+                warnCircle.gameObject.SetActive(true);
+                var name = owner.BattleClean(warn["name"].Str());
+                warnLabel.text = string.IsNullOrEmpty(name) ? "!! CHIÊU LỚN — RỜI KHỎI VÒNG ĐỎ !!" : "!! " + name.ToUpperInvariant() + " !!";
+                warnLabel.gameObject.SetActive(true);
+            }
+            else if (!warn.IsObject && warnActive)
+            {
+                warnActive = false;
+                warnCircle.gameObject.SetActive(false);
+                warnLabel.gameObject.SetActive(false);
+            }
+            applied = true;
+            if (b["over"].Bool() && !over) Finish(b);
+        }
+
+        /// <summary>The monster lunges, its move is named above it and staged; returns when the blow lands.</summary>
+        private float StageMonsterMove(J move)
+        {
+            var big = move["big"].Bool();
+            var name = owner.BattleClean(move["name"].Str());
+            var cut = name.IndexOf(" · ", StringComparison.Ordinal);
+            if (cut >= 0) name = name.Substring(cut + 3);
+            if (!string.IsNullOrEmpty(name))
+                Float(monsterPos + new Vector2(0, monster.Height * .92f), "« " + name + " »", big ? new Color32(255, 120, 90, 255) : new Color32(255, 214, 120, 255), big ? 40 : 30);
+            var fx = move["fx"].Str("slash");
+            var melee = fx == "claw" || fx == "talon" || fx == "bite" || fx == "charge" || fx == "dive" || fx == "tail" || fx == "slash" || fx == "palm";
+            monsterLungeTime = melee ? .4f : .25f;
+            monsterLungeUntil = Time.time + monsterLungeTime;
+            monsterLungeScale = melee ? 1f : .25f;
+            return SkillStage.Monster(MonsterStage(), fx, move["v"].Int(), big, battle["m"]["element"].Str("kim"));
+        }
+
+        private float monsterLungeScale = 1f;
+
+        private J LookupItem(J quick)
+        {
+            var uid = quick["uid"].Str();
+            foreach (var item in owner.HubPlayer()["bag"].Items) if (item["uid"].Str() == uid) return item;
+            return quick;
+        }
+
+        private static string Vn(double v) => Math.Round(v).ToString("#,0", System.Globalization.CultureInfo.InvariantCulture).Replace(',', '.');
+
+        private static void SetBar(Image fill, Text text, double value, double max)
+        {
+            fill.fillAmount = Mathf.Clamp01((float)(value / Math.Max(1, max)));
+            text.text = Vn(value) + " / " + Vn(max);
+        }
+
+        // ------------------------------------------------------------------ actions
+
+        private void TryAttack()
+        {
+            if (over || requestPending) return;
+            if (ServerNow < battle["p"]["atkReadyAt"].Num()) return;
+            Send("attack", -1);
+        }
+
+        private void Send(string action, int index)
+        {
+            if (over || requestPending) return;
+            var skill = action == "skill" ? battle["skills"][index] : J.Null;
+            if (action == "skill")
+            {
+                if (ServerNow < skill["readyAt"].Num()) { Float(playerPos + new Vector2(0, hero.Height * .9f), "Chiêu chưa hồi", new Color32(220, 220, 220, 255), 26); return; }
+                if (skill["mp"].Num() > battle["p"]["mp"].Num()) { Float(playerPos + new Vector2(0, hero.Height * .9f), "Không đủ linh lực", new Color32(140, 200, 255, 255), 26); return; }
+            }
+            requestPending = true;
+            var body = new Dictionary<string, object> { { "a", action } };
+            if (index >= 0) body["i"] = index;
+            // the figure moves at once; the effect and the numbers follow the server's answer
+            var kind = skill["kind"].Str();
+            if (action == "attack")
+            {
+                hero.Play(FighterAction.Attack);
+                playerLungeUntil = Time.time + .25f;
+                var trail = BattleFx.ElementColor(element);
+                BattleFx.After(this, .05f, () => { if (hero != null) hero.Ghost(trail); });
+                BattleFx.After(this, .11f, () => { if (hero != null) hero.Ghost(trail); });
+            }
+            else if (action == "skill") hero.Play(kind == "atk" || kind == "multi" ? FighterAction.Attack : FighterAction.Cast);
+            client.Post("/battle/act", body, (result, error) =>
+            {
+                requestPending = false;
+                if (this == null) return;
+                if (error != null) { owner.BattleToast(error, true); return; }
+                var r = result["result"];
+                if (!r["ok"].Bool()) { if (!string.IsNullOrEmpty(r["msg"].Str())) Float(playerPos + new Vector2(0, hero.Height * .9f), owner.BattleClean(r["msg"].Str()), new Color32(220, 220, 220, 255), 26); }
+                else
+                {
+                    var msg = owner.BattleClean(r["msg"].Str());
+                    var stage = HeroStage();
+                    if (action == "attack" || action == "skill")
+                    {
+                        var crit = r["crit"].Bool();
+                        var offensive = action == "attack" || kind == "atk" || kind == "multi" || kind == "dot" || kind == "stun";
+                        if (action == "skill")
+                            Float(playerPos + new Vector2(0, hero.Height * .95f), "« " + owner.BattleClean(skill["name"].Str()) + " »", BattleFx.ElementColor(BattleFx.ElementOfSkill(skill["name"].Str(), element)), 30);
+                        var delay = action == "attack"
+                            ? SkillStage.Player(stage, "attack", "", "attack", false)
+                            : SkillStage.Player(stage, skill["id"].Str(), skill["name"].Str(), kind, skill["big"].Bool());
+                        var big = action == "skill" && skill["big"].Bool();
+                        BattleFx.After(this, delay, () =>
+                        {
+                            if (this == null || monster == null) return;
+                            if (offensive)
+                            {
+                                monster.Hit(crit ? .24f : .16f);
+                                Float(monsterPos + new Vector2(UnityEngine.Random.Range(-40f, 40f), monster.Height * .8f), msg, crit ? new Color32(255, 214, 90, 255) : new Color32(255, 246, 230, 255), crit || big ? 50 : 36);
+                                Shake(crit || big ? .6f : .18f);
+                                combo = Time.time < comboUntil ? combo + 1 : 1;
+                                comboUntil = Time.time + 2.6f;
+                            }
+                            else Float(playerPos + new Vector2(0, hero.Height * .8f), msg, new Color32(140, 230, 160, 255));
+                        });
+                    }
+                    else if (action == "dodge")
+                    {
+                        playerDashUntil = Time.time + .28f;
+                        hero.Ghost(new Color(.7f, .95f, 1f));
+                        BattleFx.After(this, .07f, () => { if (hero != null) hero.Ghost(new Color(.7f, .95f, 1f)); });
+                        BattleFx.After(this, .14f, () => { if (hero != null) hero.Ghost(new Color(.7f, .95f, 1f)); });
+                        SkillStage.Player(stage, "dodge", "", "escape", false);
+                        Float(playerPos + new Vector2(0, hero.Height * .9f), msg, new Color32(150, 230, 255, 255));
+                    }
+                    else
+                    {
+                        if (action == "item") BattleFx.OnGround(fxLayer, "heal", "moc", playerPos + new Vector2(0, 14), 1.1f, false, 0, .8f);
+                        Float(playerPos + new Vector2(0, hero.Height * .9f), msg, new Color32(140, 230, 160, 255));
+                    }
+                }
+                if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
+                if (result["battle"].IsObject) Apply(result["battle"]);
+            });
+        }
+
+        private void Float(Vector2 at, string text, Color color, int size = 34)
+        {
+            if (string.IsNullOrEmpty(text)) return;
+            at = BattleFx.FloatSpot(fxLayer, at, ref lastFloat, ref lastFloatTime);
+            var label = owner.BattleText(fxLayer, "Float", text, ModernUi.Bold, size, color, TextAnchor.MiddleCenter,
+                new Vector2(.5f, .5f), new Vector2(.5f, .5f), at - new Vector2(320, 34), at + new Vector2(320, 34));
+            label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+            label.gameObject.AddComponent<FloatUp>();
+        }
+
+        private void Finish(J b)
+        {
+            over = true;
+            var result = b["result"].Str();
+            var won = result.StartsWith("win");
+            if (won)
+            {
+                monster.Die();
+                foreach (var minion in minions) minion.Die();
+                BattleFx.Spawn(fxLayer, "burst", battle["m"]["element"].Str("kim"), monsterPos + new Vector2(0, monster.Height * .4f), 1.6f);
+                BattleFx.ScreenFlash(fxLayer, new Color(1f, .96f, .88f, .3f), .3f);
+            }
+            else if (result != "fled") hero.Play(FighterAction.Down);
+            warnCircle.gameObject.SetActive(false);
+            warnLabel.gameObject.SetActive(false);
+            resultPanel = owner.BattleAnchored("Result", hud, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-520, -300), new Vector2(520, 300));
+            var bg = resultPanel.gameObject.AddComponent<Image>();
+            ModernUi.Fill(bg, 30f);
+            bg.color = new Color32(16, 20, 24, 240);
+            var title = owner.BattleText(resultPanel, "Title", won ? "ĐẠI THẮNG" : result == "fled" ? "RÚT LUI" : result == "timeout" ? "HẾT GIỜ" : "THẤT BẠI",
+                ModernUi.Display, 60, won ? Gold : new Color32(220, 120, 110, 255), TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(20, 0), new Vector2(-20, -30));
+            UiGradient.Apply(title, won ? new Color32(255, 230, 160, 255) : new Color32(240, 150, 140, 255), won ? new Color32(206, 150, 60, 255) : new Color32(170, 70, 60, 255));
+            var summary = b["summary"];
+            var text = "";
+            if (summary.IsObject)
+                foreach (var pair in summary.Pairs)
+                    if (!pair.Value.IsObject && !pair.Value.IsArray && !string.IsNullOrEmpty(pair.Value.Str())) text += owner.BattleClean(pair.Value.Str()) + "\n";
+            var log = b["log"];
+            for (var i = Mathf.Max(0, log.Count - 5); i < log.Count; i++) text += owner.BattleClean(log[i]["text"].Str(log[i].Str())) + "\n";
+            owner.BattleText(resultPanel, "Body", text.Trim(), ModernUi.Regular, 24, Cream, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 130), new Vector2(-46, -120));
+            var go = owner.BattleAnchored("Continue", resultPanel, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-220, 24), new Vector2(220, 112));
+            var fill = go.gameObject.AddComponent<Image>();
+            ModernUi.Fill(fill, 26f);
+            fill.color = new Color32(196, 150, 70, 255);
+            owner.BattleText(go, "Text", won && !string.IsNullOrEmpty(b["dungeonLeaderId"].Str()) ? "Ải tiếp theo" : "Trở về", ModernUi.SemiBold, 30, new Color32(30, 22, 14, 255),
+                TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var button = go.gameObject.AddComponent<Button>();
+            button.targetGraphic = fill;
+            button.onClick.AddListener(() => owner.BattleFinished(b));
+            UiIntro.Play(resultPanel, new Vector2(0, -30), .3f);
+        }
+
+        /// <summary>Previews (edit mode has no coroutines): hold a mid-fight moment with effects on screen.</summary>
+        internal void PreviewMoment()
+        {
+            hero.Freeze(FighterAction.Cast, .9f);
+            var mEl = battle["m"]["element"].Str("kim");
+            FxPlayer Hold(FxPlayer fx, int frame) { if (fx != null) { fx.Frozen = true; fx.StartFrame = frame; } return fx; }
+            dimImage.color = new Color(.02f, .01f, .05f, .5f);
+            foreach (var layer in BattleFx.Wheel(fxLayer, element, playerPos + new Vector2(0, hero.Height * .52f), 1.3f, 1f, backLayer)) if (layer != null) layer.Frozen = true;
+            BattleFx.Behind(Hold(BattleFx.OnGround(fxLayer, "cast", element, playerPos + new Vector2(0, 14), 1.35f), 2), backLayer);
+            Hold(BattleFx.OnGround(fxLayer, "giantsword", element, monsterPos + new Vector2(0, 14), 1.25f), 6);
+            Hold(BattleFx.Spawn(fxLayer, "slash", element, monsterPos + new Vector2(monsterPos.x > playerPos.x ? -50 : 50, monster.Height * .4f), 1.3f, monsterPos.x > playerPos.x), 4);
+            Hold(BattleFx.Spawn(fxLayer, "claw", mEl, playerPos + new Vector2(0, hero.Height * .4f), 1.1f, playerPos.x > monsterPos.x), 4);
+            Float(monsterPos + new Vector2(0, monster.Height * .85f), "Chí mạng −1.280", new Color32(255, 214, 90, 255), 50);
+            var skills = battle["m"]["skills"];
+            if (skills.Count > 0) Float(monsterPos + new Vector2(0, monster.Height * 1.0f), "« " + owner.BattleClean(skills[0]["name"].Str()) + " »", new Color32(255, 214, 120, 255), 30);
+            combo = 3;
+            comboUntil = Time.time + 99f;
+            previewHold = true;
+        }
+
+        private bool previewHold;
+
+        // ------------------------------------------------------------------ loop
+
+        private void Update()
+        {
+            if (battle.IsNull) return;
+            var dt = Mathf.Min(Time.deltaTime, .05f);
+            // movement
+            var bounds = arena.rect;
+            var moving = moveInput.sqrMagnitude > .01f && !over;
+            if (moving)
+            {
+                playerPos += moveInput * 520f * dt;
+                playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .44f, bounds.width * .44f);
+                playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .42f, bounds.height * .12f);
+                if (Mathf.Abs(moveInput.x) > .2f) hero.FaceRight = moveInput.x > 0;
+            }
+            if (!moving || hero.Busy) hero.FaceRight = monsterPos.x > playerPos.x;
+            hero.Moving = moving;
+            if (Time.unscaledTime < shakeUntil) shakeOffset = UnityEngine.Random.insideUnitCircle * shakeAmp * ((shakeUntil - Time.unscaledTime) / .3f);
+            else { shakeOffset = Vector2.zero; shakeAmp = 0f; }
+            if (dimImage != null && !previewHold)
+            {
+                var k = Time.unscaledTime < dimUntil ? Mathf.Clamp01((Time.unscaledTime - dimFrom) / .15f) * Mathf.Clamp01((dimUntil - Time.unscaledTime) / .3f) : 0f;
+                dimImage.color = new Color(.02f, .01f, .05f, .56f * k);
+            }
+            var toMonster = (monsterPos - playerPos).normalized;
+            var lunge = Time.time < playerLungeUntil ? toMonster * 70f * Mathf.Sin((playerLungeUntil - Time.time) / .25f * Mathf.PI) : Vector2.zero;
+            if (Time.time < playerDashUntil) lunge -= toMonster * 150f * Mathf.Sin((playerDashUntil - Time.time) / .28f * Mathf.PI);
+            hero.Rect.anchoredPosition = playerPos + lunge + shakeOffset;
+            // monster keeps a fighting distance and lunges with its melee moves
+            if (!over)
+            {
+                var target = playerPos + new Vector2(monsterPos.x < playerPos.x ? -300 : 300, 20);
+                monsterPos = Vector2.MoveTowards(monsterPos, target, 140f * dt);
+            }
+            var mLunge = Time.time < monsterLungeUntil
+                ? -toMonster * 150f * monsterLungeScale * Mathf.Sin((monsterLungeUntil - Time.time) / monsterLungeTime * Mathf.PI)
+                : Vector2.zero;
+            monster.Rect.anchoredPosition = monsterPos + mLunge + shakeOffset;
+            monster.FaceRight = monsterPos.x < playerPos.x;
+            for (var i = 0; i < minions.Count; i++)
+            {
+                var a = Time.time * .8f + i * Mathf.PI * .5f;
+                minions[i].Rect.anchoredPosition = monsterPos + new Vector2(Mathf.Cos(a) * 230f, Mathf.Sin(a) * 60f - 50f) + shakeOffset;
+                minions[i].FaceRight = monster.FaceRight;
+            }
+            // depth order: lower on screen = in front
+            if (playerPos.y < monsterPos.y) hero.Rect.SetAsLastSibling(); else monster.Rect.SetAsLastSibling();
+            // the pale trail on the enemy bar drains toward the real value
+            if (monsterHpTrail != null)
+                monsterHpTrail.fillAmount = monsterHpTrail.fillAmount < monsterHp.fillAmount ? monsterHp.fillAmount : Mathf.MoveTowards(monsterHpTrail.fillAmount, monsterHp.fillAmount, dt * .35f);
+            if (comboText != null)
+            {
+                var show = combo >= 2 && Time.time < comboUntil;
+                comboText.text = show ? combo + " LIÊN KÍCH" : "";
+                if (show) comboText.rectTransform.localScale = Vector3.one * (1f + .25f * Mathf.Clamp01((comboUntil - 2.35f - Time.time) / .25f));
+            }
+            // telegraph: step out of the circle to dodge
+            if (warnActive)
+            {
+                var warn = battle["m"]["warn"];
+                var left = warn["at"].Num() - ServerNow;
+                var t = Mathf.Clamp01(1f - (float)left / 1500f);
+                warnCircle.anchoredPosition = warnCenter;
+                warnCircle.GetComponent<Image>().color = new Color(1f, .15f, .1f, .15f + .35f * t);
+                warnCircle.localScale = Vector3.one * (.6f + .4f * t);
+                warnLabel.color = new Color(1f, .47f, .38f, .65f + .35f * Mathf.Sin(Time.time * 14f));
+                if (!warnDodged && Vector2.Distance(playerPos, warnCenter) > WarnRadius * .9f && ServerNow >= battle["p"]["dodgeReadyAt"].Num())
+                {
+                    warnDodged = true;
+                    Send("dodge", -1);
+                }
+            }
+            // cooldowns
+            var now = ServerNow;
+            SetCooldown(attackCooldown, battle["p"]["atkReadyAt"].Num() - now, 1000);
+            SetCooldown(dodgeCooldown, battle["p"]["dodgeReadyAt"].Num() - now, 6000);
+            var skills = battle["skills"];
+            var mp = battle["p"]["mp"].Num();
+            foreach (var (rect, cd, seconds, icon, index) in skillButtons)
+            {
+                var left = skills[index]["readyAt"].Num() - now;
+                SetCooldown(cd, left, 10000);
+                seconds.text = left > 400 ? Mathf.CeilToInt((float)(left / 1000)).ToString() : "";
+                if (!skills[index]["locked"].Bool() && !string.IsNullOrEmpty(skills[index]["id"].Str()))
+                    icon.color = skills[index]["mp"].Num() > mp ? new Color(.45f, .5f, .7f, .8f) : Color.white;
+            }
+            if (attackHeld) TryAttack();
+            // polling
+            if (!over && Time.time >= nextPoll && !requestPending)
+            {
+                nextPoll = Time.time + .6f;
+                client.Get("/battle/current", (data, error) =>
+                {
+                    if (this == null || over) return;
+                    var b = data["battle"];
+                    if (error == null && b.IsObject) Apply(b);
+                    else if (error == null && b.IsNull) { over = true; owner.BattleFinished(battle); }
+                });
+            }
+        }
+
+        private static void SetCooldown(Image image, double leftMs, double totalMs)
+        {
+            if (image == null) return;
+            image.fillAmount = leftMs <= 0 ? 0f : Mathf.Clamp01((float)(leftMs / totalMs));
+        }
+    }
+
+    /// <summary>Virtual analog stick.</summary>
+    internal sealed class BattleStick : MonoBehaviour, IPointerDownHandler, IDragHandler, IPointerUpHandler
+    {
+        public RectTransform Knob;
+        public Action<Vector2> OnMove;
+
+        public void OnPointerDown(PointerEventData eventData) => OnDrag(eventData);
+
+        public void OnDrag(PointerEventData eventData)
+        {
+            var rect = (RectTransform)transform;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, eventData.position, eventData.pressEventCamera, out var local)) return;
+            var radius = rect.rect.width * .5f;
+            var v = Vector2.ClampMagnitude(local / radius, 1f);
+            Knob.anchoredPosition = v * radius * .6f;
+            OnMove?.Invoke(v.magnitude < .15f ? Vector2.zero : v);
+        }
+
+        public void OnPointerUp(PointerEventData eventData)
+        {
+            Knob.anchoredPosition = Vector2.zero;
+            OnMove?.Invoke(Vector2.zero);
+        }
+
+        private void Update()
+        {
+            // keyboard support in the editor
+            var k = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
+            if (k.sqrMagnitude > .01f) { OnMove?.Invoke(k.normalized); Knob.anchoredPosition = k.normalized * ((RectTransform)transform).rect.width * .3f; }
+        }
+    }
+
+    /// <summary>Press-and-hold helper (continuous attacks).</summary>
+    internal sealed class BattleHold : MonoBehaviour, IPointerDownHandler, IPointerUpHandler, IPointerExitHandler
+    {
+        public Action OnDown;
+        public Action OnUp;
+        public void OnPointerDown(PointerEventData eventData) => OnDown?.Invoke();
+        public void OnPointerUp(PointerEventData eventData) => OnUp?.Invoke();
+        public void OnPointerExit(PointerEventData eventData) => OnUp?.Invoke();
+    }
+
+    /// <summary>Damage number: pops in large, settles, then drifts up and fades.</summary>
+    internal sealed class FloatUp : MonoBehaviour
+    {
+        private float born;
+        private Text text;
+        private Vector2 origin;
+        private float drift;
+        private void Start()
+        {
+            born = Time.time;
+            text = GetComponent<Text>();
+            origin = ((RectTransform)transform).anchoredPosition;
+            drift = UnityEngine.Random.Range(-26f, 26f);
+        }
+        private void Update()
+        {
+            var age = Time.time - born;
+            var rise = 1f - Mathf.Pow(1f - Mathf.Clamp01(age / 1.3f), 2.4f);
+            ((RectTransform)transform).anchoredPosition = origin + new Vector2(drift * rise, 110f * rise);
+            var pop = age < .1f ? Mathf.Lerp(1.7f, .94f, age / .1f) : Mathf.Lerp(.94f, 1f, Mathf.Clamp01((age - .1f) / .08f));
+            transform.localScale = new Vector3(pop, pop, 1f);
+            if (text != null) { var c = text.color; c.a = Mathf.Clamp01((1.3f - age) / .35f); text.color = c; }
+            if (age > 1.3f) Destroy(gameObject);
+        }
+    }
+}

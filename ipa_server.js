@@ -6,6 +6,7 @@ const fs = require('fs');
 const path = require('path');
 const http = require('http');
 const net = require('net');
+const zlib = require('zlib');
 const { Game, GameError } = require('./ipa_core/engine');
 const { GameStore } = require('./ipa_core/store');
 const C = require('./ipa_core/catalog');
@@ -13,6 +14,7 @@ const { getBattleMapSets } = require('./ipa_core/mode_maps');
 const { EmailAuthStore } = require('./email_auth_store');
 const { createGmailMailer } = require('./gmail_mailer');
 const { createAccountOAuth } = require('./account_oauth');
+const { createGameplayRoutes } = require('./ipa_routes');
 
 const ROOT = __dirname;
 const DATA_DIR = path.resolve(process.env.IPA_DATA_DIR || path.join(ROOT, 'server_data'));
@@ -213,12 +215,22 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     };
 
     function send(res, status, body) {
-        res.writeHead(status, {
+        const json = JSON.stringify(body);
+        const headers = {
             'Cache-Control': 'no-store',
             'X-Content-Type-Options': 'nosniff',
             'Content-Type': 'application/json; charset=utf-8',
-        });
-        res.end(JSON.stringify(body));
+            Vary: 'Accept-Encoding',
+        };
+        // Game views (player state, crafting, codex) are large; compress them for mobile links.
+        const acceptsGzip = /\bgzip\b/i.test(String(res.req?.headers?.['accept-encoding'] || ''));
+        if (acceptsGzip && json.length >= 1024) {
+            headers['Content-Encoding'] = 'gzip';
+            res.writeHead(status, headers);
+            return res.end(zlib.gzipSync(json));
+        }
+        res.writeHead(status, headers);
+        res.end(json);
     }
 
     function limited(key, allowance, windowMs = 60_000) {
@@ -346,6 +358,11 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
         },
     };
 
+    // Every remaining system of the shared engine (bag, crafting, market, sect, social,
+    // companion, party, inbox, events, rankings...). IPA-specific routes above win.
+    const gameplayRoutes = createGameplayRoutes({ game, C, GameError, requireTownRealm, withBattleMap, pveModeForBattle, pvpModeForBattle });
+    for (const [key, handler] of Object.entries(gameplayRoutes)) if (!routes[key]) routes[key] = handler;
+
     const server = http.createServer(async (req, res) => {
         const url = new URL(req.url, 'http://local');
         if (req.method === 'GET' && url.pathname === '/health') return send(res, 200, { ok: true, service: 'iosvn-ipa-game-server' });
@@ -410,6 +427,25 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
                 return send(res, 200, result);
             }
 
+            if (url.pathname === '/api/version' && req.method === 'GET') {
+                return send(res, 200, {
+                    ok: true,
+                    clientVersion: '1.0.0',
+                    minClientVersion: '1.0.0',
+                    latestAppVersion: '1.0.1',
+                    isMajorUpdate: false,
+                    updateTitle: 'Tu Tiên Giới - Bát Hoang Tu Chân',
+                    updateNotes: '• Cập nhật phong cách nhân vật Quỷ Cốc Bát Hoang sắc nét\n• Tối ưu giao diện cổ phong, loại bỏ đè lấn màn hình\n• Hỗ trợ di chuyển mượt mà trên bản đồ thế giới\n• Hệ thống tự động tải bản vá nhỏ và cài đặt bản cập nhật lớn',
+                    packageUrl: 'https://tutien.iosvn.com.vn/download/TuTienGioi.ipa',
+                    forceUpdate: false,
+                    manifest: {
+                        version: 1,
+                        totalBytes: 0,
+                        bundles: []
+                    }
+                });
+            }
+
             const user = auth.authenticate(getBearer(req));
             if (!user) return send(res, 401, { error: 'Phiên email không hợp lệ hoặc đã hết hạn.' });
             if (limited(`game:${user.id}`, 60, 10_000)) return send(res, 429, { error: 'Thao tác quá nhanh.' });
@@ -442,7 +478,7 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
     ticker.unref?.();
     server.on('error', error => logger.error('[IPA server]', error.message));
     server.listen(port, host, () => logger.log(`[IPA server] Listening on http://${host}:${port}; saves: ${dataDir}`));
-    return { server, game, store, auth, close() { clearInterval(ticker); store.flush(); gmail.close(); oauth.clear(); server.close(); } };
+    return { server, game, store, auth, routes, close() { clearInterval(ticker); store.flush(); gmail.close(); oauth.clear(); server.close(); } };
 }
 
 if (require.main === module) createIpaServer();

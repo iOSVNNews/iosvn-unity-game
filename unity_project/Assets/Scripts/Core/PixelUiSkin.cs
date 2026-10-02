@@ -14,7 +14,9 @@ namespace IOSVN.TuTien.Core
             if (frame == null) frame = BuildFrame();
             if (target.transform.Find("PixelFrame") != null) return;
 
-            var overlay = new GameObject("PixelFrame", typeof(RectTransform), typeof(Image));
+            var overlay = new GameObject("PixelFrame", typeof(RectTransform), typeof(Image), typeof(LayoutElement));
+            // Decoration only: never let a layout group treat the frame as a row item.
+            overlay.GetComponent<LayoutElement>().ignoreLayout = true;
             overlay.transform.SetParent(target.transform, false);
             overlay.transform.SetAsFirstSibling();
             var rect = overlay.GetComponent<RectTransform>();

@@ -12,17 +12,25 @@ namespace IOSVN.TuTien.Editor
     /// <summary>Creates a deterministic iOS Xcode project in GitHub Actions.</summary>
     public static class IOSBuild
     {
-        public static void Build()
+        public static void Build() => BuildTo(null);
+
+        /// <summary>Editor menu entry for local exports; CI keeps using Build() with command-line arguments.</summary>
+        [MenuItem("iOSVN/Build/Export iOS Xcode project to build/iOS-local")]
+        private static void BuildFromMenu() => BuildTo("../build/iOS-local");
+
+        private static void BuildTo(string outputOverride)
         {
             OnlinePrototypeProjectSetup.EnsurePrototypeScene();
             var bundleId = Argument("-iosBundleId", "com.iosvn.tutiengioi");
-            var outputPath = Argument("-iosBuildPath", "../build/iOS");
+            var outputPath = outputOverride ?? Argument("-iosBuildPath", "../build/iOS");
             if (!IsValidBundleId(bundleId)) throw new BuildFailedException("IOS_BUNDLE_ID must be a reverse-DNS identifier, for example com.studio.game.");
 
             PlayerSettings.companyName = "iOSVN";
             PlayerSettings.productName = "Tu Tiên Giới";
             PlayerSettings.iOS.applicationDisplayName = "Tu Tiên Giới";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
+            // "Faster (smaller) builds": far less generated C++ so IL2CPP does not run out of memory on 16 GB machines.
+            PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.iOS, Il2CppCodeGeneration.OptimizeSize);
             var appIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/Brand/TuTienGioi_AppIcon.png");
             if (appIcon == null) throw new BuildFailedException("Missing iOS app icon at Assets/Resources/Brand/TuTienGioi_AppIcon.png.");
             var iconSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.iOS, IconKind.Application);

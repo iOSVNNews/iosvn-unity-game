@@ -9,7 +9,7 @@ ENV NODE_ENV=production \
 COPY package.json package-lock.json ./
 RUN npm ci --omit=dev
 
-COPY ipa_server.js email_auth_store.js gmail_mailer.js account_oauth.js ./
+COPY ipa_server.js ipa_routes.js email_auth_store.js gmail_mailer.js account_oauth.js ./
 COPY ipa_core ./ipa_core
 
 RUN mkdir -p /data && chown -R node:node /app /data

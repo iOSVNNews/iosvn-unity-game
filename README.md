@@ -4,10 +4,11 @@ Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản
 
 ## Trang chủ và tài khoản
 
-Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ và bảng tài khoản ở giữa. Tab tạo tài khoản mở form riêng có xác nhận mật khẩu; đăng nhập và đăng ký gọi API thật, có kiểm tra dữ liệu và thông báo lỗi. Các ảnh dưới đây được render từ mã Unity hiện tại.
+Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ. Bảng tài khoản là một thẻ kính tối bo góc chia hai cột cho màn ngang: cột trái có tiêu đề và lối vào chơi ngoại tuyến/thử tạo nhân vật, cột phải có tab Đăng nhập/Tạo tài khoản dạng segmented, ô nhập có icon, nút hiện/ẩn mật khẩu và nút chính gradient vàng. Ô nhập sáng viền khi focus và chuyển đỏ khi sai, thẻ rung nhẹ khi báo lỗi, nút chính hiện vòng xoay khi đang gửi. Chữ dùng Be Vietnam Pro và Playfair Display SC (SIL OFL, xem `unity_project/Assets/Fonts/`). Các ảnh dưới đây được render từ mã Unity hiện tại (`iOSVN > Login > Render auth previews`).
 
 ![Trang đăng nhập](unity_project/docs/login-home.png)
 ![Trang đăng ký](unity_project/docs/login-register.png)
+![Xác minh email](unity_project/docs/login-verify.png)
 
 ## Pixel chiến đấu PvE
 
@@ -29,6 +30,8 @@ Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch projec
 - `publish_container=true` nếu muốn phát hành server lên GitHub Packages
 
 Mỗi lần build từ artifact sẽ lưu lại Xcode export để làm nguồn cho lần build tiếp theo. IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
+
+Nếu trình ký LCSign không nhận IPA hoàn toàn chưa ký, workflow **Prepare IPA for LCSign** nhận run ID chứa IPA và release tag, rồi thêm chữ ký ad hoc vào app cùng framework trước khi đóng `TuTienGioi-LCSign-ready.ipa`. Chữ ký ad hoc chỉ là chỗ cho công cụ ký lại; vẫn cần chứng chỉ và provisioning profile hợp lệ để cài lên iPhone. Tương thích thực tế với LCSign cần kiểm tra trên thiết bị.
 
 ### Cấu hình bắt buộc
 
@@ -60,11 +63,15 @@ Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ t
 - Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
 - Server IPA: `ipa_server.js`, HTTPS `/ipa/api` trên domain `tutien.iosvn.com.vn`.
 - Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái và 245 kỹ năng. Màn PvE ưu tiên sprite `CombatPixel` theo ID; hình cũ từ bot chỉ là dự phòng cho ID chưa có trong bộ mới.
+- Chiến đấu online (PvE và PvP) dùng bộ ảnh trong `Art/`: quái 4 khung động kèm hào quang, vật phẩm 128px và 240 bảng hiệu ứng kỹ năng theo ngũ hành. Nhân vật ghép lớp theo trang bị đang mặc (`Avatar3`).
+- Bản đồ châu (`Resources/World`) rộng 256×160 ô, có dãy núi biên giới khép kín. Đi bộ bị núi, rừng và nước chặn; phi kiếm và tọa kỵ (ô trang bị `phiKiem`) bay qua được núi rừng nhưng không vượt được núi ngăn cách châu. NPC chỉ xuất hiện trong thành.
+- Màn chiến đấu ngoại tuyến và màn dự phòng có nút kiếm lớn, năm ô kỹ năng, ba ô vật phẩm nhanh, thanh máu boss phía trên và thanh HP/MP nhân vật phía dưới. Cả hai đấu thủ di chuyển và tự ra chiêu theo hồi chiêu; nút bấm vẫn cho phép chủ động đánh. Các ô neo trong vùng màn hình an toàn, co theo kích thước nội dung để dùng trên iPhone nhỏ và iPad. Ảnh kiểm tra ở `unity_project/docs/pve-iphone-small.png` và `unity_project/docs/pve-ipad-4x3.png`.
+- Pixel art khớp đủ với game Telegram: 1.860 icon vật phẩm/kỹ năng/lửa luyện/hồ lô, 279 quái và 58 icon HUD (`PixelArt/UI`). Emoji trong dữ liệu (thành, bí cảnh, đối thủ) được đổi sang đúng icon HUD như Mini App vì Unity không vẽ được emoji màu. Texture pixel được nhập lossless ở lưới gốc 64×64 (HUD 32×32), lọc point, không mipmap, không nén.
 - Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
 - Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.
 - Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
 
-Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`.
+Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`. Thêm `--ui-and-catalog` để chỉ làm mới icon HUD và catalog mà không mã hoá lại 2.139 ảnh quái/vật phẩm.
 
 Để build trên GitHub Actions cần cấu hình Unity Personal secrets. Xuất IPA cài trên iPhone còn cần Apple signing secrets và bundle ID khớp provisioning profile.
 
