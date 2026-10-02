@@ -534,9 +534,9 @@ namespace IOSVN.TuTien.Core
                 SaveOfflineProgress();
                 if (hub.IsObject && hub["town"].IsObject)
                 {
-                    hub["town"]["id"] = townId;
+                    hub["town"].Set("id", townId);
                     var townMeta = worldData?.Town(townId);
-                    if (townMeta != null) hub["town"]["name"] = townMeta.name;
+                    if (townMeta != null) hub["town"].Set("name", townMeta.name);
                 }
                 then?.Invoke();
                 return;

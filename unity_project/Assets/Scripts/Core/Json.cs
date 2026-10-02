@@ -207,6 +207,15 @@ namespace IOSVN.TuTien.Core
         public bool IsNull => Raw == null;
         public bool IsObject => Raw is Dictionary<string, object>;
         public bool IsArray => Raw is List<object>;
+        public bool IsList => IsArray;
+
+        public void Set(string key, object value)
+        {
+            if (Raw is Dictionary<string, object> map && key != null)
+            {
+                map[key] = value is J j ? j.Raw : value;
+            }
+        }
 
         public J this[string key] => Raw is Dictionary<string, object> map && key != null && map.TryGetValue(key, out var v) ? new J(v) : Null;
         public J this[int index] => Raw is List<object> list && index >= 0 && index < list.Count ? new J(list[index]) : Null;

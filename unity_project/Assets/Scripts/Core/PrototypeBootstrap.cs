@@ -591,15 +591,17 @@ namespace IOSVN.TuTien.Core
                 try { latestState = JsonUtility.FromJson<GameState>(stateAsset.text); }
                 catch { }
             }
+            if (choice != null)
+            {
+                if (!string.IsNullOrEmpty(choice.gender)) gender = choice.gender;
+                if (!string.IsNullOrEmpty(choice.look)) creatorLook = LookSpec.Parse(choice.look);
+            }
             if (latestState != null && choice != null && latestState.player != null)
             {
                 latestState.player.name = choice.name;
                 latestState.player.fullName = choice.name + " · Ngoại tuyến";
-                latestState.player.gender = choice.gender;
-                latestState.player.mon = choice.mon;
-                latestState.player.he = choice.he;
-                latestState.player.look = choice.look;
-                latestState.player.lookWorn = choice.look;
+                latestState.player.monName = FindMonName(choice.mon);
+                latestState.player.heName = FindHeName(choice.he);
             }
 
             offlinePreview = true;
@@ -617,48 +619,49 @@ namespace IOSVN.TuTien.Core
         private void ApplyOfflineCharacterChoice(RegisterChoice choice)
         {
             if (choice == null || hub.IsNull || !hub["player"].IsObject) return;
-            hub["player"]["name"] = choice.name;
-            hub["player"]["fullName"] = choice.name + " · Ngoại tuyến";
+            var player = hub["player"];
+            player.Set("name", choice.name);
+            player.Set("fullName", choice.name + " · Ngoại tuyến");
             if (!string.IsNullOrEmpty(choice.gender))
             {
-                hub["player"]["gender"] = choice.gender;
+                player.Set("gender", choice.gender);
             }
             if (!string.IsNullOrEmpty(choice.mon))
             {
-                hub["player"]["mon"] = choice.mon;
+                player.Set("mon", choice.mon);
                 var monName = FindMonName(choice.mon);
-                if (!string.IsNullOrEmpty(monName)) hub["player"]["monName"] = monName;
+                if (!string.IsNullOrEmpty(monName)) player.Set("monName", monName);
             }
             if (!string.IsNullOrEmpty(choice.he))
             {
-                hub["player"]["he"] = choice.he;
+                player.Set("he", choice.he);
                 var heName = FindHeName(choice.he);
-                if (!string.IsNullOrEmpty(heName)) hub["player"]["heName"] = heName;
+                if (!string.IsNullOrEmpty(heName)) player.Set("heName", heName);
             }
             if (!string.IsNullOrEmpty(choice.look))
             {
-                hub["player"]["look"] = choice.look;
-                hub["player"]["lookWorn"] = choice.look;
+                player.Set("look", choice.look);
+                player.Set("lookWorn", choice.look);
             }
             if (choice.talents != null && choice.talents.Length > 0)
             {
                 var list = new List<object>();
                 foreach (var t in choice.talents) list.Add(t);
-                hub["player"]["talents"] = new J(list);
+                player.Set("talents", list);
             }
-            hub["player"]["worldPosition"] = J.Null;
+            player.Set("worldPosition", null);
         }
 
         private string FindMonName(string id)
         {
-            foreach (var m in currentCatalog?.mon ?? Array.Empty<GameClass>())
+            foreach (var m in currentCatalog?.mon ?? Array.Empty<ChoiceInfo>())
                 if (m != null && m.id == id) return m.name;
             return id;
         }
 
         private string FindHeName(string id)
         {
-            foreach (var h in currentCatalog?.he ?? Array.Empty<GameElement>())
+            foreach (var h in currentCatalog?.he ?? Array.Empty<ChoiceInfo>())
                 if (h != null && h.id == id) return h.name;
             return id;
         }
@@ -2552,8 +2555,8 @@ namespace IOSVN.TuTien.Core
             SaveOfflineProgress();
             if (hub.IsObject && hub["player"].IsObject)
             {
-                hub["player"]["hp"] = offlineProgress.hp;
-                hub["player"]["stones"] = offlineProgress.stones;
+                hub["player"].Set("hp", offlineProgress.hp);
+                hub["player"].Set("stones", offlineProgress.stones);
             }
             SafeShowWorld();
             ShowStatus($"Ngoại tuyến · {offlineProgress.kills} trận thắng · {OfflineInventoryCount()} vật phẩm trong túi.");
