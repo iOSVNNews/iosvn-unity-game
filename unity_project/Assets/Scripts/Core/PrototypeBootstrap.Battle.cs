@@ -779,7 +779,8 @@ namespace IOSVN.TuTien.Core
             var moving = moveInput.sqrMagnitude > .01f && !over;
             if (moving)
             {
-                playerPos += moveInput * 520f * dt;
+                var moveSpeed = owner.BattleMoveSpeed();
+                playerPos += moveInput * moveSpeed * dt;
                 playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .44f, bounds.width * .44f);
                 playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .42f, bounds.height * .12f);
                 if (Mathf.Abs(moveInput.x) > .2f) hero.FaceRight = moveInput.x > 0;

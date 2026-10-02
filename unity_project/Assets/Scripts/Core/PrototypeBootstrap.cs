@@ -187,6 +187,7 @@ namespace IOSVN.TuTien.Core
 
         private void Awake()
         {
+            TouchScreenKeyboard.hideInput = true;
             Screen.autorotateToPortrait = false;
             Screen.autorotateToPortraitUpsideDown = false;
             Screen.autorotateToLandscapeLeft = true;

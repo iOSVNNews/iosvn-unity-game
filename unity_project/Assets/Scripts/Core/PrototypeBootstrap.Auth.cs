@@ -211,6 +211,7 @@ namespace IOSVN.TuTien.Core
             ModernUi.Soft(glowAnchor, 70f, new Color(1f, .78f, .38f, .10f), Vector2.zero);
 
             if (intro) UiIntro.Play(root, new Vector2(0f, -28f));
+            card.gameObject.AddComponent<UiAuthKeyboardShift>();
             return card;
         }
 
@@ -318,6 +319,7 @@ namespace IOSVN.TuTien.Core
             input.customCaretColor = true;
             input.caretColor = AuthGoldTop;
             input.selectionColor = new Color32(225, 185, 104, 96);
+            input.shouldHideMobileInput = true;
 
             var focus = root.gameObject.AddComponent<UiInputFocus>();
             focus.input = input;
@@ -475,6 +477,35 @@ namespace IOSVN.TuTien.Core
             text.raycastTarget = false;
             text.text = value ?? string.Empty;
             return text;
+        }
+    }
+
+    /// <summary>Smoothly moves the auth card up when the mobile on-screen keyboard is visible.</summary>
+    internal sealed class UiAuthKeyboardShift : MonoBehaviour
+    {
+        private RectTransform rect;
+        private Vector2 basePos;
+        private bool initialized;
+
+        private void Awake()
+        {
+            rect = (RectTransform)transform;
+        }
+
+        private void Update()
+        {
+            if (!initialized)
+            {
+                basePos = rect.anchoredPosition;
+                initialized = true;
+            }
+            var targetY = TouchScreenKeyboard.visible ? basePos.y + 120f : basePos.y;
+            var p = rect.anchoredPosition;
+            if (Mathf.Abs(p.y - targetY) > 0.5f)
+            {
+                p.y = Mathf.MoveTowards(p.y, targetY, Time.unscaledDeltaTime * 700f);
+                rect.anchoredPosition = p;
+            }
         }
     }
 }

@@ -76,6 +76,7 @@ namespace IOSVN.TuTien.Core
             SetAtlasOrientation(false);
             ClearContent();
             ClearBattleScene();
+            if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
             worldData = data;
             worldMapId = mapId;
             worldMonsterActors.Clear();
@@ -432,6 +433,7 @@ namespace IOSVN.TuTien.Core
             var gate = worldData?.Town(townId)?.gate;
             if (gate != null && gate.Length >= 2) worldReturnTile = new Vector2(gate[0], gate[1] + 1);
             worldTravel = TravelMode.Walk;
+            if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
             void Open()
             {
                 try { ShowCity(townId); }
@@ -457,6 +459,21 @@ namespace IOSVN.TuTien.Core
         }
 
         private static bool IsMountItem(J item) => item["mount"].Bool() || item["id"].Str().StartsWith("toa_ky", StringComparison.Ordinal);
+
+        /// <summary>Dynamic battle speed in PvE and PvP scaled by equipped flying sword or mount.</summary>
+        internal float BattleMoveSpeed()
+        {
+            var baseSpeed = 490f;
+            var item = TravelItem();
+            if (item.IsObject && !string.IsNullOrEmpty(item["id"].Str()))
+            {
+                var isMount = IsMountItem(item);
+                var speedVal = (float)item["flySpeed"].Num(.16 + item["qualityRank"].Int() * .06);
+                var mult = isMount ? 1.45f + speedVal * 1.8f : 1.65f + speedVal * 2.2f;
+                return baseSpeed * Mathf.Clamp(mult, 1.25f, 2.85f);
+            }
+            return baseSpeed;
+        }
 
         /// <summary>Mounts borrow the animated art of the matching beast.</summary>
         private static string MountArtId(string name)
@@ -679,7 +696,6 @@ namespace IOSVN.TuTien.Core
             Scrim("ScrimBottom", new Vector2(0, 0), new Vector2(1, 0), Vector2.zero, new Vector2(0, 250), clear, new Color(.02f, .03f, .05f, .40f), false);
             BuildAvatarCard(root);
             BuildMiniMap(root, data);
-            BuildVirtualDpad(root);
             BuildTravelButton(root);
             BuildWayfinders(root);
             var places = Anchored("Places", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(34, -196), new Vector2(284, -124));

@@ -113,8 +113,9 @@ namespace IOSVN.TuTien.Core
         private float nextPoll;
 
         private FighterView me, foe;
-        private readonly Vector2 mePos = new Vector2(310, -150);
+        private Vector2 mePos = new Vector2(310, -150);
         private readonly Vector2 foePos = new Vector2(-310, -150);
+        private Vector2 moveInput;
         private float meLungeUntil, foeLungeUntil;
         private double lastMeHp = -1, lastFoeHp = -1;
         private int lastFoeSeq = -1, lastMeSeq = -1;
@@ -267,10 +268,23 @@ namespace IOSVN.TuTien.Core
             var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(64, 64), dpos + new Vector2(64, 64));
             RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), () => Send("dodge", null, J.Null), 22);
             dodgeCooldown = Cooldown(dodge);
-            // bottom left: skip a stunned turn, or let the guardian bot stand in for an absent opponent
-            pass = A("Pass", hud, Vector2.zero, Vector2.zero, new Vector2(60, 60), new Vector2(330, 150));
+            // bottom left: circular analog joystick for movement in PvP arena
+            var stickBase = A("PvpStick", hud, Vector2.zero, Vector2.zero, new Vector2(70, 70), new Vector2(390, 390));
+            var baseImage = stickBase.gameObject.AddComponent<Image>();
+            ModernUi.Fill(baseImage, 160f);
+            baseImage.color = new Color(0, 0, 0, .28f);
+            var baseRing = InkUi.Simple(stickBase, "Ring", InkUi.Ring, new Color(1, 1, 1, .45f), Vector2.zero);
+            baseRing.rectTransform.anchorMin = Vector2.zero; baseRing.rectTransform.anchorMax = Vector2.one;
+            baseRing.rectTransform.offsetMin = baseRing.rectTransform.offsetMax = Vector2.zero;
+            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(150, 150));
+            var stick = stickBase.gameObject.AddComponent<BattleStick>();
+            stick.Knob = knob.rectTransform;
+            stick.OnMove = v => moveInput = v;
+
+            // skip a stunned turn, or let the guardian bot stand in for an absent opponent
+            pass = A("Pass", hud, Vector2.zero, Vector2.zero, new Vector2(70, 410), new Vector2(340, 490));
             Pill(pass, "Bỏ lượt (bị khống chế)", new Color32(60, 64, 72, 235), () => Send("pass", null, J.Null));
-            takeover = A("Takeover", hud, Vector2.zero, Vector2.zero, new Vector2(60, 170), new Vector2(430, 260));
+            takeover = A("Takeover", hud, Vector2.zero, Vector2.zero, new Vector2(70, 505), new Vector2(440, 585));
             Pill(takeover, "Gọi Bot Hộ Đạo đấu thay", new Color32(120, 84, 30, 235), () =>
             {
                 if (pending || over) return;
@@ -572,11 +586,19 @@ namespace IOSVN.TuTien.Core
                 var k = Time.unscaledTime < dimUntil ? Mathf.Clamp01((Time.unscaledTime - dimFrom) / .15f) * Mathf.Clamp01((dimUntil - Time.unscaledTime) / .3f) : 0f;
                 dimImage.color = new Color(.02f, .01f, .05f, .56f * k);
             }
+            var dt = Mathf.Min(Time.deltaTime, .05f);
+            if (moveInput.sqrMagnitude > .01f && !over)
+            {
+                var moveSpeed = owner.BattleMoveSpeed();
+                mePos += moveInput * moveSpeed * dt;
+                mePos.x = Mathf.Clamp(mePos.x, -580f, 580f);
+                mePos.y = Mathf.Clamp(mePos.y, -260f, 60f);
+                if (Mathf.Abs(moveInput.x) > .2f) me.FaceRight = moveInput.x > 0;
+            }
             var meLunge = Time.time < meLungeUntil ? new Vector2(-170f, 0) * Mathf.Sin((meLungeUntil - Time.time) / .28f * Mathf.PI) : Vector2.zero;
             var foeLunge = Time.time < foeLungeUntil ? new Vector2(170f, 0) * Mathf.Sin((foeLungeUntil - Time.time) / .28f * Mathf.PI) : Vector2.zero;
             me.Rect.anchoredPosition = mePos + meLunge + shakeOffset;
             foe.Rect.anchoredPosition = foePos + foeLunge + shakeOffset;
-            var dt = Mathf.Min(Time.deltaTime, .05f);
             meTrail.fillAmount = meTrail.fillAmount < meHp.fillAmount ? meHp.fillAmount : Mathf.MoveTowards(meTrail.fillAmount, meHp.fillAmount, dt * .35f);
             foeTrail.fillAmount = foeTrail.fillAmount < foeHp.fillAmount ? foeHp.fillAmount : Mathf.MoveTowards(foeTrail.fillAmount, foeHp.fillAmount, dt * .35f);
             // cooldowns count down locally from the last server answer
