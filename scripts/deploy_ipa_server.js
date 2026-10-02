@@ -34,7 +34,7 @@ async function main() {
     const release = new Date().toISOString().replace(/[^0-9]/g, '').slice(0, 14);
     const archive = path.join(root, 'build', 'ipa-server-deploy.tar.gz');
     fs.mkdirSync(path.dirname(archive), { recursive: true });
-    tool('tar', ['-czf', archive, 'ipa_server.js', 'email_auth_store.js', 'gmail_mailer.js', 'account_oauth.js', 'package.json', 'package-lock.json', 'ipa_core', 'tests']);
+    tool('tar', ['-czf', archive, 'ipa_server.js', 'ipa_routes.js', 'email_auth_store.js', 'gmail_mailer.js', 'account_oauth.js', 'package.json', 'package-lock.json', 'ipa_core', 'tests']);
     upload(gameHost, archive, '/tmp/iosvn-ipa-server.tar.gz');
     upload(gameHost, path.join(__dirname, 'ipa-server-install.sh'), '/tmp/iosvn-ipa-install.sh');
     upload(gameHost, path.join(__dirname, 'iosvn-ipa.service'), '/tmp/iosvn-ipa.service');

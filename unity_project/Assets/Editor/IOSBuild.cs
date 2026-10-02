@@ -29,6 +29,8 @@ namespace IOSVN.TuTien.Editor
             PlayerSettings.productName = "Tu Tiên Giới";
             PlayerSettings.iOS.applicationDisplayName = "Tu Tiên Giới";
             PlayerSettings.SetApplicationIdentifier(NamedBuildTarget.iOS, bundleId);
+            // "Faster (smaller) builds": far less generated C++ so IL2CPP does not run out of memory on 16 GB machines.
+            PlayerSettings.SetIl2CppCodeGeneration(NamedBuildTarget.iOS, Il2CppCodeGeneration.OptimizeSize);
             var appIcon = AssetDatabase.LoadAssetAtPath<Texture2D>("Assets/Resources/Brand/TuTienGioi_AppIcon.png");
             if (appIcon == null) throw new BuildFailedException("Missing iOS app icon at Assets/Resources/Brand/TuTienGioi_AppIcon.png.");
             var iconSizes = PlayerSettings.GetIconSizes(NamedBuildTarget.iOS, IconKind.Application);

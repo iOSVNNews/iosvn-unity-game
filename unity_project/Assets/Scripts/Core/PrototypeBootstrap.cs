@@ -513,30 +513,69 @@ namespace IOSVN.TuTien.Core
         {
             SetAtlasOrientation(false);
             ShowStatus("Đang tải hồ sơ từ máy chủ...");
-            client.LoadState((state, error) =>
+            ShowLoadingVeil("Đang tải hồ sơ từ máy chủ...");
+            client.LoadStateBoth((state, raw, error) =>
             {
-                if (state == null) { ShowStatus(error); return; }
+                if (state == null) { ShowLoadError(error ?? "Không đọc được hồ sơ.", LoadState); return; }
+                hub = raw;
                 currentCatalog = state.catalog;
                 latestState = state;
                 SetRealmMusic(state);
-                if (!state.registered) ShowCharacterCreation();
-                else client.LoadCurrentBattle((battle, _) =>
+                if (!state.registered) { ShowCharacterCreation(); return; }
+                client.LoadCurrentBattle((battle, _) =>
                 {
-                    if (battle != null) ShowBattle(battle);
-                    else client.LoadPvpBattle((pvpBattle, __) =>
+                    if (battle != null) { ShowBattle(battle); return; }
+                    client.LoadPvpBattle((pvpBattle, __) =>
                     {
                         if (pvpBattle != null && !pvpBattle.none && !pvpBattle.over) ShowPvpBattle(pvpBattle);
-                        else ShowHome(state);
+                        else SafeShowWorld();
                     });
                 });
             });
         }
 
+        /// <summary>Never leave the player on a blank screen: fall back to the classic home on any error.</summary>
+        private void SafeShowWorld()
+        {
+            try { ShowWorld(); }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                ClearBattleScene();
+                if (latestState != null) ShowHome(latestState);
+                ShowStatus("Không mở được bản đồ: " + ex.Message);
+            }
+        }
+
+        private void ShowLoadingVeil(string message)
+        {
+            if (content == null) return;
+            var veil = new GameObject("LoadingVeil", typeof(RectTransform), typeof(Image)).GetComponent<RectTransform>();
+            veil.SetParent(content.transform, false);
+            veil.anchorMin = new Vector2(-.1f, -.1f); veil.anchorMax = new Vector2(1.1f, 1.1f); veil.offsetMin = veil.offsetMax = Vector2.zero;
+            veil.GetComponent<Image>().color = new Color(0, 0, 0, .45f);
+            var spinner = new GameObject("Spinner", typeof(RectTransform), typeof(Image), typeof(UiSpinner)).GetComponent<RectTransform>();
+            spinner.SetParent(veil, false);
+            spinner.sizeDelta = new Vector2(72, 72);
+            var image = spinner.GetComponent<Image>();
+            image.sprite = ModernUi.Icon("spinner");
+            image.color = AuthGoldAccent;
+            image.raycastTarget = false;
+        }
+
+        private void ShowLoadError(string message, Action retry)
+        {
+            ClearContent();
+            Label(message, 26, Cream, TextAnchor.MiddleCenter, new Vector2(.1f, .5f), new Vector2(.9f, .65f));
+            Button("THỬ LẠI", new Vector2(.35f, .36f), new Vector2(.65f, .46f), Gold, () => retry?.Invoke());
+            Button("ĐĂNG XUẤT", new Vector2(.35f, .24f), new Vector2(.65f, .33f), Panel, () => client.Logout(_ => ShowLogin()));
+        }
+
         private void ShowCharacterCreation()
         {
-            SetAtlasOrientation(true);
+            SetAtlasOrientation(false);
             offlineCreationPreview = false;
-            ShowCharacterCreationForm(resetSelection: true);
+            ShowCreator();
         }
 
         private void EnterOfflineCharacterCreationPreview()
@@ -647,6 +686,7 @@ namespace IOSVN.TuTien.Core
                 ShowStatus("Hãy chọn đúng 3 tiên thiên khí vận.");
                 return;
             }
+            if (creatorLook != null) gender = creatorLook.Get("g", "m") == "f" ? "nu" : "nam";
             var choice = new RegisterChoice
             {
                 name = nameInput.text.Trim(),
@@ -654,7 +694,8 @@ namespace IOSVN.TuTien.Core
                 mon = currentCatalog.mon[Mathf.Clamp(sectIndex, 0, currentCatalog.mon.Length - 1)].id,
                 he = currentCatalog.he[Mathf.Clamp(elementIndex, 0, currentCatalog.he.Length - 1)].id,
                 appearance = AppearanceId(),
-                talents = new List<string>(selectedTalents).ToArray()
+                talents = new List<string>(selectedTalents).ToArray(),
+                look = creatorLook?.ToString()
             };
             if (offlineCreationPreview)
             {
@@ -669,7 +710,8 @@ namespace IOSVN.TuTien.Core
                 if (state == null) { SetAuthBusy(false); ShowStatus(error); return; }
                 offlineCreationPreview = false;
                 SetAtlasOrientation(false);
-                ShowHome(state);
+                latestState = state;
+                RefreshHub(SafeShowWorld);
             });
         }
 
@@ -1802,6 +1844,9 @@ namespace IOSVN.TuTien.Core
             if (string.IsNullOrEmpty(resourcePath)) return null;
             // Unity destroys unreferenced runtime sprites when unused assets are unloaded; rebuild those.
             if (PixelIconCache.TryGetValue(resourcePath, out var cached) && cached != null) return cached;
+            // The redrawn monsters and item icons replace the original icons wherever they exist.
+            var redrawn = ArtSprites.ForLegacyPath(resourcePath);
+            if (redrawn != null) { PixelIconCache[resourcePath] = redrawn; return redrawn; }
             var texture = Resources.Load<Texture2D>(resourcePath);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
@@ -3018,6 +3063,9 @@ namespace IOSVN.TuTien.Core
         }
         private void ShowPvpBattle(PvpBattle battle)
         {
+            // the animated arena (same figures and effects as PvE); the classic view stays as the fallback
+            if (battle != null && !battle.none && !battle.over && TryShowPvpArena(() => ShowPvpBattle(battle))) return;
+            ClearBattleScene();
             SetAtlasOrientation(true);
             ClearContent();
             statusMin = new Vector2(0.25f, 0.245f); statusMax = new Vector2(0.75f, 0.28f);
@@ -3166,6 +3214,17 @@ namespace IOSVN.TuTien.Core
         }
 
         private void ShowBattle(BattleView battle)
+        {
+            // Real-time action battle (joystick / skills / quick items); the classic view stays as a fallback.
+            if (battle != null && !battle.over && !actionBattleFailed && AvatarComposer.Available && hub.IsObject)
+            {
+                ShowActionBattle(_ => ShowClassicBattle(battle));
+                return;
+            }
+            ShowClassicBattle(battle);
+        }
+
+        private void ShowClassicBattle(BattleView battle)
         {
             SetAtlasOrientation(true);
             ClearContent();

@@ -11,3 +11,15 @@ SHA-256 of the synchronized IPA snapshot:
 The IPA server reads `CULTIVATION_REALM_NAMES` from `catalog.js` to expose realm names for email-owned accounts and its separate save store, so that export must remain present. Do not edit the live Telegram game files when adding IPA-specific behavior. Keep later source updates traceable to an AWS source snapshot and review game rules before importing them.
 
 `mode_maps.js` is a new IPA-only battle-map catalog. It defines the Phàm Giới and Tiên Giới PvP/PvE map sets and a server-clocked random rotation across five Cổ Động maps per realm. Active map IDs are attached to live battle responses so a map stays selected for that encounter. It does not modify the AWS Telegram Mini App snapshot.
+
+## 2026-10-01 content sync
+
+`engine.js`, `catalog.js` and `store.js` were re-synchronised from `D:\Bot_Danh_Gia_Uy_Tin_Telegram\tutien` (source last modified 2026-10-01 07:20 UTC; engine SHA-256 `440e7966…`, catalog `36d46b96…`). The IPA-only changes were re-applied on top:
+
+- character creation appearance and three creation talents (`CREATION_TALENT_BONUSES`, `CREATION_APPEARANCES`, talent stat bonuses, appearance fields in `view`);
+- province exploration position (`moveWorldPosition`, `worldPosition` in `view`);
+- `CULTIVATION_REALM_NAMES` exported from `catalog.js` for the IPA realm store.
+
+The source engine suite (144 tests: engine, time phase, sense/repair, Tiên Giới balance, boss/party balance) passes against this snapshot. New content in this sync includes the 19 equipment trial dungeons (`EQUIP_DUNGEONS`) and the latest equipment, town and dungeon balance.
+
+Resulting SHA-256: `engine.js` `f2d65ac0…`, `catalog.js` `fc668e1b…`, `store.js` `dd86ea12…`.

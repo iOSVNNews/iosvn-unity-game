@@ -50,6 +50,57 @@ namespace IOSVN.TuTien.Editor
             }, "hud-pve-town.png", 1280, 590);
         }
 
+        [MenuItem("iOSVN/Login/Replay new account flow")]
+        public static void ReplayNewAccountFlow()
+        {
+            // Replays the exact JSON the live IPA server returns for a brand-new account
+            // (build/samples/flow_*.json) through the same parse + screen code the app uses.
+            var directory = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples"));
+            var log = new System.Text.StringBuilder();
+            const BindingFlags flags = BindingFlags.Instance | BindingFlags.NonPublic;
+            GameState Load(string name)
+            {
+                try
+                {
+                    var parsed = JsonUtility.FromJson<GameState>(File.ReadAllText(Path.Combine(directory, name)));
+                    log.AppendLine(name + ": registered=" + parsed?.registered + " realm=" + parsed?.realm?.name + " town=" + parsed?.town?.name + " player=" + parsed?.player?.name + " monsters=" + (parsed?.worldMonsters?.Length ?? -1));
+                    return parsed;
+                }
+                catch (System.Exception ex) { log.AppendLine(name + ": PARSE FAIL " + ex); return null; }
+            }
+            void Call(PrototypeBootstrap controller, string method, params object[] arguments)
+            {
+                try { typeof(PrototypeBootstrap).GetMethod(method, flags).Invoke(controller, arguments); log.AppendLine(method + ": ok"); }
+                catch (System.Exception ex) { log.AppendLine(method + ": FAIL " + (ex.InnerException ?? ex)); }
+            }
+            var fresh = Load("flow_state_new.json");
+            var registered = Load("flow_register.json");
+            var relogin = Load("flow_state_registered.json");
+            RenderScreen(controller =>
+            {
+                Call(controller, "ShowAccountForm", true);
+                typeof(PrototypeBootstrap).GetField("currentCatalog", flags).SetValue(controller, fresh?.catalog);
+                typeof(PrototypeBootstrap).GetField("latestState", flags).SetValue(controller, fresh);
+                Call(controller, "ShowCharacterCreation");
+            }, "flow-1-creation.png", 1280, 590);
+            RenderScreen(controller =>
+            {
+                Call(controller, "ShowAccountForm", true);
+                typeof(PrototypeBootstrap).GetField("currentCatalog", flags).SetValue(controller, fresh?.catalog);
+                Call(controller, "ShowCharacterCreation");
+                Call(controller, "SetAtlasOrientation", false);
+                Call(controller, "ShowHome", registered);
+            }, "flow-2-home.png", 1280, 590);
+            RenderScreen(controller =>
+            {
+                Call(controller, "ShowAccountForm", false);
+                Call(controller, "ShowHome", relogin);
+            }, "flow-3-relogin-home.png", 1280, 590);
+            var output = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/login-layout-captures/flow-log.txt"));
+            File.WriteAllText(output, log.ToString());
+            Debug.Log("FLOW_REPLAY_DONE\n" + log);
+        }
+
         private static void RenderForm(string method, object[] arguments, string filename, int width, int height)
         {
             const BindingFlags methodFlags = BindingFlags.Instance | BindingFlags.NonPublic;

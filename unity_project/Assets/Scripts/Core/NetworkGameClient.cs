@@ -37,7 +37,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class ProviderLinkResult : ApiResult { public string url; }
     [Serializable] public class EmailVerificationChoice { public string email; public string code; }
     [Serializable] public class EmptyPayload { }
-    [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; public string appearance; public string[] talents; }
+    [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; public string appearance; public string[] talents; public string look; }
     [Serializable] public class HuntChoice { public string monsterUid; }
     [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; }
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }
@@ -226,6 +226,46 @@ namespace IOSVN.TuTien.Core
             var result = response.ok ? Parse<PvpActionResult>(response) : null;
             done?.Invoke(result?.battle, response.error);
         }));
+
+        // ---- Dynamic API used by the system screens (bag, crafting, market, sect, social...) ----
+
+        /// <summary>GET a game route and hand back the parsed JSON (or the server's error text).</summary>
+        public void Get(string route, Action<J, string> done) => StartCoroutine(GetJson(route, response =>
+            done?.Invoke(response.ok ? J.Parse(response.body) : J.Null, response.ok ? null : response.error)));
+
+        /// <summary>POST a JSON body (Dictionary/List/primitive values) and hand back the parsed reply.</summary>
+        public void Post(string route, object body, Action<J, string> done) => StartCoroutine(PostRaw(route, Json.Serialize(body ?? new System.Collections.Generic.Dictionary<string, object>()), response =>
+            done?.Invoke(response.ok ? J.Parse(response.body) : J.Null, response.ok ? null : response.error)));
+
+        /// <summary>Loads the player view once and returns both the typed and the dynamic form.</summary>
+        public void LoadStateBoth(Action<GameState, J, string> done) => StartCoroutine(GetJson("/state", response =>
+        {
+            if (!response.ok) { done?.Invoke(null, J.Null, response.error); return; }
+            done?.Invoke(Parse<GameState>(response), J.Parse(response.body), null);
+        }));
+
+        /// <summary>Wraps an already-received dynamic state as the typed GameState used by the map/battle screens.</summary>
+        public static GameState ToGameState(J state)
+        {
+            if (state.IsNull) return null;
+            try { return JsonUtility.FromJson<GameState>(Json.Serialize(state.Raw)); }
+            catch (Exception ex) { Debug.LogWarning("Không đọc được trạng thái game: " + ex.Message); return null; }
+        }
+
+        private IEnumerator PostRaw(string route, string json, Action<Response> done)
+        {
+            if (!HasServer(done)) yield break;
+            using (var request = new UnityWebRequest(apiBaseUrl + route, UnityWebRequest.kHttpVerbPOST))
+            {
+                request.uploadHandler = new UploadHandlerRaw(Encoding.UTF8.GetBytes(json));
+                request.downloadHandler = new DownloadHandlerBuffer();
+                request.timeout = RequestTimeoutSeconds;
+                request.SetRequestHeader("Content-Type", "application/json");
+                SetAuth(request);
+                yield return request.SendWebRequest();
+                done?.Invoke(ToResponse(request));
+            }
+        }
 
         private IEnumerator GetJson(string route, Action<Response> done)
         {
