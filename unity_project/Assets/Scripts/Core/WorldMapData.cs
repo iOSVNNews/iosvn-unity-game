@@ -25,6 +25,7 @@ namespace IOSVN.TuTien.Core
         public string block;
         public string water;
         public string road;
+        public string border;
         public WorldTownMeta[] towns;
         public WorldPoi[] pois;
         public WorldZone[] zones;
@@ -32,6 +33,13 @@ namespace IOSVN.TuTien.Core
         [NonSerialized] public bool[] Blocked;
         [NonSerialized] public bool[] Water;
         [NonSerialized] public bool[] Road;
+        /// <summary>The mountain wall between provinces: closed to everything, flight included.</summary>
+        [NonSerialized] public bool[] Border;
+        [NonSerialized] private float[] pathCost;
+        [NonSerialized] private int[] pathCame;
+        [NonSerialized] private int[] pathSeen;
+        [NonSerialized] private int[] pathClosed;
+        [NonSerialized] private int pathStamp;
 
         private static readonly Dictionary<string, WorldMapData> Cache = new Dictionary<string, WorldMapData>();
 
@@ -48,6 +56,7 @@ namespace IOSVN.TuTien.Core
             data.Blocked = Bits(data.block, data.w * data.h);
             data.Water = Bits(data.water, data.w * data.h);
             data.Road = Bits(data.road, data.w * data.h);
+            data.Border = string.IsNullOrEmpty(data.border) ? EdgeRing(data.w, data.h, 3) : Bits(data.border, data.w * data.h);
             data.towns = data.towns ?? Array.Empty<WorldTownMeta>();
             data.pois = data.pois ?? Array.Empty<WorldPoi>();
             data.zones = data.zones ?? Array.Empty<WorldZone>();
@@ -68,6 +77,15 @@ namespace IOSVN.TuTien.Core
             return texture;
         }
 
+        private static bool[] EdgeRing(int w, int h, int width)
+        {
+            var result = new bool[w * h];
+            for (var y = 0; y < h; y++)
+                for (var x = 0; x < w; x++)
+                    result[y * w + x] = x < width || y < width || x >= w - width || y >= h - width;
+            return result;
+        }
+
         private static bool[] Bits(string base64, int count)
         {
             var result = new bool[count];
@@ -84,6 +102,8 @@ namespace IOSVN.TuTien.Core
         public bool InBounds(int x, int y) => x >= 0 && y >= 0 && x < w && y < h;
         public bool IsBlocked(int x, int y) => !InBounds(x, y) || Blocked[y * w + x];
         public bool IsWater(int x, int y) => InBounds(x, y) && Water[y * w + x];
+        /// <summary>On a flying sword or a mount, mountains, forest and water pass underneath; only the border wall stops the traveller.</summary>
+        public bool IsBlocked(int x, int y, bool flying) => flying ? !InBounds(x, y) || Border[y * w + x] : IsBlocked(x, y);
 
         public WorldTownMeta Town(string townId)
         {
@@ -97,10 +117,10 @@ namespace IOSVN.TuTien.Core
             return zones.Length > 0 ? zones[0] : null;
         }
 
-        /// <summary>Nearest walkable tile to (x, y) within a radius (spiral search).</summary>
-        public Vector2Int NearestOpen(Vector2Int from, int radius = 8)
+        /// <summary>Nearest tile open to the traveller within a radius (spiral search).</summary>
+        public Vector2Int NearestOpen(Vector2Int from, int radius = 16, bool flying = false)
         {
-            if (!IsBlocked(from.x, from.y)) return from;
+            if (!IsBlocked(from.x, from.y, flying)) return from;
             for (var r = 1; r <= radius; r++)
                 for (var dy = -r; dy <= r; dy++)
                     for (var dx = -r; dx <= r; dx++)
@@ -108,57 +128,75 @@ namespace IOSVN.TuTien.Core
                         if (Mathf.Max(Mathf.Abs(dx), Mathf.Abs(dy)) != r) continue;
                         var x = from.x + dx;
                         var y = from.y + dy;
-                        if (!IsBlocked(x, y)) return new Vector2Int(x, y);
+                        if (!IsBlocked(x, y, flying)) return new Vector2Int(x, y);
                     }
             return from;
         }
 
-        /// <summary>8-way A* over the walkable grid (no corner cutting). Returns tiles after the start.</summary>
-        public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal, int maxNodes = 20000)
+        /// <summary>
+        /// 8-way A* (no corner cutting). Returns the tiles after the start; when the goal cannot be reached
+        /// within maxNodes the path leads to the reachable tile closest to it. The search buffers are reused,
+        /// so roaming monsters do not allocate a map-sized array on every step.
+        /// </summary>
+        public List<Vector2Int> FindPath(Vector2Int start, Vector2Int goal, int maxNodes = 60000, bool flying = false)
         {
             var result = new List<Vector2Int>();
             if (!InBounds(start.x, start.y) || !InBounds(goal.x, goal.y)) return result;
-            goal = NearestOpen(goal);
+            goal = NearestOpen(goal, 16, flying);
             if (start == goal) return result;
             var total = w * h;
-            var g = new float[total];
-            var came = new int[total];
-            var closed = new bool[total];
-            for (var i = 0; i < total; i++) { g[i] = float.MaxValue; came[i] = -1; }
+            if (pathCost == null || pathCost.Length != total)
+            {
+                pathCost = new float[total];
+                pathCame = new int[total];
+                pathSeen = new int[total];
+                pathClosed = new int[total];
+                pathStamp = 0;
+            }
+            var stamp = ++pathStamp;
             var open = new MinHeap(256);
             var s = start.y * w + start.x;
             var t = goal.y * w + goal.x;
-            g[s] = 0;
+            pathCost[s] = 0;
+            pathCame[s] = -1;
+            pathSeen[s] = stamp;
             open.Push(s, Heuristic(start, goal));
             var expanded = 0;
+            var bestNode = s;
+            var bestDist = Heuristic(start, goal);
+            var reached = false;
             while (open.Count > 0 && expanded < maxNodes)
             {
                 var current = open.Pop();
-                if (current == t) break;
-                if (closed[current]) continue;
-                closed[current] = true;
+                if (current == t) { reached = true; break; }
+                if (pathClosed[current] == stamp) continue;
+                pathClosed[current] = stamp;
                 expanded++;
                 var cx = current % w;
                 var cy = current / w;
+                var toGoal = Heuristic(new Vector2Int(cx, cy), goal);
+                if (toGoal < bestDist) { bestDist = toGoal; bestNode = current; }
                 for (var dy = -1; dy <= 1; dy++)
                     for (var dx = -1; dx <= 1; dx++)
                     {
                         if (dx == 0 && dy == 0) continue;
                         var nx = cx + dx;
                         var ny = cy + dy;
-                        if (IsBlocked(nx, ny)) continue;
-                        if (dx != 0 && dy != 0 && (IsBlocked(cx + dx, cy) || IsBlocked(cx, cy + dy))) continue;
+                        if (IsBlocked(nx, ny, flying)) continue;
+                        if (dx != 0 && dy != 0 && (IsBlocked(cx + dx, cy, flying) || IsBlocked(cx, cy + dy, flying))) continue;
                         var n = ny * w + nx;
-                        if (closed[n]) continue;
-                        var cost = g[current] + (dx != 0 && dy != 0 ? 1.4142f : 1f) * (Road[n] ? .8f : 1f);
-                        if (cost >= g[n]) continue;
-                        g[n] = cost;
-                        came[n] = current;
+                        if (pathClosed[n] == stamp) continue;
+                        var cost = pathCost[current] + (dx != 0 && dy != 0 ? 1.4142f : 1f) * (!flying && Road[n] ? .8f : 1f);
+                        if (pathSeen[n] == stamp && cost >= pathCost[n]) continue;
+                        pathCost[n] = cost;
+                        pathCame[n] = current;
+                        pathSeen[n] = stamp;
                         open.Push(n, cost + Heuristic(new Vector2Int(nx, ny), goal));
                     }
             }
-            if (came[t] < 0) return result;
-            for (var node = t; node != s && node >= 0; node = came[node]) result.Add(new Vector2Int(node % w, node / w));
+            var target = reached ? t : (bestNode != s ? bestNode : -1);
+            if (target < 0) return result;
+            for (var node = target; node != s && node >= 0; node = pathCame[node]) result.Add(new Vector2Int(node % w, node / w));
             result.Reverse();
             return result;
         }

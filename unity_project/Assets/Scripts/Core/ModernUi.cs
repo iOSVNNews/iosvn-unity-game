@@ -318,6 +318,8 @@ namespace IOSVN.TuTien.Core
         public RectTransform target;
         public Vector2 size;
         public float margin = .97f;
+        /// <summary>1 = only ever shrink; above 1 the target also grows to use a roomy screen.</summary>
+        public float maxScale = 1f;
 
         protected override void OnEnable()
         {
@@ -332,7 +334,7 @@ namespace IOSVN.TuTien.Core
             if (target == null) return;
             var rect = ((RectTransform)transform).rect;
             if (rect.width <= 1f || rect.height <= 1f || size.x <= 0f || size.y <= 0f) return;
-            var scale = Mathf.Min(1f, rect.width * margin / size.x, rect.height * margin / size.y);
+            var scale = Mathf.Min(maxScale, rect.width * margin / size.x, rect.height * margin / size.y);
             target.localScale = new Vector3(scale, scale, 1f);
         }
     }

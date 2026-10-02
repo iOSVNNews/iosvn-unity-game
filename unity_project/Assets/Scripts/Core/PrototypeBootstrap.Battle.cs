@@ -143,6 +143,9 @@ namespace IOSVN.TuTien.Core
 
         private Image monsterHp, monsterHpTrail, playerHp, playerMp;
         private Text monsterHpText, playerHpText, playerMpText, logText, monsterName, movesText, warnLabel, comboText;
+        private double lastStamp;
+        private Vector2 lastFloat;
+        private float lastFloatTime = -9f;
         private RectTransform warnCircle;
         private Vector2 warnCenter;
         private bool warnActive;
@@ -315,8 +318,11 @@ namespace IOSVN.TuTien.Core
             playerMp = Bar(me, new Vector2(46, 24), new Vector2(-36, 54), new Color32(72, 140, 214, 255), out playerMpText, out _);
             logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 21, Cream, TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-560, -290), new Vector2(560, -192));
             logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
-            comboText = owner.BattleText(hud, "Combo", "", ModernUi.Display, 54, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
-                new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(40, 20), new Vector2(520, 110));
+            comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 50, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
+                new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(70, 20), new Vector2(620, 110));
+            // the pop scales from the left edge, so the number never leaves the screen
+            comboText.rectTransform.pivot = new Vector2(0, .5f);
+            comboText.rectTransform.anchoredPosition = new Vector2(70, 65);
             comboText.gameObject.AddComponent<Outline>().effectColor = new Color(.35f, .08f, 0, .9f);
             warnLabel = owner.BattleText(hud, "Warn", "", ModernUi.Bold, 36, new Color32(255, 120, 96, 255), TextAnchor.MiddleCenter,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-640, 150), new Vector2(640, 214));
@@ -474,6 +480,12 @@ namespace IOSVN.TuTien.Core
 
         private void Apply(J b)
         {
+            // A poll that left before the last action can be answered after it. Never step back in time:
+            // the bars would jump backwards and the same blow would be staged twice.
+            var stamp = b["now"].Num();
+            var sameFight = !battle.IsNull && battle["id"].Str() == b["id"].Str();
+            if (sameFight && stamp > 0 && stamp < lastStamp) return;
+            lastStamp = stamp;
             battle = b;
             serverOffset = b["now"].Num(DateTimeOffset.UtcNow.ToUnixTimeMilliseconds()) - DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
             var p = b["p"];
@@ -685,6 +697,7 @@ namespace IOSVN.TuTien.Core
         private void Float(Vector2 at, string text, Color color, int size = 34)
         {
             if (string.IsNullOrEmpty(text)) return;
+            at = BattleFx.FloatSpot(fxLayer, at, ref lastFloat, ref lastFloatTime);
             var label = owner.BattleText(fxLayer, "Float", text, ModernUi.Bold, size, color, TextAnchor.MiddleCenter,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), at - new Vector2(320, 34), at + new Vector2(320, 34));
             label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);

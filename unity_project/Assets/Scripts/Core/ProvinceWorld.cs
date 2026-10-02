@@ -34,10 +34,16 @@ namespace IOSVN.TuTien.Core
         public RectInt Range;              // wander area (tiles)
         public bool Roams;
         public float NextWander;
+        public int Hop = 7;                // tiles covered by one stroll; bosses stride much further
         public float TagHeight = 40f;      // map px above the feet
         public Action OnArrive;
         public bool Hidden;
+        public Image Shadow;
+        public float Lift;                 // map px above the ground (flying sword, mount)
     }
+
+    /// <summary>How the player crosses the province: on foot, on a flying sword or on a mount.</summary>
+    public enum TravelMode { Walk, Sword, Mount }
 
     /// <summary>
     /// The painted province map: camera that follows the player, pinch/scroll zoom, tap-to-move with
@@ -55,14 +61,21 @@ namespace IOSVN.TuTien.Core
         public RawImage Painting;
         public Image NightTint;
         public float Zoom = 3.2f;
-        public float MinZoom = 1.2f;
+        public float MinZoom = .85f;
         public float MaxZoom = 5.5f;
+        /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
+        public float WalkSpeed = 3.2f;
+        public TravelMode Travel { get; private set; }
+        /// <summary>In the air nothing on the ground is in the way: only the wall between provinces stops the traveller.</summary>
+        public bool Flying => Travel != TravelMode.Walk;
         public WorldActor Player;
         public readonly List<WorldActor> Actors = new List<WorldActor>();
         public Action<WorldPoi> OnPoiTap;
         public Action<WorldActor> OnActorTap;
         public Action<Vector2Int> OnGroundTap;
         public Action OnPlayerStep;
+        public Vector2 VirtualStick;
+        private Vector2Int lastStepTile = new Vector2Int(-999, -999);
 
         private Vector2 focus;              // camera focus in map-local pixels
         private bool following = true;
@@ -80,6 +93,16 @@ namespace IOSVN.TuTien.Core
         private float chaseRange;
         private Action chaseArrive;
         private float nextRepath;
+        private float lift, liftTarget;
+        private Image vehicle, vehicleGlow;
+        private Sprite[] vehicleFrames;
+        private Color travelColor = Color.white;
+        private float nextTrail;
+        private Vector2 lastTrailPos;
+        private readonly List<(Image image, float born, float life)> trail = new List<(Image, float, float)>();
+        private readonly List<(WorldActor actor, Vector2 basePos)> tagScratch = new List<(WorldActor, Vector2)>();
+        private readonly List<Vector2> tagResolved = new List<Vector2>();
+        private static Sprite swordSprite;
 
         public static ProvinceWorld Build(Transform parent, WorldMapData data, Texture2D painting)
         {
@@ -170,6 +193,7 @@ namespace IOSVN.TuTien.Core
             var shadow = InkUi.Simple(actor.Rect, "Shadow", InkUi.Shadow, Color.white, new Vector2(foot, foot * .36f));
             shadow.rectTransform.anchorMin = shadow.rectTransform.anchorMax = new Vector2(.5f, 0f);
             shadow.rectTransform.anchoredPosition = new Vector2(0, 2);
+            actor.Shadow = shadow;
             if (aura)
             {
                 actor.Aura = InkUi.Simple(actor.Rect, "Aura", InkUi.Glow, new Color(1f, .25f, .2f, .55f), size * 1.6f);
@@ -187,38 +211,85 @@ namespace IOSVN.TuTien.Core
             {
                 actor.Tag = Child("Tag_" + id, LabelLayer);
                 actor.Tag.sizeDelta = new Vector2(10, 10);
-                var text = new GameObject("Name", typeof(RectTransform), typeof(Text), typeof(Outline)).GetComponent<Text>();
-                text.transform.SetParent(actor.Tag, false);
-                text.rectTransform.sizeDelta = new Vector2(420, 40);
-                text.rectTransform.anchoredPosition = new Vector2(0, 14);
+
+                var pill = new GameObject("Pill", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                pill.transform.SetParent(actor.Tag, false);
+                pill.raycastTarget = false;
+
+                Color32 bgCol;
+                Color32 borderCol;
+                int fontSize;
+                if (kind == "boss")
+                {
+                    bgCol = new Color32(36, 12, 16, 225);
+                    borderCol = new Color32(245, 76, 60, 235);
+                    fontSize = 21;
+                }
+                else if (kind == "player")
+                {
+                    bgCol = new Color32(26, 22, 16, 220);
+                    borderCol = new Color32(240, 204, 110, 230);
+                    fontSize = 20;
+                }
+                else if (kind == "npc")
+                {
+                    bgCol = new Color32(14, 20, 32, 215);
+                    borderCol = new Color32(80, 165, 245, 220);
+                    fontSize = 19;
+                }
+                else
+                {
+                    bgCol = new Color32(20, 16, 14, 200);
+                    borderCol = new Color32(175, 125, 75, 180);
+                    fontSize = 18;
+                }
+
+                ModernUi.Fill(pill, 14f);
+                pill.color = bgCol;
+
+                var border = new GameObject("Border", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                border.transform.SetParent(pill.transform, false);
+                Stretch(border.rectTransform);
+                ModernUi.Ring(border, 14f, 1.2f);
+                border.color = borderCol;
+                border.raycastTarget = false;
+
+                var text = new GameObject("Name", typeof(RectTransform), typeof(Text)).GetComponent<Text>();
+                text.transform.SetParent(pill.transform, false);
                 text.font = ModernUi.SemiBold;
-                text.fontSize = kind == "boss" ? 26 : 22;
+                text.fontSize = fontSize;
                 text.color = tagColor;
                 text.alignment = TextAnchor.MiddleCenter;
                 text.horizontalOverflow = HorizontalWrapMode.Overflow;
                 text.raycastTarget = false;
                 text.text = name;
-                var outline = text.GetComponent<Outline>();
-                outline.effectColor = new Color(0, 0, 0, .8f);
-                outline.effectDistance = new Vector2(1.6f, -1.6f);
+
+                var textWidth = Mathf.Max(64f, name.Length * (fontSize * 0.56f) + 22f);
+                var pillHeight = (kind == "boss" || kind == "monster") ? 30f : 26f;
+                pill.rectTransform.sizeDelta = new Vector2(textWidth, pillHeight);
+                pill.rectTransform.anchoredPosition = new Vector2(0, 14);
+
                 actor.TagText = text;
                 if (kind == "boss" || kind == "monster")
                 {
                     var track = new GameObject("Hp", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
                     track.transform.SetParent(actor.Tag, false);
-                    track.rectTransform.sizeDelta = new Vector2(kind == "boss" ? 120 : 76, 8);
-                    track.rectTransform.anchoredPosition = new Vector2(0, -6);
-                    track.color = new Color(0, 0, 0, .6f);
+                    track.rectTransform.sizeDelta = new Vector2(Mathf.Min(textWidth - 8f, kind == "boss" ? 120f : 76f), 6f);
+                    track.rectTransform.anchoredPosition = new Vector2(0, -6f);
+                    track.color = new Color(0, 0, 0, .75f);
                     track.raycastTarget = false;
+                    ModernUi.Fill(track, 3f);
+
                     actor.HpFill = new GameObject("Fill", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
                     actor.HpFill.transform.SetParent(track.transform, false);
                     var fr = actor.HpFill.rectTransform;
                     fr.anchorMin = Vector2.zero; fr.anchorMax = Vector2.one; fr.offsetMin = new Vector2(1, 1); fr.offsetMax = new Vector2(-1, -1);
                     actor.HpFill.sprite = InkUi.White;
-                    actor.HpFill.color = kind == "boss" ? new Color32(226, 60, 48, 255) : new Color32(214, 120, 70, 255);
+                    actor.HpFill.color = kind == "boss" ? new Color32(236, 68, 54, 255) : new Color32(224, 130, 70, 255);
                     actor.HpFill.type = Image.Type.Filled;
                     actor.HpFill.fillMethod = Image.FillMethod.Horizontal;
                     actor.HpFill.raycastTarget = false;
+                    ModernUi.Fill(actor.HpFill, 2f);
                 }
             }
             Actors.Add(actor);
@@ -270,7 +341,209 @@ namespace IOSVN.TuTien.Core
         private void Place(WorldActor actor)
         {
             var local = TileToLocal(actor.Pos);
-            actor.Rect.anchoredPosition = new Vector2(local.x, local.y - T * .45f);
+            actor.Rect.anchoredPosition = new Vector2(local.x, local.y - T * .45f + actor.Lift);
+            if (actor.Shadow != null && (actor.Lift != 0f || actor == Player))
+            {
+                // the shadow stays on the ground and thins out as the rider climbs
+                var height = Mathf.Max(0f, actor.Lift);
+                actor.Shadow.rectTransform.anchoredPosition = new Vector2(0, 2 - actor.Lift);
+                var k = 1f / (1f + height * .035f);
+                actor.Shadow.rectTransform.localScale = new Vector3(k, k, 1f);
+                actor.Shadow.color = new Color(1f, 1f, 1f, Mathf.Lerp(1f, .5f, Mathf.Clamp01(height / 24f)));
+            }
+        }
+
+        // ------------------------------------------------------------------ flying sword & mount
+
+        /// <summary>
+        /// Switches how the player travels. A sword or a mount lifts the figure off the ground, multiplies the
+        /// speed and lets it cross mountains, forest and water; the wall between provinces stays closed.
+        /// </summary>
+        public void SetTravel(TravelMode mode, Sprite[] mountFrames, Color color, float speedFactor)
+        {
+            if (Player == null) return;
+            var changed = Travel != mode;
+            Travel = mode;
+            travelColor = color;
+            vehicleFrames = mode == TravelMode.Mount ? mountFrames : null;
+            Player.Speed = WalkSpeed * (mode == TravelMode.Walk ? 1f : Mathf.Max(1.2f, speedFactor));
+            var tall = Player.Rect.sizeDelta.y;
+            liftTarget = mode == TravelMode.Sword ? tall * .34f : mode == TravelMode.Mount ? tall * .86f : 0f;
+            Player.Path = null;
+            Player.OnArrive = null;
+            chaseTarget = null;
+            BuildVehicle();
+            if (changed) TravelBurst();
+        }
+
+        /// <summary>Editor captures have no Update loop: put the rider at full height with a trail behind.</summary>
+        public void SnapTravel(Vector2 direction)
+        {
+            if (Player == null) return;
+            lift = liftTarget;
+            Player.Lift = lift;
+            Player.FaceRight = direction.x > 0;
+            UpdateVehicle(0f);
+            Place(Player);
+            if (!Flying) return;
+            var step = direction.normalized * -.55f;
+            for (var i = 1; i <= 7; i++) SpawnTrail(Player.Pos + step * i, direction, 1f - i / 8f);
+        }
+
+        /// <summary>The nearest tile a walker can stand on, for coming down from the air.</summary>
+        public bool LandingSpot(out Vector2Int tile)
+        {
+            tile = Player != null ? Data.NearestOpen(TileOf(Player.Pos), 30) : default;
+            return Player != null && !Data.IsBlocked(tile.x, tile.y);
+        }
+
+        private void BuildVehicle()
+        {
+            if (vehicle != null) Destroy(vehicle.gameObject);
+            if (vehicleGlow != null) Destroy(vehicleGlow.gameObject);
+            vehicle = null;
+            vehicleGlow = null;
+            if (!Flying || Player?.Rect == null) return;
+            var size = Player.Rect.sizeDelta;
+            var bodyIndex = Player.Body.transform.GetSiblingIndex();
+            vehicleGlow = InkUi.Simple(Player.Rect, "TravelGlow", InkUi.Glow, new Color(travelColor.r, travelColor.g, travelColor.b, .55f),
+                Travel == TravelMode.Sword ? new Vector2(size.y * 1.5f, size.y * .42f) : new Vector2(size.y * 1.7f, size.y * .7f));
+            vehicleGlow.rectTransform.anchorMin = vehicleGlow.rectTransform.anchorMax = new Vector2(.5f, 0f);
+            vehicleGlow.rectTransform.anchoredPosition = new Vector2(0, Travel == TravelMode.Sword ? size.y * .04f : -size.y * .2f);
+            vehicleGlow.transform.SetSiblingIndex(bodyIndex);
+            vehicle = new GameObject("Vehicle", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            vehicle.transform.SetParent(Player.Rect, false);
+            vehicle.raycastTarget = false;
+            vehicle.preserveAspect = true;
+            var rect = vehicle.rectTransform;
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f);
+            rect.pivot = new Vector2(.5f, 0f);
+            if (Travel == TravelMode.Sword)
+            {
+                vehicle.sprite = SwordSprite();
+                vehicle.color = Color.Lerp(Color.white, travelColor, .35f);
+                rect.sizeDelta = new Vector2(size.y * 1.25f, size.y * .3f);
+                rect.anchoredPosition = new Vector2(0, -size.y * .1f);
+            }
+            else
+            {
+                vehicle.sprite = vehicleFrames != null && vehicleFrames.Length > 0 ? vehicleFrames[0] : null;
+                vehicle.color = vehicle.sprite != null ? Color.white : new Color(1, 1, 1, 0);
+                rect.sizeDelta = new Vector2(size.y * 1.55f, size.y * 1.55f);
+                rect.anchoredPosition = new Vector2(0, -size.y * .78f);
+            }
+            // the blade passes in front of the feet; a mount is drawn behind the rider, who stands on its back
+            if (Travel == TravelMode.Sword) vehicle.transform.SetSiblingIndex(Player.Body.transform.GetSiblingIndex() + 1);
+            else vehicle.transform.SetSiblingIndex(vehicleGlow.transform.GetSiblingIndex() + 1);
+        }
+
+        private void UpdateVehicle(float dt)
+        {
+            if (Player == null) return;
+            lift = Mathf.MoveTowards(lift, liftTarget, dt * 46f);
+            var bob = lift > .5f ? Mathf.Sin(Time.time * 3.1f) * 1.1f * Mathf.Clamp01(lift / 6f) : 0f;
+            Player.Lift = lift + bob;
+            if (vehicle == null) return;
+            if (Travel == TravelMode.Mount && vehicleFrames != null && vehicleFrames.Length > 0)
+                vehicle.sprite = vehicleFrames[(int)(Time.time * (Player.Moving ? 9f : 5f)) % vehicleFrames.Length];
+            // the sword sheet points left like the hero sheets; monster art (mounts) faces right
+            var face = Travel == TravelMode.Mount ? (Player.FaceRight ? 1f : -1f) : (Player.FaceRight ? -1f : 1f);
+            vehicle.rectTransform.localScale = new Vector3(face, 1f, 1f);
+            if (vehicleGlow != null)
+            {
+                var c = vehicleGlow.color;
+                c.a = .42f + Mathf.Sin(Time.time * 5f) * .12f;
+                vehicleGlow.color = c;
+            }
+        }
+
+        private void TravelBurst()
+        {
+            if (Player == null || FxLayer == null) return;
+            var local = TileToLocal(Player.Pos);
+            for (var i = 0; i < 2; i++)
+            {
+                var ring = InkUi.Simple(FxLayer, "TravelRing", InkUi.Ring, travelColor, new Vector2(T * 2f, T * 1f));
+                ring.rectTransform.anchorMin = ring.rectTransform.anchorMax = Vector2.zero;
+                ring.rectTransform.anchoredPosition = new Vector2(local.x, local.y - T * .45f);
+                ripples.Add((ring, Time.time - i * .18f, 3.2f + i * 1.6f));
+            }
+        }
+
+        private void SpawnTrail(Vector2 tile, Vector2 direction, float strength)
+        {
+            if (FxLayer == null) return;
+            var sword = Travel == TravelMode.Sword;
+            var tall = Player.Rect.sizeDelta.y;
+            var size = sword ? new Vector2(tall * .95f, tall * .13f) : new Vector2(tall * .6f, tall * .34f);
+            var color = sword ? new Color(travelColor.r, travelColor.g, travelColor.b, .7f * strength) : new Color(1f, 1f, 1f, .42f * strength);
+            var image = InkUi.Simple(FxLayer, "Trail", sword ? InkUi.Glow : InkUi.Cloud, color, size);
+            image.rectTransform.anchorMin = image.rectTransform.anchorMax = Vector2.zero;
+            var local = TileToLocal(tile);
+            image.rectTransform.anchoredPosition = new Vector2(local.x, local.y - T * .45f + lift + tall * (sword ? .06f : .2f));
+            if (sword && direction.sqrMagnitude > .0001f)
+                image.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(-direction.y, direction.x) * Mathf.Rad2Deg);
+            trail.Add((image, Time.time, sword ? .42f : .7f));
+        }
+
+        private void UpdateTrail(float dt)
+        {
+            if (Flying && Player != null && Player.Moving && Time.time >= nextTrail)
+            {
+                nextTrail = Time.time + (Travel == TravelMode.Sword ? .035f : .07f);
+                var direction = Player.Pos - lastTrailPos;
+                if (direction.sqrMagnitude > .0004f) SpawnTrail(Player.Pos, direction, 1f);
+            }
+            if (Player != null) lastTrailPos = Player.Pos;
+            for (var i = trail.Count - 1; i >= 0; i--)
+            {
+                var (image, born, life) = trail[i];
+                var t = (Time.time - born) / life;
+                if (image == null || t >= 1f)
+                {
+                    if (image != null) Destroy(image.gameObject);
+                    trail.RemoveAt(i);
+                    continue;
+                }
+                var c = image.color;
+                c.a *= 1f - Mathf.Clamp01(dt / Mathf.Max(.01f, life * (1f - t)));
+                image.color = c;
+                image.rectTransform.localScale = new Vector3(1f + t * .5f, 1f - t * .45f, 1f);
+            }
+        }
+
+        /// <summary>A slim blade pointing left, drawn once: the flying sword under the rider's feet.</summary>
+        private static Sprite SwordSprite()
+        {
+            if (swordSprite != null) return swordSprite;
+            const int w = 96, h = 24;
+            var pixels = new Color32[w * h];
+            var edge = new Color32(250, 252, 255, 255);
+            var steel = new Color32(196, 212, 232, 255);
+            var shade = new Color32(120, 140, 172, 255);
+            var gold = new Color32(232, 190, 96, 255);
+            var dark = new Color32(60, 44, 40, 255);
+            for (var x = 0; x < w; x++)
+            {
+                // blade: x 2..66 (tip at the left), guard 67..71, grip 72..90, pommel 91..94
+                if (x >= 2 && x <= 66)
+                {
+                    var half = x < 16 ? Mathf.Max(0, (x - 2) / 4) : 3;
+                    for (var dy = -half; dy <= half; dy++)
+                        pixels[(12 + dy) * w + x] = dy == half || dy == -half ? shade : dy == 0 ? edge : steel;
+                }
+                else if (x >= 67 && x <= 71)
+                    for (var dy = -7; dy <= 7; dy++) pixels[(12 + dy) * w + x] = Mathf.Abs(dy) > 5 || x == 67 || x == 71 ? dark : gold;
+                else if (x >= 72 && x <= 90)
+                    for (var dy = -2; dy <= 2; dy++) pixels[(12 + dy) * w + x] = (x / 3) % 2 == 0 ? dark : gold;
+                else if (x >= 91 && x <= 94)
+                    for (var dy = -3; dy <= 3; dy++) pixels[(12 + dy) * w + x] = gold;
+            }
+            var texture = new Texture2D(w, h, TextureFormat.RGBA32, false) { name = "FlyingSword", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            texture.SetPixels32(pixels);
+            texture.Apply(false, true);
+            swordSprite = Sprite.Create(texture, new Rect(0, 0, w, h), new Vector2(.5f, .5f), 16f);
+            return swordSprite;
         }
 
         // ------------------------------------------------------------------ movement
@@ -284,9 +557,9 @@ namespace IOSVN.TuTien.Core
         private bool WalkPlayer(Vector2Int goal, Action onArrive)
         {
             if (Player == null) return false;
-            var start = Data.NearestOpen(TileOf(Player.Pos), 3);
-            goal = Data.NearestOpen(goal, 6);
-            var path = Data.FindPath(start, goal);
+            var start = Data.NearestOpen(TileOf(Player.Pos), 8, Flying);
+            goal = Data.NearestOpen(goal, 16, Flying);
+            var path = Data.FindPath(start, goal, 60000, Flying);
             if (path.Count == 0)
             {
                 if (start == goal) { onArrive?.Invoke(); return true; }
@@ -327,9 +600,9 @@ namespace IOSVN.TuTien.Core
             if (actor == Player) { focus = TileToLocal(tile); ApplyCamera(); }
         }
 
-        private void StepActor(WorldActor actor, float dt)
+        private void StepActor(WorldActor actor, float dt, bool manualMoving = false)
         {
-            actor.Moving = false;
+            if (!manualMoving) actor.Moving = false;
             if (actor.Path != null && actor.PathIndex < actor.Path.Count)
             {
                 var next = (Vector2)actor.Path[actor.PathIndex];
@@ -361,7 +634,7 @@ namespace IOSVN.TuTien.Core
             actor.AnimTime += dt;
             if (actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
             {
-                actor.Body.sprite = actor.Frames[HeroSprites.FrameIndex(actor.Moving, actor.AnimTime)];
+                actor.Body.sprite = actor.Frames[HeroSprites.FrameIndex(actor.Moving && !(actor == Player && Flying), actor.AnimTime)];
                 actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight ? -1f : 1f, 1f, 1f);
                 if (actor.AuraFx != null) actor.AuraFx.Flip = actor.FaceRight;
             }
@@ -380,13 +653,18 @@ namespace IOSVN.TuTien.Core
         {
             if (!actor.Roams || actor.Path != null || Time.time < actor.NextWander) return;
             actor.NextWander = Time.time + UnityEngine.Random.Range(1.8f, 5f);
+            var here = TileOf(actor.Pos);
+            var hop = Mathf.Max(3, actor.Hop);
             for (var attempt = 0; attempt < 6; attempt++)
             {
+                // one stroll at a time inside the roaming range: a wide range is crossed over many strolls
                 var r = actor.Range;
-                var goal = new Vector2Int(UnityEngine.Random.Range(r.xMin, r.xMax), UnityEngine.Random.Range(r.yMin, r.yMax));
-                if (Data.IsBlocked(goal.x, goal.y)) continue;
-                var path = Data.FindPath(TileOf(actor.Pos), goal, 2500);
-                if (path.Count == 0 || path.Count > 40) continue;
+                var goal = new Vector2Int(
+                    Mathf.Clamp(here.x + UnityEngine.Random.Range(-hop, hop + 1), r.xMin, Mathf.Max(r.xMin, r.xMax - 1)),
+                    Mathf.Clamp(here.y + UnityEngine.Random.Range(-hop, hop + 1), r.yMin, Mathf.Max(r.yMin, r.yMax - 1)));
+                if (goal == here || Data.IsBlocked(goal.x, goal.y)) continue;
+                var path = Data.FindPath(here, goal, hop > 12 ? 5000 : 2500);
+                if (path.Count == 0 || path.Count > hop * 3) continue;
                 actor.Path = path;
                 actor.PathIndex = 0;
                 return;
@@ -557,6 +835,79 @@ namespace IOSVN.TuTien.Core
         {
             var dt = Mathf.Min(Time.deltaTime, .05f);
             HandlePinch();
+
+            // Direct keyboard (WASD / Arrow Keys) & virtual joystick movement
+            float moveX = 0f;
+            float moveY = 0f;
+            if (Input.GetKey(KeyCode.A) || Input.GetKey(KeyCode.LeftArrow)) moveX -= 1f;
+            if (Input.GetKey(KeyCode.D) || Input.GetKey(KeyCode.RightArrow)) moveX += 1f;
+            if (Input.GetKey(KeyCode.W) || Input.GetKey(KeyCode.UpArrow)) moveY += 1f;
+            if (Input.GetKey(KeyCode.S) || Input.GetKey(KeyCode.DownArrow)) moveY -= 1f;
+            if (VirtualStick.sqrMagnitude > 0.01f)
+            {
+                moveX += VirtualStick.x;
+                moveY += VirtualStick.y;
+            }
+
+            bool manualMoving = (Mathf.Abs(moveX) > 0.05f || Mathf.Abs(moveY) > 0.05f) && Player != null;
+            if (manualMoving)
+            {
+                chaseTarget = null;
+                Player.Path = null;
+                var inputDir = new Vector2(moveX, -moveY).normalized;
+                var step = Player.Speed * dt;
+                var desired = Player.Pos + inputDir * step;
+
+                // 8-way directional sliding against collision grid
+                var targetTile = new Vector2Int(Mathf.RoundToInt(desired.x), Mathf.RoundToInt(desired.y));
+                if (!Data.IsBlocked(targetTile.x, targetTile.y, Flying))
+                {
+                    Player.Pos = desired;
+                }
+                else
+                {
+                    // Try slide X
+                    var slideX = new Vector2(desired.x, Player.Pos.y);
+                    var tileX = new Vector2Int(Mathf.RoundToInt(slideX.x), Mathf.RoundToInt(slideX.y));
+                    if (!Data.IsBlocked(tileX.x, tileX.y, Flying))
+                    {
+                        Player.Pos = slideX;
+                    }
+                    else
+                    {
+                        // Try slide Y
+                        var slideY = new Vector2(Player.Pos.x, desired.y);
+                        var tileY = new Vector2Int(Mathf.RoundToInt(slideY.x), Mathf.RoundToInt(slideY.y));
+                        if (!Data.IsBlocked(tileY.x, tileY.y, Flying))
+                        {
+                            Player.Pos = slideY;
+                        }
+                    }
+                }
+
+                Player.Moving = true;
+                if (Mathf.Abs(inputDir.x) > Mathf.Abs(inputDir.y) * 0.75f)
+                {
+                    Player.Facing = inputDir.x < 0 ? 1 : 2;
+                    Player.FaceRight = inputDir.x > 0;
+                }
+                else
+                {
+                    Player.Facing = inputDir.y < 0 ? 3 : 0;
+                }
+
+                var curTile = TileOf(Player.Pos);
+                if (curTile != lastStepTile)
+                {
+                    lastStepTile = curTile;
+                    OnPlayerStep?.Invoke();
+                }
+
+                following = true;
+                Place(Player);
+            }
+
+            UpdateVehicle(dt);
             if (chaseTarget != null && Player != null)
             {
                 if (Vector2.Distance(Player.Pos, chaseTarget.Pos) <= chaseRange)
@@ -579,7 +930,7 @@ namespace IOSVN.TuTien.Core
                 if (this == null || !isActiveAndEnabled) return;
                 if (actor.Rect == null) continue;
                 if (actor != Player) Wander(actor);
-                StepActor(actor, dt);
+                StepActor(actor, dt, actor == Player && manualMoving);
             }
             if (this == null || !isActiveAndEnabled) return;
             if (Player != null && (following || Time.time - lastManualInput > 4f))
@@ -589,6 +940,7 @@ namespace IOSVN.TuTien.Core
                 focus = Vector2.Lerp(focus, target, 1f - Mathf.Exp(-dt * 6f));
             }
             UpdatePressure(dt);
+            UpdateTrail(dt);
             ApplyCamera();
             foreach (var (rect, speed) in clouds)
             {
@@ -612,13 +964,31 @@ namespace IOSVN.TuTien.Core
             Actors.RemoveAll(a => a.Rect == null);
             Actors.Sort((a, b) => a.Pos.y.CompareTo(b.Pos.y));
             for (var i = 0; i < Actors.Count; i++) Actors[i].Rect.SetSiblingIndex(i);
+
+            // name tags follow their actor; tags that would overlap are stacked upwards
+            tagScratch.Clear();
+            tagResolved.Clear();
             foreach (var actor in Actors)
             {
                 if (actor.Tag == null) continue;
-                var local = TileToLocal(actor.Pos);
-                actor.Tag.anchoredPosition = LocalToViewport(new Vector2(local.x, local.y - T * .45f + actor.TagHeight));
                 actor.Tag.gameObject.SetActive(!actor.Hidden);
+                if (actor.Hidden) continue;
+                var local = TileToLocal(actor.Pos);
+                tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y - T * .45f + actor.TagHeight + actor.Lift))));
             }
+            tagScratch.Sort((a, b) => a.basePos.y.CompareTo(b.basePos.y));
+            for (var i = 0; i < tagScratch.Count; i++)
+            {
+                var cur = tagScratch[i].basePos;
+                for (var j = 0; j < i; j++)
+                {
+                    var prev = tagResolved[j];
+                    if (Mathf.Abs(cur.x - prev.x) < 130f && Mathf.Abs(cur.y - prev.y) < 32f) cur.y = prev.y + 34f;
+                }
+                tagResolved.Add(cur);
+                tagScratch[i].actor.Tag.anchoredPosition = cur;
+            }
+
             foreach (var (rect, local) in labels)
                 if (rect != null) rect.anchoredPosition = LocalToViewport(local);
         }
@@ -656,7 +1026,7 @@ namespace IOSVN.TuTien.Core
         public void OnDrag(PointerEventData eventData)
         {
             if (Input.touchCount >= 2) return;
-            if (!dragged && Vector2.Distance(eventData.position, downPosition) < 18f) return;
+            if (!dragged && Vector2.Distance(eventData.position, downPosition) < 28f) return;
             dragged = true;
             World.Pan(eventData.delta);
         }

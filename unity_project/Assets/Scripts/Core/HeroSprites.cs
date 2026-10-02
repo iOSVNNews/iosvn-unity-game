@@ -70,8 +70,24 @@ namespace IOSVN.TuTien.Core
             }
             look.Set("hc", AvatarComposer.HairColors[rng.Next(6)]);
             look.Set("ec", AvatarComposer.EyeColors[rng.Next(AvatarComposer.EyeColors.Length)]);
-            look.Set("sk", AvatarComposer.SkinColors[rng.Next(5)]);
-            foreach (var k in new[] { "tc", "oc", "pc", "sc", "bc", "hac", "ac" }) look.Set(k, AvatarComposer.ClothColors[rng.Next(AvatarComposer.ClothColors.Length)]);
+            // Harmonious Xianxia color themes
+            var palettes = new[]
+            {
+                new { tc = "#e8e4dc", oc = "#2f5f63", pc = "#20242a", sc = "#2a2a30", bc = "#1e2226", hac = "#ffd36a", ac = "#ffd36a" },
+                new { tc = "#f4eef6", oc = "#b0c8ea", pc = "#e8e2ea", sc = "#e0d8e0", bc = "#8a3a5a", hac = "#ffd36a", ac = "#ffd36a" },
+                new { tc = "#f0e8f4", oc = "#5a4a8a", pc = "#302a3a", sc = "#282230", bc = "#4a3a6a", hac = "#e0d8f0", ac = "#ffd36a" },
+                new { tc = "#282428", oc = "#20242a", pc = "#1a1c20", sc = "#181a1c", bc = "#7a2a3a", hac = "#c8a050", ac = "#ffd36a" },
+                new { tc = "#f2ece6", oc = "#a03030", pc = "#2a2022", sc = "#221a1c", bc = "#c8a050", hac = "#ffd36a", ac = "#ffd36a" },
+                new { tc = "#e8f0f4", oc = "#3060a0", pc = "#202838", sc = "#1a2030", bc = "#2f5f63", hac = "#ffd36a", ac = "#ffd36a" }
+            };
+            var pal = palettes[rng.Next(palettes.Length)];
+            look.Set("tc", pal.tc);
+            look.Set("oc", pal.oc);
+            look.Set("pc", pal.pc);
+            look.Set("sc", pal.sc);
+            look.Set("bc", pal.bc);
+            look.Set("hac", pal.hac);
+            look.Set("ac", pal.ac);
             look.Set("auc", AvatarComposer.AuraColors[rng.Next(AvatarComposer.AuraColors.Length)]);
             return look;
         }

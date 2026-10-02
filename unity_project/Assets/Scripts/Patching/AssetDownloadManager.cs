@@ -21,8 +21,9 @@ namespace QuyCocBatHoang.Patching
 
         public static AssetDownloadManager Instance { get; private set; }
 
-        [Header("CDN Configuration")]
+        [Header("Update Configuration")]
         [SerializeField] private string cdnBaseUrl = "";
+        [SerializeField] private string apiBaseUrl = "";
         [SerializeField] private string versionManifestFile = "version_manifest.json";
 
         [Header("UI Events")]
@@ -30,11 +31,31 @@ namespace QuyCocBatHoang.Patching
         public UnityEvent<string> OnStatusMessage = new UnityEvent<string>();
         public UnityEvent OnDownloadComplete = new UnityEvent();
         public UnityEvent<string> OnDownloadFailed = new UnityEvent<string>();
+        public UnityEvent<MajorUpdateInfo> OnMajorUpdateRequired = new UnityEvent<MajorUpdateInfo>();
+
+        [Serializable]
+        public sealed class MajorUpdateInfo
+        {
+            public string appVersion;
+            public string minAppVersion;
+            public bool isMajorUpdate;
+            public string updateTitle;
+            public string updateNotes;
+            public string packageUrl;
+            public bool forceUpdate;
+        }
 
         [Serializable]
         public sealed class AssetManifest
         {
             public int version;
+            public string appVersion;
+            public string minAppVersion;
+            public bool isMajorUpdate;
+            public string updateTitle;
+            public string updateNotes;
+            public string packageUrl;
+            public bool forceUpdate;
             public long totalBytes;
             public List<BundleInfo> bundles = new List<BundleInfo>();
         }
@@ -75,9 +96,10 @@ namespace QuyCocBatHoang.Patching
             loadedBundles.Clear();
         }
 
-        public void Configure(string assetCdnBaseUrl)
+        public void Configure(string assetCdnBaseUrl, string gameApiBaseUrl = null)
         {
             cdnBaseUrl = string.IsNullOrWhiteSpace(assetCdnBaseUrl) ? "" : assetCdnBaseUrl.Trim().TrimEnd('/') + "/";
+            if (!string.IsNullOrWhiteSpace(gameApiBaseUrl)) apiBaseUrl = gameApiBaseUrl.Trim().TrimEnd('/');
         }
 
         public void StartPatchCheck(Action<bool, string> finished = null)
@@ -91,49 +113,100 @@ namespace QuyCocBatHoang.Patching
             StartCoroutine(CheckVersionAndDownloadRoutine(finished));
         }
 
+        private static bool IsVersionOlder(string current, string required)
+        {
+            if (string.IsNullOrEmpty(current) || string.IsNullOrEmpty(required)) return false;
+            try
+            {
+                var vCur = new Version(current.Trim().TrimStart('v', 'V'));
+                var vReq = new Version(required.Trim().TrimStart('v', 'V'));
+                return vCur < vReq;
+            }
+            catch { return false; }
+        }
+
         private IEnumerator CheckVersionAndDownloadRoutine(Action<bool, string> finished)
         {
-            if (string.IsNullOrWhiteSpace(cdnBaseUrl))
+            AssetManifest manifest = null;
+            Uri cdnUri = null;
+
+            // 1. Check API endpoint if configured
+            if (!string.IsNullOrWhiteSpace(apiBaseUrl))
             {
-                const string noCdnMessage = "Máy chủ tài nguyên chưa được cấu hình; tiếp tục với nội dung trong bản cài.";
-                OnStatusMessage.Invoke(noCdnMessage);
+                OnStatusMessage.Invoke("Đang kiểm tra phiên bản từ máy chủ...");
+                using (var apiReq = UnityWebRequest.Get(apiBaseUrl + "/version?t=" + DateTime.UtcNow.Ticks))
+                {
+                    apiReq.timeout = 10;
+                    yield return apiReq.SendWebRequest();
+                    if (apiReq.result == UnityWebRequest.Result.Success)
+                    {
+                        try { manifest = JsonUtility.FromJson<AssetManifest>(apiReq.downloadHandler.text); }
+                        catch { /* fallback to CDN */ }
+                    }
+                }
+            }
+
+            // 2. Check CDN if manifest not loaded yet
+            if (manifest == null && !string.IsNullOrWhiteSpace(cdnBaseUrl) && Uri.TryCreate(cdnBaseUrl, UriKind.Absolute, out cdnUri))
+            {
+                OnStatusMessage.Invoke("Đang kiểm tra phiên bản tài nguyên...");
+                var manifestUrl = BuildUrl(cdnUri, versionManifestFile) + "?t=" + DateTime.UtcNow.Ticks;
+                using (var request = UnityWebRequest.Get(manifestUrl))
+                {
+                    request.timeout = 15;
+                    yield return request.SendWebRequest();
+                    if (request.result == UnityWebRequest.Result.Success)
+                    {
+                        try { manifest = JsonUtility.FromJson<AssetManifest>(request.downloadHandler.text); }
+                        catch { /* invalid manifest */ }
+                    }
+                }
+            }
+
+            if (manifest == null)
+            {
+                const string fallbackMsg = "Tiếp tục với nội dung trong bản cài.";
+                OnStatusMessage.Invoke(fallbackMsg);
                 OnDownloadProgress.Invoke(1f, "Bản thử nghiệm");
                 OnDownloadComplete.Invoke();
-                finished?.Invoke(true, noCdnMessage);
+                finished?.Invoke(true, fallbackMsg);
                 yield break;
             }
 
-            if (!Uri.TryCreate(cdnBaseUrl, UriKind.Absolute, out var cdnUri) || cdnUri.Scheme != Uri.UriSchemeHttps)
+            // 3. Check Major update (bản cập nhật lớn / tệp tin mới)
+            var currentAppVer = Application.version;
+            var isMajor = manifest.isMajorUpdate || (!string.IsNullOrEmpty(manifest.minAppVersion) && IsVersionOlder(currentAppVer, manifest.minAppVersion));
+            if (isMajor)
             {
-                const string invalidUrlMessage = "Địa chỉ máy chủ tài nguyên phải dùng HTTPS.";
-                OnDownloadFailed.Invoke(invalidUrlMessage);
-                finished?.Invoke(false, invalidUrlMessage);
-                yield break;
+                var majorInfo = new MajorUpdateInfo
+                {
+                    appVersion = string.IsNullOrEmpty(manifest.appVersion) ? "Mới nhất" : manifest.appVersion,
+                    minAppVersion = manifest.minAppVersion,
+                    isMajorUpdate = true,
+                    updateTitle = string.IsNullOrEmpty(manifest.updateTitle) ? "Phát hiện bản cập nhật mới!" : manifest.updateTitle,
+                    updateNotes = string.IsNullOrEmpty(manifest.updateNotes) ? "Vui lòng tải tệp cài đặt mới để tiếp tục tu tiên." : manifest.updateNotes,
+                    packageUrl = string.IsNullOrEmpty(manifest.packageUrl) ? "https://tutien.iosvn.com.vn/download/TuTienGioi.ipa" : manifest.packageUrl,
+                    forceUpdate = manifest.forceUpdate
+                };
+
+                OnMajorUpdateRequired.Invoke(majorInfo);
+                if (majorInfo.forceUpdate)
+                {
+                    OnStatusMessage.Invoke($"Yêu cầu cập nhật bản cài {majorInfo.appVersion}!");
+                    finished?.Invoke(false, "Cần cập nhật bản cài mới: " + majorInfo.appVersion);
+                    yield break;
+                }
             }
 
-            OnStatusMessage.Invoke("Đang kiểm tra phiên bản tài nguyên...");
-            AssetManifest manifest;
-            var manifestUrl = BuildUrl(cdnUri, versionManifestFile) + "?t=" + DateTime.UtcNow.Ticks;
-            using (var request = UnityWebRequest.Get(manifestUrl))
+            // 4. Minor update (update nhỏ / auto patch bundles)
+            if (manifest.bundles == null || manifest.bundles.Count == 0)
             {
-                request.timeout = 15;
-                yield return request.SendWebRequest();
-                if (request.result != UnityWebRequest.Result.Success)
-                {
-                    var message = "Không thể kết nối máy chủ tài nguyên: " + request.error;
-                    OnDownloadFailed.Invoke(message);
-                    finished?.Invoke(false, message);
-                    yield break;
-                }
-
-                try { manifest = JsonUtility.FromJson<AssetManifest>(request.downloadHandler.text); }
-                catch (Exception exception)
-                {
-                    var message = "Manifest tài nguyên không hợp lệ: " + exception.Message;
-                    OnDownloadFailed.Invoke(message);
-                    finished?.Invoke(false, message);
-                    yield break;
-                }
+                const string upToDateMessage = "Tài nguyên đã là bản mới nhất.";
+                OnStatusMessage.Invoke(upToDateMessage);
+                OnDownloadProgress.Invoke(1f, "Đã cập nhật");
+                OnDownloadComplete.Invoke();
+                finished?.Invoke(true, upToDateMessage);
+                yield break;
             }
 
             if (!ValidateManifest(manifest, out var validationError))
@@ -365,6 +438,48 @@ namespace QuyCocBatHoang.Patching
                 var name = Path.GetFileName(path);
                 if (name.EndsWith(".tmp", StringComparison.OrdinalIgnoreCase) || !currentNames.Contains(name))
                     File.Delete(path);
+            }
+        }
+
+        /// <summary>Tải file cài đặt mới (IPA / APK / Zip) khi có bản cập nhật lớn.</summary>
+        public void DownloadPackageFile(string packageUrl, string fileName, Action<float, string> onProgress, Action<bool, string> onComplete)
+        {
+            StartCoroutine(DownloadPackageRoutine(packageUrl, fileName, onProgress, onComplete));
+        }
+
+        private IEnumerator DownloadPackageRoutine(string packageUrl, string fileName, Action<float, string> onProgress, Action<bool, string> onComplete)
+        {
+            if (string.IsNullOrWhiteSpace(packageUrl))
+            {
+                onComplete?.Invoke(false, "Đường dẫn tải tệp không hợp lệ.");
+                yield break;
+            }
+
+            var dest = Path.Combine(Application.persistentDataPath, string.IsNullOrEmpty(fileName) ? "TuTienGioi_Update.ipa" : fileName);
+            using (var request = UnityWebRequest.Get(packageUrl))
+            {
+                request.downloadHandler = new DownloadHandlerFile(dest);
+                var op = request.SendWebRequest();
+                var start = Time.realtimeSinceStartup;
+                while (!op.isDone)
+                {
+                    var p = request.downloadProgress;
+                    var elapsed = Mathf.Max(0.1f, Time.realtimeSinceStartup - start);
+                    var downloaded = (long)(request.downloadedBytes);
+                    var speed = downloaded / (1024f * 1024f) / elapsed;
+                    onProgress?.Invoke(p, $"{downloaded / (1024 * 1024):F1} MB ({speed:F1} MB/s)");
+                    yield return null;
+                }
+
+                if (request.result != UnityWebRequest.Result.Success)
+                {
+                    onComplete?.Invoke(false, request.error);
+                }
+                else
+                {
+                    onProgress?.Invoke(1f, "100% Hoàn tất");
+                    onComplete?.Invoke(true, dest);
+                }
             }
         }
     }

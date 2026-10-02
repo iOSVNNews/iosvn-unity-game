@@ -427,6 +427,25 @@ function createIpaServer({ port = Number(process.env.IPA_PORT || 8788), host = p
                 return send(res, 200, result);
             }
 
+            if (url.pathname === '/api/version' && req.method === 'GET') {
+                return send(res, 200, {
+                    ok: true,
+                    clientVersion: '1.0.0',
+                    minClientVersion: '1.0.0',
+                    latestAppVersion: '1.0.1',
+                    isMajorUpdate: false,
+                    updateTitle: 'Tu Tiên Giới - Bát Hoang Tu Chân',
+                    updateNotes: '• Cập nhật phong cách nhân vật Quỷ Cốc Bát Hoang sắc nét\n• Tối ưu giao diện cổ phong, loại bỏ đè lấn màn hình\n• Hỗ trợ di chuyển mượt mà trên bản đồ thế giới\n• Hệ thống tự động tải bản vá nhỏ và cài đặt bản cập nhật lớn',
+                    packageUrl: 'https://tutien.iosvn.com.vn/download/TuTienGioi.ipa',
+                    forceUpdate: false,
+                    manifest: {
+                        version: 1,
+                        totalBytes: 0,
+                        bundles: []
+                    }
+                });
+            }
+
             const user = auth.authenticate(getBearer(req));
             if (!user) return send(res, 401, { error: 'Phiên email không hợp lệ hoặc đã hết hạn.' });
             if (limited(`game:${user.id}`, 60, 10_000)) return send(res, 429, { error: 'Thao tác quá nhanh.' });

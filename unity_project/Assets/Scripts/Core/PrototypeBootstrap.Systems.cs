@@ -67,9 +67,9 @@ namespace IOSVN.TuTien.Core
             halo.rectTransform.offsetMin = halo.rectTransform.offsetMax = Vector2.zero;
             if (AvatarComposer.Available)
             {
-                var avatar = AvatarComposer.Build(doll, LookOf(player), AvatarComposer.AuraStrength(hub["realm"]["index"].Int()));
-                avatar.anchorMin = new Vector2(.2f, .1f); avatar.anchorMax = new Vector2(.8f, .9f);
-                avatar.offsetMin = avatar.offsetMax = Vector2.zero;
+                // the figure fits its parent, so a frame keeps it clear of the name above and the realm line below
+                var frame = Anchored("Figure", doll, Vector2.zero, Vector2.one, new Vector2(70, 46), new Vector2(-70, -54));
+                AvatarComposer.Build(frame, LookOf(player), AvatarComposer.AuraStrength(hub["realm"]["index"].Int()));
             }
             var nameText = AnchoredText(doll, "Name", Clean(player["name"].Str()), ModernUi.SemiBold, 26, AuthGoldAccent, TextAnchor.UpperCenter,
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(110, -46), new Vector2(-110, -10));

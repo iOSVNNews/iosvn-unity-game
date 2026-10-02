@@ -39,8 +39,8 @@ namespace IOSVN.TuTien.Core
         public static LookSpec Default(bool female)
         {
             return LookSpec.Parse(female
-                ? "g=f;fa=2;ea=2;ey=4;ec=#6a4ab0;br=4;no=2;mo=2;bd=0;ha=1;hc=#1e1a1e;ti=2;tc=#f2ecf4;to=4;oc=#b8d0e8;ac=#c8a050;pa=2;pc=#e8e2ea;sh=1;sc=#e0d8e0;be=0;bc=#8a3a5a;hat=5;hac=#c8a050;sk=#f6dcc4;wp=2;au=4;auc=#ffd6e8"
-                : "g=m;fa=0;ea=0;ey=0;ec=#3a8f7a;br=0;no=0;mo=0;bd=0;ha=0;hc=#1e1a1e;ti=0;tc=#e8e2d4;to=1;oc=#2f5f63;ac=#c8a050;pa=0;pc=#303038;sh=1;sc=#2a2a30;be=1;bc=#20242a;hat=1;hac=#c8a050;sk=#f0d2b4;wp=1;au=1;auc=#8fe0ff");
+                ? "g=f;fa=2;ea=2;ey=0;ec=#6a4ab0;br=4;no=2;mo=2;bd=0;ha=1;hc=#1e1a1e;ti=2;tc=#f4eef6;to=4;oc=#b0c8ea;ac=#ffd36a;pa=2;pc=#e8e2ea;sh=1;sc=#e0d8e0;be=0;bc=#8a3a5a;hat=5;hac=#ffd36a;sk=#f6dcc4;wp=2;au=4;auc=#ffd6e8"
+                : "g=m;fa=0;ea=0;ey=1;ec=#32a088;br=0;no=0;mo=0;bd=0;ha=0;hc=#181618;ti=0;tc=#e8e4dc;to=1;oc=#2a585e;ac=#ffd36a;pa=0;pc=#282a30;sh=1;sc=#242428;be=1;bc=#1e2226;hat=1;hac=#ffd36a;sk=#f2d8be;wp=2;au=1;auc=#8fe0ff");
         }
 
         // ------------------------------------------------------------------ parts
@@ -101,31 +101,42 @@ namespace IOSVN.TuTien.Core
             return list;
         }
 
-        /// <summary>Colour ramp for grey levels 40,64,96,128,160(base),192,224,255.</summary>
+        /// <summary>Colour ramp for grey levels 0..255 with continuous smooth interpolation and Xianxia luster.</summary>
         public static Color32[] Ramp(string hex)
         {
             var c = HeroSprites.ParseColor(hex, new Color32(128, 128, 128, 255));
             Color.RGBToHSV(c, out var h, out var s, out var v);
-            var levels = new[] { 40, 64, 96, 128, 160, 192, 224, 255 };
-            var ramp = new Color32[256];
-            foreach (var level in levels)
+            var keys = new[] { 0, 40, 64, 96, 128, 160, 192, 224, 255 };
+            var keyColors = new Color[keys.Length];
+            for (var i = 0; i < keys.Length; i++)
             {
+                var level = keys[i];
                 float h2, s2, v2;
                 if (level <= 160)
                 {
-                    var k = (level - 40) / 120f;
-                    v2 = v * (.3f + .7f * k);
-                    s2 = Mathf.Min(1f, s * (1.18f - .18f * k) + .04f * (1 - k));
-                    h2 = h + .02f * (1 - k);
+                    var k = level / 160f;
+                    v2 = v * (.18f + .82f * k);
+                    s2 = Mathf.Min(1f, s * (1.25f - .25f * k) + .06f * (1 - k));
+                    h2 = h + .025f * (1 - k);
                 }
                 else
                 {
                     var k = (level - 160) / 95f;
-                    v2 = v + (1 - v) * .8f * k;
-                    s2 = s * (1 - .5f * k);
-                    h2 = h - .01f * k;
+                    v2 = v + (1 - v) * .85f * k;
+                    s2 = s * (1 - .42f * k);
+                    h2 = h - .015f * k;
                 }
-                ramp[level] = (Color32)Color.HSVToRGB(Mathf.Repeat(h2, 1f), Mathf.Clamp01(s2), Mathf.Clamp01(v2));
+                keyColors[i] = Color.HSVToRGB(Mathf.Repeat(h2, 1f), Mathf.Clamp01(s2), Mathf.Clamp01(v2));
+            }
+
+            var ramp = new Color32[256];
+            for (var level = 0; level < 256; level++)
+            {
+                int seg = 0;
+                while (seg < keys.Length - 2 && keys[seg + 1] < level) seg++;
+                float t = (float)(level - keys[seg]) / Mathf.Max(1, keys[seg + 1] - keys[seg]);
+                var col = Color.Lerp(keyColors[seg], keyColors[seg + 1], Mathf.Clamp01(t));
+                ramp[level] = (Color32)col;
             }
             return ramp;
         }
@@ -149,7 +160,7 @@ namespace IOSVN.TuTien.Core
                     for (var x = shadowDx; x < width; x++)
                     {
                         var i = y * width + x;
-                        if (src[i].a != 0 || dst[i].a == 0) continue;
+                        if (src[i].a == 0 || dst[i].a == 0) continue;
                         if (src[sy * width + x - shadowDx].a == 0) continue;
                         var d = dst[i];
                         dst[i] = new Color32((byte)(d.r * shadow), (byte)(d.g * shadow), (byte)(d.b * shadow), d.a);
@@ -163,7 +174,7 @@ namespace IOSVN.TuTien.Core
                 if (ramp != null && p.r == p.g && p.g == p.b)
                 {
                     var r = ramp[p.r];
-                    if (r.a != 0) p = new Color32(r.r, r.g, r.b, p.a);
+                    p = new Color32(r.r, r.g, r.b, p.a);
                 }
                 if (p.a == 255) { dst[i] = p; continue; }
                 var a = p.a / 255f;
@@ -193,11 +204,90 @@ namespace IOSVN.TuTien.Core
                 }
         }
 
+        /// <summary>Tiên Khí Quang Lực: Celestial rim lighting along the silhouette.</summary>
+        private static void ApplyCelestialRim(Color32[] canvas, int width, int height, int frameWidth, Color32 auraCol)
+        {
+            var fw = frameWidth > 0 ? frameWidth : width;
+            for (var y = 1; y < height - 1; y++)
+            {
+                for (var x = 1; x < width - 1; x++)
+                {
+                    var fx = frameWidth > 0 ? x % frameWidth : x;
+                    if (fx <= 0 || fx >= fw - 1) continue;
+                    var i = y * width + x;
+                    var p = canvas[i];
+                    if (p.a == 0) continue;
+
+                    bool isTopEdge = canvas[(y + 1) * width + x].a == 0;
+                    bool isLeftEdge = canvas[y * width + (x - 1)].a == 0;
+                    if (isTopEdge || isLeftEdge)
+                    {
+                        float rimStrength = isTopEdge && isLeftEdge ? 0.36f : 0.22f;
+                        byte nr = (byte)Mathf.Clamp(p.r * (1f - rimStrength) + auraCol.r * rimStrength + 12f, 0, 255);
+                        byte ng = (byte)Mathf.Clamp(p.g * (1f - rimStrength) + auraCol.g * rimStrength + 12f, 0, 255);
+                        byte nb = (byte)Mathf.Clamp(p.b * (1f - rimStrength) + auraCol.b * rimStrength + 12f, 0, 255);
+                        canvas[i] = new Color32(nr, ng, nb, p.a);
+                    }
+                }
+            }
+        }
+
+        /// <summary>Subsurface peach blush and piercing eye reflections in portrait mode.</summary>
+        private static void ApplyCultivatorFacialGlow(Color32[] canvas, int width, int height, Color32 eyeCol, Color32 skinCol)
+        {
+            // Head region: y ~ 215..260, x ~ 75..115
+            for (var y = 215; y <= 260 && y < height; y++)
+            {
+                for (var x = 75; x <= 115 && x < width; x++)
+                {
+                    var i = y * width + x;
+                    var p = canvas[i];
+                    if (p.a == 0) continue;
+
+                    // Cheek blush (y ~ 222..234, x ~ 82..108)
+                    if (y >= 222 && y <= 234 && (x <= 91 || x >= 99))
+                    {
+                        // Check if pixel is skin tone
+                        if (p.r > 170 && p.g > 130 && p.r > p.b + 20)
+                        {
+                            // Peach warmth
+                            byte nr = (byte)Mathf.Min(255, p.r + 18);
+                            byte ng = (byte)Mathf.Max(0, p.g - 4);
+                            byte nb = (byte)Mathf.Max(0, p.b - 2);
+                            canvas[i] = new Color32(nr, ng, nb, p.a);
+                        }
+                    }
+
+                    // Eye reflections (y ~ 238..252, x ~ 82..106)
+                    if (y >= 238 && y <= 252)
+                    {
+                        var distToEye = Mathf.Abs(p.r - eyeCol.r) + Mathf.Abs(p.g - eyeCol.g) + Mathf.Abs(p.b - eyeCol.b);
+                        if (distToEye < 55)
+                        {
+                            // Gemstone luminous bottom of iris
+                            if (y == 240 || y == 241)
+                            {
+                                byte nr = (byte)Mathf.Min(255, p.r + 40);
+                                byte ng = (byte)Mathf.Min(255, p.g + 40);
+                                byte nb = (byte)Mathf.Min(255, p.b + 40);
+                                canvas[i] = new Color32(nr, ng, nb, p.a);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
         /// <summary>Composes all layers of a look into a pixel array (portrait or world sheet).</summary>
         internal static Color32[] ComposePixels(LookSpec look, string prefix, int width, int height, int frameWidth, int sdx, int sdy)
         {
             var canvas = new Color32[width * height];
             var any = false;
+            var isPortrait = (prefix == "p_");
+            var auraCol = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), new Color32(142, 224, 255, 255));
+            var skinCol = HeroSprites.ParseColor(look.Get("sk", "#f0d2b4"), new Color32(240, 210, 180, 255));
+            var eyeCol = HeroSprites.ParseColor(look.Get("ec", "#3a8f7a"), new Color32(58, 143, 122, 255));
+
             foreach (var (id, color, shadow) in Layers(look))
             {
                 var part = Part(prefix + id, width, height);
@@ -206,6 +296,14 @@ namespace IOSVN.TuTien.Core
                 Blend(canvas, part, color == null ? null : Ramp(look.Get(color, "#888888")), width, sdx, sdy, shadow ? .8f : 1f);
             }
             if (!any) return null;
+
+            ApplyCelestialRim(canvas, width, height, frameWidth, auraCol);
+
+            if (isPortrait)
+            {
+                ApplyCultivatorFacialGlow(canvas, width, height, eyeCol, skinCol);
+            }
+
             Outline(canvas, width, height, frameWidth);
             return canvas;
         }

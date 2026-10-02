@@ -274,6 +274,19 @@ namespace IOSVN.TuTien.Core
             return layer;
         }
 
+        /// <summary>Where a floating number may start: clear of the bars along the top, inside the screen, and
+        /// under a number that appeared on the same spot a moment earlier.</summary>
+        public static Vector2 FloatSpot(RectTransform layer, Vector2 at, ref Vector2 last, ref float lastTime)
+        {
+            var area = layer != null ? layer.rect : default;
+            if (area.height > 0f) at.y = Mathf.Min(at.y, area.height * .5f - 420f);
+            if (area.width > 680f) at.x = Mathf.Clamp(at.x, -area.width * .5f + 340f, area.width * .5f - 340f);
+            if (Time.time - lastTime < .45f && Mathf.Abs(at.x - last.x) < 260f && Mathf.Abs(at.y - last.y) < 50f) at.y = last.y - 56f;
+            last = at;
+            lastTime = Time.time;
+            return at;
+        }
+
         /// <summary>Pháp luân: the wheel of law — a rim of trigrams turning one way, a hub of petals the other.</summary>
         public static FxPlayer[] Wheel(RectTransform parent, string element, Vector2 pos, float scale, float life, RectTransform behind)
         {

@@ -143,8 +143,18 @@ namespace IOSVN.TuTien.Core
             });
         }
 
-        /// <summary>Interim hub: the classic home until the modern hub replaces it.</summary>
-        private void ShowHub() { if (latestState != null) ShowHome(latestState); else LoadState(); }
+        /// <summary>Where every screen returns to: the city when the player is inside one, otherwise the province map.</summary>
+        private void ShowHub()
+        {
+            if (offlinePreview) { if (latestState != null) ShowHome(latestState); return; }
+            if (!hub.IsObject) { LoadState(); return; }
+            if (!string.IsNullOrEmpty(cityTownId))
+            {
+                try { ShowCity(cityTownId); return; }
+                catch (Exception ex) { Debug.LogException(ex); cityTownId = null; }
+            }
+            SafeShowWorld();
+        }
 
         // ================================================================ scaffold
 
@@ -152,6 +162,12 @@ namespace IOSVN.TuTien.Core
         private RectTransform OpenScreen(string title, string subtitle, string iconId, Action back)
         {
             ClearContent();
+            if (worldView != null)
+            {
+                // closing the screen rebuilds the map: come back to the spot the player left, not the last saved one
+                if (worldView.Player != null && !worldReturnTile.HasValue) worldReturnTile = worldView.Player.Pos;
+                worldView.gameObject.SetActive(false);
+            }
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
             var dim = new GameObject("ScreenDim", typeof(RectTransform), typeof(Image));
             dim.transform.SetParent(authBackdrop.transform, false);
@@ -160,11 +176,11 @@ namespace IOSVN.TuTien.Core
             var dimImage = dim.GetComponent<Image>();
             dimImage.color = Color.white;
             dimImage.raycastTarget = false;
-            UiGradient.Apply(dimImage, new Color32(5, 9, 14, 214), new Color32(3, 6, 10, 236));
+            UiGradient.Apply(dimImage, new Color32(10, 14, 22, 255), new Color32(6, 9, 14, 255));
 
             var root = AuthStretch("SystemScreen", content.transform);
             var top = Anchored("TopBar", root, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -112), Vector2.zero);
-            GlassPanel(top, 26f, new Color32(15, 24, 32, 228), new Color32(9, 15, 21, 226));
+            GlassPanel(top, 26f, new Color32(15, 24, 32, 245), new Color32(9, 15, 21, 245));
 
             var backButton = IconButton(top, "arrowLeft", new Vector2(0, .5f), new Vector2(16, 0), 80f, back ?? (() => ShowHub()));
             backButton.name = "Back";
@@ -652,11 +668,11 @@ namespace IOSVN.TuTien.Core
             for (var i = modalRoot.childCount - 1; i >= 0; i--) Destroy(modalRoot.GetChild(i).gameObject);
             var layer = AuthStretch("Modal", modalRoot);
             var shade = layer.gameObject.AddComponent<Image>();
-            shade.color = new Color(0, 0, 0, .62f);
+            shade.color = new Color(0, 0, 0, .85f);
             var shadeButton = layer.gameObject.AddComponent<Button>();
             shadeButton.transition = Selectable.Transition.None;
             var card = Anchored("Card", layer, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-width / 2, -height / 2), new Vector2(width / 2, height / 2));
-            GlassPanel(card, 30f, new Color32(20, 31, 40, 248), new Color32(10, 16, 22, 248));
+            GlassPanel(card, 30f, new Color32(20, 31, 40, 255), new Color32(10, 16, 22, 255));
             card.gameObject.GetComponent<Image>().raycastTarget = true; // swallow taps inside the card
             var heading = AnchoredText(card, "Title", Clean(title), ModernUi.Display, 34, AuthGoldTop, TextAnchor.MiddleLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(32, -86), new Vector2(-90, -18));
             UiGradient.Apply(heading, AuthGoldTop, AuthGoldBottom);

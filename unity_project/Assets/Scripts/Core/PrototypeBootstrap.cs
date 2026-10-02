@@ -270,6 +270,8 @@ namespace IOSVN.TuTien.Core
             trigger.triggers.Add(entry);
         }
 
+        private bool majorUpdateShowing;
+
         private void StartStartupPatchCheck()
         {
             patchStatus = Label("Đang chuẩn bị tài nguyên...", 18, Muted, TextAnchor.MiddleCenter,
@@ -277,19 +279,61 @@ namespace IOSVN.TuTien.Core
             var patcher = AssetDownloadManager.Instance;
             if (patcher == null) patcher = new GameObject("AssetDownloadManager").AddComponent<AssetDownloadManager>();
             var config = Resources.Load<GameServerConfig>("GameServerConfig");
-            patcher.Configure(config?.assetCdnBaseUrl);
+            patcher.Configure(config?.assetCdnBaseUrl, config?.apiBaseUrl);
             patcher.OnStatusMessage.AddListener(message =>
             {
                 if (patchStatus != null) patchStatus.text = message;
             });
             patcher.OnDownloadProgress.AddListener((_, progress) =>
             {
-                if (patchStatus != null && !string.IsNullOrEmpty(progress)) patchStatus.text = progress;
+                if (patchStatus != null && !string.IsNullOrEmpty(progress)) patchStatus.text = "Tự động tải cập nhật: " + progress;
+            });
+            patcher.OnMajorUpdateRequired.AddListener(info =>
+            {
+                ShowMajorUpdateDialog(info);
             });
             patcher.StartPatchCheck((success, message) =>
             {
-                ShowLogin(success ? message : "Không cập nhật được tài nguyên: " + message);
+                if (!majorUpdateShowing)
+                    ShowLogin(success ? message : "Không cập nhật được tài nguyên: " + message);
             });
+        }
+
+        private void ShowMajorUpdateDialog(AssetDownloadManager.MajorUpdateInfo info)
+        {
+            majorUpdateShowing = true;
+            ClearContent();
+            var dialog = PanelObject("MajorUpdateDialog", content.transform, new Vector2(0.20f, 0.12f), new Vector2(0.80f, 0.88f), Vector2.zero, Vector2.zero, new Color32(18, 24, 32, 252));
+            ModernUi.Fill(dialog.GetComponent<Image>(), 24f);
+
+            var title = ChildText(dialog.transform, "Title", 34, Gold, TextAnchor.MiddleCenter, new Vector2(0.05f, 0.86f), new Vector2(0.95f, 0.98f));
+            title.text = string.IsNullOrEmpty(info.updateTitle) ? "PHÁT HIỆN BẢN CẬP NHẬT MỚI" : info.updateTitle;
+            title.fontStyle = FontStyle.Bold;
+
+            var ver = ChildText(dialog.transform, "Version", 22, new Color32(140, 200, 255, 255), TextAnchor.MiddleCenter, new Vector2(0.05f, 0.78f), new Vector2(0.95f, 0.86f));
+            ver.text = $"Phiên bản mới: {info.appVersion}  ·  Hiện tại: {Application.version}";
+
+            var scrollPanel = PanelObject("UpdateNotesScroll", dialog.transform, new Vector2(0.06f, 0.28f), new Vector2(0.94f, 0.76f), Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0.45f));
+            var notesText = ChildText(scrollPanel.transform, "Notes", 21, Cream, TextAnchor.UpperLeft, new Vector2(0.04f, 0.04f), new Vector2(0.96f, 0.96f));
+            notesText.text = string.IsNullOrEmpty(info.updateNotes) ? "Đã có bản cài đặt mới. Vui lòng tải về để tiếp tục." : info.updateNotes;
+
+            var downloadBtn = Button("TẢI BẢN MỚI NGAY", new Vector2(0.25f, 0.12f), new Vector2(0.75f, 0.24f), Gold, () =>
+            {
+                if (!string.IsNullOrEmpty(info.packageUrl))
+                {
+                    Application.OpenURL(info.packageUrl);
+                }
+            }, parent: dialog.transform);
+
+            if (!info.forceUpdate)
+            {
+                Button("Để sau", new Vector2(0.35f, 0.02f), new Vector2(0.65f, 0.10f), Panel, () =>
+                {
+                    majorUpdateShowing = false;
+                    Destroy(dialog);
+                    ShowLogin();
+                }, parent: dialog.transform);
+            }
         }
 
         private void BuildCanvas()
@@ -308,10 +352,14 @@ namespace IOSVN.TuTien.Core
 
             var background = PanelObject("Background", canvas.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Ink);
             backgroundRoot = background.transform;
+            var bgImg = background.GetComponent<Image>();
+            if (bgImg != null) bgImg.raycastTarget = false;
             var safeArea = new GameObject("SafeArea", typeof(RectTransform), typeof(SafeAreaFitter));
             safeArea.transform.SetParent(background.transform, false);
             Place(safeArea.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
             content = PanelObject("Content", safeArea.transform, new Vector2(0.06f, 0.04f), new Vector2(0.94f, 0.96f), Vector2.zero, Vector2.zero, new Color(0, 0, 0, 0));
+            var contentImg = content.GetComponent<Image>();
+            if (contentImg != null) contentImg.raycastTarget = false;
         }
 
         private void ShowLogin(string patchMessage = null)
@@ -351,6 +399,12 @@ namespace IOSVN.TuTien.Core
             if (error) UiShake.Play(authCardRoot);
         }
 
+        /// <summary>Puts the caret in a field after a failed check. On a phone this would reopen the keyboard that just closed, so the red frame alone marks the field there.</summary>
+        private static void FocusAuthInput(InputField field)
+        {
+            if (field != null && !TouchScreenKeyboard.isSupported) field.ActivateInputField();
+        }
+
         private void SubmitAuth(bool createAccount)
         {
             if (authRequestPending) return;
@@ -362,21 +416,21 @@ namespace IOSVN.TuTien.Core
             {
                 FlagAuthInput(emailInput);
                 AuthFeedback("Nhập tên tài khoản 3–24 ký tự không dấu hoặc email hợp lệ.", true);
-                emailInput.ActivateInputField();
+                FocusAuthInput(emailInput);
                 return;
             }
             if (passwordInput.text.Length < 10 || passwordInput.text.Length > 128)
             {
                 FlagAuthInput(passwordInput);
                 AuthFeedback("Mật khẩu cần có từ 10 đến 128 ký tự.", true);
-                passwordInput.ActivateInputField();
+                FocusAuthInput(passwordInput);
                 return;
             }
             if (createAccount && passwordConfirmationInput.text != passwordInput.text)
             {
                 FlagAuthInput(passwordConfirmationInput);
                 AuthFeedback("Mật khẩu nhập lại chưa khớp.", true);
-                passwordConfirmationInput.ActivateInputField();
+                FocusAuthInput(passwordConfirmationInput);
                 return;
             }
             var screenVersion = authScreenVersion;
@@ -524,11 +578,20 @@ namespace IOSVN.TuTien.Core
                 if (!state.registered) { ShowCharacterCreation(); return; }
                 client.LoadCurrentBattle((battle, _) =>
                 {
-                    if (battle != null) { ShowBattle(battle); return; }
+                    // JsonUtility turns "battle": null into an empty object: only a battle with an id is a fight in progress
+                    if (battle != null && !string.IsNullOrEmpty(battle.id) && !battle.over)
+                    {
+                        try { ShowBattle(battle); return; }
+                        catch (Exception ex) { Debug.LogException(ex); }
+                    }
                     client.LoadPvpBattle((pvpBattle, __) =>
                     {
-                        if (pvpBattle != null && !pvpBattle.none && !pvpBattle.over) ShowPvpBattle(pvpBattle);
-                        else SafeShowWorld();
+                        if (pvpBattle != null && !string.IsNullOrEmpty(pvpBattle.id) && !pvpBattle.none && !pvpBattle.over)
+                        {
+                            try { ShowPvpBattle(pvpBattle); return; }
+                            catch (Exception ex) { Debug.LogException(ex); }
+                        }
+                        SafeShowWorld();
                     });
                 });
             });
@@ -3416,7 +3479,9 @@ namespace IOSVN.TuTien.Core
             var obj = new GameObject(name, typeof(RectTransform), typeof(Image));
             obj.transform.SetParent(parent, false);
             Place(obj.GetComponent<RectTransform>(), min, max, offsetMin, offsetMax);
-            obj.GetComponent<Image>().color = color;
+            var img = obj.GetComponent<Image>();
+            img.color = color;
+            if (color.a == 0f) img.raycastTarget = false;
             if (PixelUiSkin.NeedsFrame(name)) PixelUiSkin.ApplyFrame(obj);
             return obj;
         }

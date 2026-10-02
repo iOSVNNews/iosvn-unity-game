@@ -185,7 +185,10 @@ namespace IOSVN.TuTien.Core
         public void LoadCurrentBattle(Action<BattleView, string> done) => StartCoroutine(GetJson("/battle/current", response =>
         {
             var envelope = response.ok ? Parse<BattleEnvelope>(response) : null;
-            done?.Invoke(envelope?.battle, response.error);
+            // JsonUtility never leaves a nested object null: "battle": null arrives as an empty BattleView
+            var battle = envelope?.battle;
+            if (battle != null && string.IsNullOrEmpty(battle.id)) battle = null;
+            done?.Invoke(battle, response.error);
         }));
 
         public void BattleAct(string action, Action<BattleActionResult, string> done) => BattleAct(action, -1, done);
@@ -218,7 +221,9 @@ namespace IOSVN.TuTien.Core
         public void LoadPvpBattle(Action<PvpBattle, string> done) => StartCoroutine(GetJson("/pvp/battle", response =>
         {
             var envelope = response.ok ? Parse<PvpBattleEnvelope>(response) : null;
-            done?.Invoke(envelope?.battle, response.error);
+            var battle = envelope?.battle;
+            if (battle != null && string.IsNullOrEmpty(battle.id)) battle = null;
+            done?.Invoke(battle, response.error);
         }));
 
         public void PvpAct(string battleId, string action, string skillId, Action<PvpBattle, string> done) => StartCoroutine(PostJson("/pvp/action", new PvpAction { battleId = battleId, act = action, skillId = skillId }, response =>

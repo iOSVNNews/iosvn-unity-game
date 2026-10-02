@@ -50,6 +50,50 @@ namespace IOSVN.TuTien.Editor
             }, "qcbh-creator-nu.png", 1280, 590);
             Render(c => { Prepare(c); Step("world", () => Call(c, "ShowWorld")); }, "qcbh-world.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(4.6f); }); }, "qcbh-world-zoom.png", 1280, 590);
+            // the whole province from high up: how far the cities lie from each other
+            Render(c => { Prepare(c); Step("world-wide", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-wide.png", 1280, 590);
+            // flying sword and mount: the rider crosses rock and forest, with the trail behind
+            foreach (var (file, item) in new[]
+            {
+                ("qcbh-fly-sword.png", "{\"uid\":\"preview-sword\",\"kind\":\"equip\",\"id\":\"phi_kiem_thanh_phong_phi_kiem\",\"name\":\"Thanh Phong Phi Kiếm\",\"slot\":\"phi_kiem\",\"tier\":\"huyen\",\"qualityRank\":2,\"mount\":false,\"flySpeed\":0.2}"),
+                ("qcbh-fly-mount.png", "{\"uid\":\"preview-mount\",\"kind\":\"equip\",\"id\":\"toa_ky_bach_van\",\"name\":\"Bạch Vân Linh Hạc\",\"slot\":\"phi_kiem\",\"tier\":\"hoang\",\"qualityRank\":1,\"mount\":true,\"flySpeed\":0.2}"),
+            })
+            {
+                var flying = stateText.Replace("\"phiKiem\":null", "\"phiKiem\":" + item);
+                var name = Path.GetFileNameWithoutExtension(file);
+                Render(c =>
+                {
+                    var hub = J.Parse(flying);
+                    Set(c, "hub", hub);
+                    var typed = NetworkGameClient.ToGameState(hub);
+                    Set(c, "latestState", typed);
+                    Set(c, "currentCatalog", typed?.catalog);
+                    Step(name, () =>
+                    {
+                        if (flying == stateText) throw new InvalidOperationException("sample state has no empty phiKiem slot");
+                        Call(c, "ShowWorld");
+                        Call(c, "PreviewFlight");
+                    });
+                }, file, 1280, 590);
+            }
+            // an account made by an older client (no stored look): the world must still open
+            var legacyPath = Path.Combine(samples, "qcbh_state_legacy.json");
+            if (File.Exists(legacyPath))
+            {
+                var legacyText = File.ReadAllText(legacyPath);
+                Render(c =>
+                {
+                    var hub = J.Parse(legacyText);
+                    Set(c, "hub", hub);
+                    var typed = NetworkGameClient.ToGameState(hub);
+                    Set(c, "latestState", typed);
+                    Set(c, "currentCatalog", typed?.catalog);
+                    Step("world-legacy", () => Call(c, "ShowWorld"));
+                }, "qcbh-world-legacy.png", 1280, 590);
+            }
+            Render(c => { Step("register", () => Call(c, "ShowAccountForm", true)); }, "qcbh-register.png", 1280, 590);
+            Render(c => { Step("login", () => Call(c, "ShowAccountForm", false)); }, "qcbh-login.png", 1280, 590);
+            Render(c => { Step("register-ipad", () => Call(c, "ShowAccountForm", true)); }, "qcbh-register-ipad.png", 1024, 768);
             Render(c => { Prepare(c); Step("character", () => Call(c, "OpenCharacterScreen")); }, "qcbh-character.png", 1280, 590);
             Render(c => { Prepare(c); Step("city", () => Call(c, "ShowCity", J.Parse(stateText)["town"]["id"].Str())); }, "qcbh-city.png", 1280, 590);
             Render(c => { Prepare(c); Step("bag", () => Call(c, "OpenBagScreen")); }, "qcbh-bag.png", 1280, 590);

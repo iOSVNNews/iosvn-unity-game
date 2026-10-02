@@ -7,12 +7,15 @@ namespace IOSVN.TuTien.Core
     /// <summary>
     /// Landscape account screens: one glass card split into a brand column (title,
     /// offline entry points) and a form column (tabs, fields, primary action).
-    /// Sizes are chosen for legibility on iPhone landscape (about 2.5 canvas units per point).
+    /// Sizes are chosen for legibility on iPhone landscape (about 2.5 canvas units per point); the card
+    /// grows to fill a phone screen, so fields and type end up larger than the nominal sizes below.
     /// </summary>
     public sealed partial class PrototypeBootstrap
     {
         private const float AuthCardWidth = 1300f;
         private const float AuthCardHeight = 740f;
+        private const float AuthRegisterHeight = 812f;
+        private float authCardHeight = AuthCardHeight;
         private const float AuthCardRadius = 36f;
         private const float AuthBrandWidth = 460f;
         private const float AuthBrandInset = 14f;
@@ -44,51 +47,58 @@ namespace IOSVN.TuTien.Core
             PrepareAccountScreen();
             passwordConfirmationInput = null;
 
-            var card = BuildAuthCard(!tabSwitch);
+            var card = BuildAuthCard(!tabSwitch, createAccount ? AuthRegisterHeight : AuthCardHeight);
+            var grow = authCardHeight - AuthCardHeight;
             AuthBrandHeader(card,
                 createAccount ? "KHỞI ĐẦU\nTIÊN LỘ" : "CHÀO MỪNG\nĐẠO HỮU",
                 createAccount ? "Tạo tài khoản để lưu hành trình tu luyện trên mọi thiết bị." : "Đăng nhập để tiếp tục hành trình tu luyện của bạn.");
-            AuthText(card, "OfflineCaption", "KHÔNG CẦN TÀI KHOẢN", ModernUi.SemiBold, 19, AuthTextTertiary, TextAnchor.MiddleLeft, AuthBrandTextX, 476f, AuthBrandTextWidth, 30f);
-            AuthControl(AuthGhost(card, "Chơi ngoại tuyến", "compass", AuthBrandTextX, 514f, AuthBrandTextWidth, 80f, EnterOfflinePreview));
-            AuthControl(AuthGhost(card, "Thử tạo nhân vật", "userPlus", AuthBrandTextX, 608f, AuthBrandTextWidth, 80f, EnterOfflineCharacterCreationPreview));
+            AuthText(card, "OfflineCaption", "KHÔNG CẦN TÀI KHOẢN", ModernUi.SemiBold, 19, AuthTextTertiary, TextAnchor.MiddleLeft, AuthBrandTextX, 476f + grow, AuthBrandTextWidth, 30f);
+            AuthControl(AuthGhost(card, "Chơi ngoại tuyến", "compass", AuthBrandTextX, 514f + grow, AuthBrandTextWidth, 80f, EnterOfflinePreview));
+            AuthControl(AuthGhost(card, "Thử tạo nhân vật", "userPlus", AuthBrandTextX, 608f + grow, AuthBrandTextWidth, 80f, EnterOfflineCharacterCreationPreview));
 
-            AuthTabs(card, AuthFormX, 60f, AuthFormWidth, 88f, createAccount, tabSwitch);
+            // Creating an account stacks three full-width fields, so a long password is readable while typing.
+            var top = createAccount ? 44f : 60f;
+            var row = createAccount ? 154f : 162f;
+            var first = createAccount ? 148f : 184f;
+            AuthTabs(card, AuthFormX, top, AuthFormWidth, createAccount ? 84f : 88f, createAccount, tabSwitch);
 
             emailInput = AuthField(card, "account", "Tài khoản hoặc email",
                 createAccount ? "3–24 ký tự không dấu, hoặc email" : "Nhập tên tài khoản hoặc email",
-                "user", AuthFormX, 184f, AuthFormWidth, false);
+                "user", AuthFormX, first, AuthFormWidth, false);
             emailInput.text = previousIdentity;
             emailInput.characterLimit = 254;
             AuthControl(emailInput);
 
             if (createAccount)
             {
-                var half = (AuthFormWidth - 20f) * .5f;
-                passwordInput = AuthField(card, "password", "Mật khẩu", "10–128 ký tự", "lock", AuthFormX, 346f, half, true);
-                passwordConfirmationInput = AuthField(card, "passwordConfirmation", "Nhập lại mật khẩu", "Nhập lại", "lock", AuthFormX + half + 20f, 346f, half, true);
+                passwordInput = AuthField(card, "password", "Mật khẩu", "Từ 10 ký tự trở lên", "lock", AuthFormX, first + row, AuthFormWidth, true);
+                passwordConfirmationInput = AuthField(card, "passwordConfirmation", "Nhập lại mật khẩu", "Nhập lại mật khẩu vừa đặt", "lock", AuthFormX, first + row * 2f, AuthFormWidth, true);
                 passwordConfirmationInput.characterLimit = 128;
                 AuthControl(passwordConfirmationInput);
             }
             else
             {
-                passwordInput = AuthField(card, "password", "Mật khẩu", "Nhập mật khẩu", "lock", AuthFormX, 346f, AuthFormWidth, true);
+                passwordInput = AuthField(card, "password", "Mật khẩu", "Nhập mật khẩu", "lock", AuthFormX, first + row, AuthFormWidth, true);
             }
             passwordInput.characterLimit = 128;
             AuthControl(passwordInput);
 
-            emailInput.onSubmit.AddListener(_ => { if (passwordInput != null) passwordInput.ActivateInputField(); });
+            // A phone keyboard closes on Return; opening the next field at once makes it drop and rise again,
+            // so only a hardware keyboard walks from field to field.
+            var chain = !TouchScreenKeyboard.isSupported;
+            emailInput.onSubmit.AddListener(_ => { if (chain && passwordInput != null) passwordInput.ActivateInputField(); });
             passwordInput.onSubmit.AddListener(_ =>
             {
-                if (createAccount && passwordConfirmationInput != null) passwordConfirmationInput.ActivateInputField();
-                else SubmitAuth(false);
+                if (!createAccount) SubmitAuth(false);
+                else if (chain && passwordConfirmationInput != null) passwordConfirmationInput.ActivateInputField();
             });
             if (passwordConfirmationInput != null) passwordConfirmationInput.onSubmit.AddListener(_ => SubmitAuth(true));
 
             status = AuthText(card, "AuthFeedback",
                 createAccount ? "Đăng ký bằng email sẽ cần mã xác minh 6 số." : "Hồ sơ và nhân vật của bạn được lưu trên máy chủ game.",
-                ModernUi.Regular, 24, AuthTextSecondary, TextAnchor.MiddleLeft, AuthFormX + 4f, 500f, AuthFormWidth - 8f, 64f);
+                ModernUi.Regular, 24, AuthTextSecondary, TextAnchor.MiddleLeft, AuthFormX + 4f, createAccount ? 606f : 500f, AuthFormWidth - 8f, createAccount ? 48f : 64f);
 
-            authPrimaryButton = AuthPrimary(card, createAccount ? "TẠO TÀI KHOẢN" : "VÀO GAME", AuthFormX, 580f, AuthFormWidth, () => SubmitAuth(createAccount));
+            authPrimaryButton = AuthPrimary(card, createAccount ? "TẠO TÀI KHOẢN" : "VÀO GAME", AuthFormX, createAccount ? 662f : 580f, AuthFormWidth, () => SubmitAuth(createAccount));
             AuthControl(authPrimaryButton);
         }
 
@@ -145,9 +155,10 @@ namespace IOSVN.TuTien.Core
 
         // ---------------------------------------------------------------- card
 
-        private RectTransform BuildAuthCard(bool intro)
+        private RectTransform BuildAuthCard(bool intro, float height = AuthCardHeight)
         {
-            // The card lives to the right of the brand logo and scales down only if a screen is too small.
+            authCardHeight = height;
+            // The card lives to the right of the brand logo; it grows to use a phone screen and shrinks on a narrow one.
             var viewport = AuthStretch("AuthViewport", content.transform);
             viewport.anchorMin = new Vector2(.13f, 0f);
             viewport.anchorMax = Vector2.one;
@@ -156,13 +167,14 @@ namespace IOSVN.TuTien.Core
             root.SetParent(viewport, false);
             root.anchorMin = root.anchorMax = new Vector2(.5f, .5f);
             root.pivot = new Vector2(.5f, .5f);
-            root.sizeDelta = new Vector2(AuthCardWidth, AuthCardHeight);
+            root.sizeDelta = new Vector2(AuthCardWidth, height);
             root.anchoredPosition = Vector2.zero;
             authCardRoot = root;
 
             var fit = viewport.gameObject.AddComponent<UiFitScale>();
             fit.target = root;
             fit.size = root.sizeDelta;
+            fit.maxScale = 1.3f;
             fit.Apply();
 
             var card = AuthStretch("AuthGlass", root);
@@ -172,15 +184,15 @@ namespace IOSVN.TuTien.Core
             ModernUi.Soft(card, 240f, new Color(0f, 0f, 0f, .30f), Vector2.zero);
             ModernUi.Soft(card, AuthCardRadius, new Color(0f, 0f, 0f, .55f), new Vector2(0f, -18f));
 
-            var border = AuthImage(card, "Edge", 0f, 0f, AuthCardWidth, AuthCardHeight);
+            var border = AuthImage(card, "Edge", 0f, 0f, AuthCardWidth, height);
             ModernUi.Ring(border, AuthCardRadius, 1.6f);
             UiGradient.Apply(border, new Color32(242, 208, 136, 150), new Color32(225, 185, 104, 34));
 
             // Brand column: an inset warm panel so the two halves read as one object.
-            var brand = AuthImage(card, "BrandColumn", AuthBrandInset, AuthBrandInset, AuthBrandWidth - AuthBrandInset, AuthCardHeight - AuthBrandInset * 2f);
+            var brand = AuthImage(card, "BrandColumn", AuthBrandInset, AuthBrandInset, AuthBrandWidth - AuthBrandInset, height - AuthBrandInset * 2f);
             ModernUi.Fill(brand, AuthCardRadius - 10f);
             UiGradient.Apply(brand, new Color32(66, 60, 42, 92), new Color32(18, 27, 33, 36));
-            var brandEdge = AuthImage(card, "BrandEdge", AuthBrandInset, AuthBrandInset, AuthBrandWidth - AuthBrandInset, AuthCardHeight - AuthBrandInset * 2f);
+            var brandEdge = AuthImage(card, "BrandEdge", AuthBrandInset, AuthBrandInset, AuthBrandWidth - AuthBrandInset, height - AuthBrandInset * 2f);
             ModernUi.Ring(brandEdge, AuthCardRadius - 10f, 1.2f);
             brandEdge.color = new Color32(255, 240, 210, 16);
             var glowAnchor = AuthNode("BrandGlow", card, 40f, 40f, 260f, 150f);

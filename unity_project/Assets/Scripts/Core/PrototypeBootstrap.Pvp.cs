@@ -107,6 +107,9 @@ namespace IOSVN.TuTien.Core
         private J battle;
         private string battleId;
         private bool over, pending, applied;
+        private int lastStamp;
+        private Vector2 lastFloat;
+        private float lastFloatTime = -9f;
         private float nextPoll;
 
         private FighterView me, foe;
@@ -364,10 +367,15 @@ namespace IOSVN.TuTien.Core
 
         private void Apply(J b)
         {
-            battle = b;
-            appliedAt = Time.time;
             var mine = b["me"];
             var theirs = b["opponent"];
+            // A poll that left before the last action can be answered after it. Each side's move counter only
+            // grows, so a lower total is an older picture: drop it instead of replaying the previous blow.
+            var stamp = (mine["lastAct"].IsObject ? mine["lastAct"]["seq"].Int() : 0) + (theirs["lastAct"].IsObject ? theirs["lastAct"]["seq"].Int() : 0);
+            if (applied && !b["over"].Bool() && stamp < lastStamp) return;
+            lastStamp = stamp;
+            battle = b;
+            appliedAt = Time.time;
             SetBar(meHp, meHpText, mine["hp"].Num(), mine["maxHp"].Num(1));
             SetBar(meMp, meMpText, mine["mp"].Num(), mine["maxMp"].Num(1));
             SetBar(foeHp, foeHpText, theirs["hp"].Num(), theirs["maxHp"].Num(1));
@@ -462,6 +470,7 @@ namespace IOSVN.TuTien.Core
         private void Float(Vector2 at, string text, Color color, int size = 34)
         {
             if (string.IsNullOrEmpty(text)) return;
+            at = BattleFx.FloatSpot(fxLayer, at, ref lastFloat, ref lastFloatTime);
             var label = owner.BattleText(fxLayer, "Float", text, ModernUi.Bold, size, color, TextAnchor.MiddleCenter,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), at - new Vector2(320, 34), at + new Vector2(320, 34));
             label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);

@@ -81,6 +81,8 @@ namespace IOSVN.TuTien.Core
                 cloud.gameObject.AddComponent<UiDrift>().speed = 6f + i * 2.5f;
             }
             foreach (var spot in cityLayout.hotspots ?? Array.Empty<CityHotspot>()) AddCityHotspot(view, spot);
+            try { AddCityNpcs(view, townId); }
+            catch (Exception ex) { Debug.LogException(ex); }
             // HUD
             var hud = HudRoot();
             BuildOverlays();
@@ -136,6 +138,59 @@ namespace IOSVN.TuTien.Core
                 icon.sprite = UiPixelIcon(iconId);
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
+            }
+        }
+
+        /// <summary>Feet positions (layout units) on the terraces, beside the buildings.</summary>
+        private static readonly Vector2[] CityNpcSpots =
+        {
+            new Vector2(245, 125), new Vector2(607, 235), new Vector2(318, 186), new Vector2(405, 221), new Vector2(208, 261), new Vector2(505, 149),
+        };
+
+        /// <summary>Cultivators are met inside the cities: a few stand on the terraces; tap one to talk or spar.</summary>
+        private void AddCityNpcs(RectTransform view, string townId)
+        {
+            if (!AvatarComposer.Available || cityLayout == null) return;
+            var realm = hub["town"]["realmMin"].Int();
+            var picks = new List<(int score, J npc)>();
+            foreach (var npc in hub["npcs"].Items)
+            {
+                var id = npc["id"].Str();
+                if (string.IsNullOrEmpty(id) || npc["isDead"].Bool()) continue;
+                // residents near the city's own realm, and the same faces on every visit
+                var gap = Mathf.Abs(npc["realm"].Int() - (realm + 2));
+                picks.Add((gap * 1000 + Mathf.Abs((id + townId).GetHashCode() % 997), npc));
+            }
+            picks.Sort((a, b) => a.score.CompareTo(b.score));
+            float w = cityLayout.w, h = cityLayout.h;
+            const float frameW = 36f, frameH = 41f;
+            for (var i = 0; i < CityNpcSpots.Length && i < picks.Count; i++)
+            {
+                var npc = picks[i].npc;
+                var frames = HeroSprites.Get(HeroSprites.RandomLook(npc["id"].Str(), npc["gender"].Str() == "nu"));
+                if (frames == null || frames.Length == 0) continue;
+                var spot = CityNpcSpots[i];
+                var rect = Anchored("Npc_" + npc["id"].Str(), view,
+                    new Vector2((spot.x - frameW / 2) / w, 1f - spot.y / h), new Vector2((spot.x + frameW / 2) / w, 1f - (spot.y - frameH) / h), Vector2.zero, Vector2.zero);
+                var hit = rect.gameObject.AddComponent<Image>();
+                hit.color = new Color(1, 1, 1, 0);
+                var body = Anchored("Body", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+                body.sprite = frames[Mathf.Min(frames.Length - 1, HeroSprites.FrameIndex(false, 0f))];
+                body.preserveAspect = true;
+                body.raycastTarget = false;
+                if (i % 2 == 1) body.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+                var idle = body.gameObject.AddComponent<FigureIdle>();
+                idle.Frames = frames;
+                idle.Offset = i * .37f;
+                var tag = InkUi.Tag(rect, Clean(npc["name"].Str()) + " · " + Clean(npc["realmName"].Str()), 17, new Color32(190, 226, 255, 255), 26f);
+                tag.anchorMin = tag.anchorMax = new Vector2(.5f, 1f);
+                tag.pivot = new Vector2(.5f, 0f);
+                tag.anchoredPosition = new Vector2(0, 2);
+                var button = rect.gameObject.AddComponent<Button>();
+                button.transition = Selectable.Transition.None;
+                button.targetGraphic = hit;
+                var target = npc;
+                button.onClick.AddListener(() => OpenNpcDialog(target));
             }
         }
 
@@ -211,6 +266,21 @@ namespace IOSVN.TuTien.Core
             var scale = transform.lossyScale.x <= 0 ? 1f : transform.lossyScale.x;
             offset += eventData.delta.x / scale;
             Refit();
+        }
+    }
+
+    /// <summary>A standing figure that breathes: cycles the idle frames of a hero sheet.</summary>
+    internal sealed class FigureIdle : MonoBehaviour
+    {
+        public Sprite[] Frames;
+        public float Offset;
+        private Image image;
+
+        private void Update()
+        {
+            if (image == null) image = GetComponent<Image>();
+            if (image == null || Frames == null || Frames.Length < HeroSprites.Total) return;
+            image.sprite = Frames[HeroSprites.FrameIndex(false, Time.time + Offset)];
         }
     }
 
