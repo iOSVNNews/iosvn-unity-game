@@ -1,80 +1,112 @@
-# Tu Tiên Giới
+# Tu Tiên Giới (iOS & Dedicated Server)
 
-Project Unity online cho iOS. Lõi luật chơi được đồng bộ từ bản AWS sang `ipa_core/`. API IPA đã chạy chung host với bot tại `https://tutien.iosvn.com.vn/ipa/api`, dùng service và kho dữ liệu riêng. Đăng ký/đăng nhập tên tài khoản hoạt động ngay; đăng ký email và liên kết Google/Facebook cần cấu hình dịch vụ tương ứng trên server. Xem [hướng dẫn tài khoản](unity_project/docs/ACCOUNT_SERVER_SETUP.md).
+Dự án game nhập vai tu tiên đồ hoạ Pixel phong cách Thuỷ mặc (QCBH) trên nền tảng **Unity (iOS)** và máy chủ **Node.js Dedicated Server**. Lõi luật chơi được đồng bộ hoá hoàn chỉnh từ bản AWS sang `ipa_core/`. Hệ thống API độc lập phục vụ riêng cho client iOS chạy tại `https://tutien.iosvn.com.vn/ipa/api`.
 
-## Trang chủ và tài khoản
+---
 
-Logo nhỏ ở góc trái, nền pixel toàn màn hình có ánh đom đóm chuyển động nhẹ. Bảng tài khoản là một thẻ kính tối bo góc chia hai cột cho màn ngang: cột trái có tiêu đề và lối vào chơi ngoại tuyến/thử tạo nhân vật, cột phải có tab Đăng nhập/Tạo tài khoản dạng segmented, ô nhập có icon, nút hiện/ẩn mật khẩu và nút chính gradient vàng. Ô nhập sáng viền khi focus và chuyển đỏ khi sai, thẻ rung nhẹ khi báo lỗi, nút chính hiện vòng xoay khi đang gửi. Chữ dùng Be Vietnam Pro và Playfair Display SC (SIL OFL, xem `unity_project/Assets/Fonts/`). Các ảnh dưới đây được render từ mã Unity hiện tại (`iOSVN > Login > Render auth previews`).
+## 🌟 Tính năng nổi bật
 
+### 1. Bản đồ Thế giới & Thần hành Phi hành
+- **19 Châu rộng lớn (256×160 ô):** Mỗi châu được bao quanh bởi rặng núi biên giới khép kín. Người tu tiên đi bộ sẽ bị núi cao, sông sâu và rừng rậm ngăn lối.
+- **Phi kiếm & Tọa kỵ (Ngự không):** Trang bị vào ô `phiKiem` cho phép bay lượn trên không trung, tạo vệt tiên khí, tăng tốc độ di chuyển và vượt qua địa hình sông núi nội châu.
+- **Thành thị & Kỳ ngộ:** Các đại thành cổ kính có cổng thành, bên trong có giao dịch, truyền tống trận, bảng xếp hạng và gặp gỡ tu sĩ khác.
+- **Quái tuần tra & Boss thế giới:** Yêu thú di chuyển tự do khắp nơi trên bản đồ theo cảnh giới tu vi.
+
+### 2. Chiến đấu Pixel thời gian thực (PvE & PvP)
+- **Hiệu ứng ngũ hành & Tiên pháp:** 240+ hiệu ứng kỹ năng ngũ hành mượt mà (kiếm khí, cự kiếm thiên giáng, thần long, đài sen, bát quái trận, luân hồi bảo luân, lôi kiếp).
+- **Yêu thú sinh động:** 279 loài yêu thú có hình thể, động tác thở, tung chiêu và trúng đòn riêng biệt. Mỗi quái sở hữu 5 tuyệt kỹ độc môn telegraphed bằng tên chiêu.
+- **Vật phẩm trợ chiến:** Sử dụng đan dược và phù chú ngay trong trận (Hồi Xuân Đan hồi khí huyết, Hồi Linh Đan hồi linh lực, Phù Định Thân làm choáng đối thủ).
+- **Cơ chế chiến đấu kép:** Di chuyển linh hoạt né đòn cảnh báo, tấn công chủ động bằng tay hoặc kích hoạt chế độ tự động xuất chiêu theo thời gian hồi (cooldown).
+
+### 3. Tùy biến Nhân vật & Trang bị
+- **Dựng hình đa tầng (Avatar3):** Nhân vật ghép từ 17 danh mục (khuôn mặt, kiểu tóc, y phục, vũ khí, hào quang tiên giới, tọa kỵ). Hiển thị trực quan món vũ khí và chiến bào đang mang trên người.
+- **Zoom cận cảnh tạo hình:** Giao diện cuộn giấy cổ phong tự động phóng to gương mặt khi chọn ngũ quan và kiểu tóc, giúp người chơi quan sát từng nét vẽ pixel tinh tế.
+- **Túi đồ thông minh:** 10 ô trang bị quanh nhân vật, phân màu theo phẩm cấp, hỗ trợ lọc danh mục và bảng so sánh thuộc tính nhanh khi thay đồ.
+
+### 4. Hệ thống Đăng nhập & Bảo mật
+- Giao diện thẻ kính mờ tối màu hiện đại, tối ưu tỉ lệ hiển thị trên cả điện thoại màn hình dọc/ngang lẫn iPad.
+- Đăng nhập/Đăng ký tài khoản tức thì, xác minh bảo mật email qua mã OTP 6 số.
+
+---
+
+## 📸 Hình ảnh giao diện
+
+### Đăng nhập & Tạo tài khoản
 ![Trang đăng nhập](unity_project/docs/login-home.png)
 ![Trang đăng ký](unity_project/docs/login-register.png)
 ![Xác minh email](unity_project/docs/login-verify.png)
 
-## Pixel chiến đấu PvE
-
-Màn chiến đấu lấy quái theo đúng ID từ catalog, cử động khi đứng, ra đòn và trúng đòn. Vũ khí trên nhân vật lấy theo món đang trang bị; kỹ năng và đòn nguyên tố của từng quái có hình pixel và hiệu ứng chuyển động riêng. Bộ `CombatPixel` hiện phủ 279/279 ID quái, 547/547 ID vũ khí duy nhất và 245/245 ID kỹ năng người chơi. Có thêm 279 hình hiệu ứng theo loài quái và 1.068 hình vật phẩm khác. Năm quái chủ lực được vẽ chi tiết riêng; các ID còn lại được dựng pixel theo dáng loài, màu nguyên tố và hoa văn từng ID. Xem [bảng phủ và giới hạn](unity_project/docs/combat-pixel-coverage.md).
-
+### Chiến đấu Pixel PvE
 ![PvE Cửu Vĩ Ma Hồ](unity_project/docs/pve-cuu-vi-ma-ho.png)
 ![PvE Thanh Long Chân Linh](unity_project/docs/pve-thanh-long.png)
 
-## Build trên GitHub
+---
 
-Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch project bằng Unity, sau đó dùng runner macOS và Xcode để tạo bản iOS. Khi dùng Xcode export dựng sẵn, workflow giữ bản export thành Actions artifact trong 90 ngày để không cần công khai release kỹ thuật.
+## 📁 Cấu trúc Dự án
 
-Để khởi tạo artifact Xcode lần đầu, chạy **Tu Tiên Giới iOS build** với `cache_xcode_export_only=true` và `xcode_export_tag=iosvn-xcode-bootstrap`. Mở run vừa chạy, sao chép run ID, rồi chạy lại workflow với:
-
-- `use_prebuilt_xcode=true`
-- `xcode_export_run_id=<run ID của workflow cache>`
-- `export_ipa=true`
-- `publish_release=true`
-- `publish_container=true` nếu muốn phát hành server lên GitHub Packages
-
-Mỗi lần build từ artifact sẽ lưu lại Xcode export để làm nguồn cho lần build tiếp theo. IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
-
-Nếu trình ký LCSign không nhận IPA hoàn toàn chưa ký, workflow **Prepare IPA for LCSign** nhận run ID chứa IPA và release tag, rồi thêm chữ ký ad hoc vào app cùng framework trước khi đóng `TuTienGioi-LCSign-ready.ipa`. Chữ ký ad hoc chỉ là chỗ cho công cụ ký lại; vẫn cần chứng chỉ và provisioning profile hợp lệ để cài lên iPhone. Tương thích thực tế với LCSign cần kiểm tra trên thiết bị.
-
-### Cấu hình bắt buộc
-
-- Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
-- App dùng tên **Tu Tiên Giới** và Bundle ID mặc định `com.iosvn.tutiengioi`; chỉ đặt variable `IOS_BUNDLE_ID` nếu cần ghi đè. Mỗi người ký bằng chứng chỉ riêng phải dùng provisioning profile cho phép Bundle ID này. Profile wildcard tương thích cũng có thể cho phép app mà không cần đăng ký ID tường minh.
-- Variable `IPA_SERVER_URL` có thể ghi đè địa chỉ API mặc định `https://tutien.iosvn.com.vn/ipa/api`.
-- Biến `ASSET_CDN_URL` là URL HTTPS chứa manifest và AssetBundles; có thể để trống trong bản thử nghiệm.
-- Để xuất IPA: secrets `IOS_TEAM_ID`, `IOS_CERTIFICATE_P12_BASE64`, `IOS_CERTIFICATE_PASSWORD`, `IOS_PROFILE_BASE64`.
-- Gmail sender for the dedicated server: environment values `GMAIL_SMTP_USER` and `GMAIL_SMTP_APP_PASSWORD`.
-
-Thiếu Unity license thì workflow ghi thông báo và bỏ qua build. Runner macOS của repo private dùng quota phút GitHub Actions và có thể bị tính phí theo gói.
-
-Trên Windows, vào **Unity Hub > Preferences > Licenses > Add > Get a free personal license** để Hub kích hoạt license. Với Personal license, tạo `.ulf` qua Hub; quy trình manual activation `.alf` của Unity chỉ hỗ trợ license ngoài Personal. Khi đã có `.ulf`, thêm nội dung file vào GitHub Actions secret `UNITY_LICENSE`, rồi đặt `UNITY_EMAIL` và `UNITY_PASSWORD` làm secrets riêng. Không gửi mật khẩu qua chat và không đưa file `.ulf` vào Release hoặc Packages.
-
-## GitHub Packages: IPA server
-
-Workflow có thể đóng gói server email riêng trong container và đẩy lên `ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test`. Container lắng nghe cổng `8788`; gắn volume vào `/data` để giữ tài khoản và nhân vật qua lần khởi động lại. Ví dụ chạy:
-
-```sh
-docker run --name iosvn-ipa-server --env-file ipa_server.env -p 8788:8788 -v iosvn-ipa-data:/data ghcr.io/iosvnnews/iosvn-ipa-server:unsigned-test
+```text
+├── .github/workflows/          # CI/CD tự động build iOS IPA và test máy chủ
+│   ├── build-ios.yml           # Pipeline build Unity, xuất Xcode và đóng gói IPA
+│   └── prepare-lcsign-ipa.yml  # Pipeline ký ad hoc phục vụ cài qua LCSign
+├── ipa_core/                   # Lõi luật chơi, dữ liệu catalog, quái vật, kỹ năng
+├── unity_project/              # Dự án client Unity (phiên bản 6000.6.3f1)
+│   ├── Assets/
+│   │   ├── Editor/             # Các công cụ xuất iOSBuild, preview, import
+│   │   ├── Resources/
+│   │   │   ├── Art/            # Texture quái vật, kỹ năng và icon phân giải cao
+│   │   │   ├── Avatar3/        # Dữ liệu lớp pixel nhân vật & tiên khí
+│   │   │   ├── PixelArt/       # Bộ pixel art nguyên bản (Monsters, Items, UI)
+│   │   │   └── World/          # Dữ liệu 19 map châu và cấu trúc thành phố
+│   │   ├── Scenes/             # Scene chính: OnlinePrototype.unity
+│   │   └── Scripts/Core/       # Mã nguồn C# điều khiển gameplay, UI và mạng
+│   └── docs/                   # Tài liệu chi tiết và ảnh minh hoạ
+├── tests/                      # Bộ kiểm thử tự động API và hệ thống (14 bài test)
+├── ipa_server.js               # Máy chủ độc lập Node.js cho tài khoản & gameplay
+└── Dockerfile                  # Container triển khai máy chủ lên GitHub Packages
 ```
 
-Server IPA này dùng API và tài khoản email riêng. AWS mini app hiện xác thực bằng Telegram; các route `/api/auth/email/*` và `/api/map/catalog` chưa có trên AWS mini app nên không thể dùng URL đó làm backend IPA. Đăng ký email gửi mã xác minh 6 số qua Gmail; cần tạo Google App Password cho mailbox gửi thư rồi đặt vào `GMAIL_SMTP_APP_PASSWORD` trên máy chủ. Không nhúng mật khẩu Gmail vào IPA hoặc Git.
+---
 
-Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ trên map, gặp quái tuần tra, đánh bằng kỹ năng, nhận vật phẩm, tích lũy tu vi và mở thành theo cảnh giới. Đây là chế độ PVE trên thiết bị. Tài khoản và nhân vật online dùng API `/ipa/api`; PVP với người chơi thật cần người chơi khác cùng đăng nhập server IPA.
+## 🎮 Cách chơi & Trải nghiệm
 
-## Hiện trạng
+### 1. Chơi Ngoại tuyến (Offline PVE)
+- Chọn nút **CHƠI NGOẠI TUYẾN** hoặc **THỬ TẠO NHÂN VẬT** ngay tại màn hình đầu tiên mà không cần tạo tài khoản.
+- Toàn bộ dữ liệu 19 châu, săn quái dã ngoại, vượt ải và thu thập chiến lợi phẩm được lưu trữ cục bộ trên thiết bị.
 
-- Unity project: `unity_project/` (ghim Unity `6000.6.3f1`; Editor và iOS Build Support đã cài trên ổ D của máy phát triển).
-- Server IPA: `ipa_server.js`, HTTPS `/ipa/api` trên domain `tutien.iosvn.com.vn`.
-- Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái và 245 kỹ năng. Màn PvE ưu tiên sprite `CombatPixel` theo ID; hình cũ từ bot chỉ là dự phòng cho ID chưa có trong bộ mới.
-- Chiến đấu online (PvE và PvP) dùng bộ ảnh trong `Art/`: quái 4 khung động kèm hào quang, vật phẩm 128px và 240 bảng hiệu ứng kỹ năng theo ngũ hành. Nhân vật ghép lớp theo trang bị đang mặc (`Avatar3`).
-- Bản đồ châu (`Resources/World`) rộng 256×160 ô, có dãy núi biên giới khép kín. Đi bộ bị núi, rừng và nước chặn; phi kiếm và tọa kỵ (ô trang bị `phiKiem`) bay qua được núi rừng nhưng không vượt được núi ngăn cách châu. NPC chỉ xuất hiện trong thành.
-- Màn chiến đấu ngoại tuyến và màn dự phòng có nút kiếm lớn, năm ô kỹ năng, ba ô vật phẩm nhanh, thanh máu boss phía trên và thanh HP/MP nhân vật phía dưới. Cả hai đấu thủ di chuyển và tự ra chiêu theo hồi chiêu; nút bấm vẫn cho phép chủ động đánh. Các ô neo trong vùng màn hình an toàn, co theo kích thước nội dung để dùng trên iPhone nhỏ và iPad. Ảnh kiểm tra ở `unity_project/docs/pve-iphone-small.png` và `unity_project/docs/pve-ipad-4x3.png`.
-- Pixel art khớp đủ với game Telegram: 1.860 icon vật phẩm/kỹ năng/lửa luyện/hồ lô, 279 quái và 58 icon HUD (`PixelArt/UI`). Emoji trong dữ liệu (thành, bí cảnh, đối thủ) được đổi sang đúng icon HUD như Mini App vì Unity không vẽ được emoji màu. Texture pixel được nhập lossless ở lưới gốc 64×64 (HUD 32×32), lọc point, không mipmap, không nén.
-- Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
-- Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.
-- Hướng tích hợp và ghi nhận nguồn AWS nằm trong `unity_project/docs/` và `ipa_core/PROVENANCE.md`.
+### 2. Chơi Trực tuyến (Online MMO)
+- Đăng ký tài khoản nhanh hoặc qua xác thực email.
+- Trải nghiệm tính năng PvP Đấu trường, chợ giao dịch, trò chuyện và cùng tu luyện với cộng đồng tu sĩ.
 
-Để nhập lại pixel art và catalog từ source game Telegram, chạy `node scripts/import_telegram_world_assets.js "D:\\Bot_Danh_Gia_Uy_Tin_Telegram\\tutien"`. Thêm `--ui-and-catalog` để chỉ làm mới icon HUD và catalog mà không mã hoá lại 2.139 ảnh quái/vật phẩm.
+---
 
-Để build trên GitHub Actions cần cấu hình Unity Personal secrets. Xuất IPA cài trên iPhone còn cần Apple signing secrets và bundle ID khớp provisioning profile.
+## 🚀 Hướng dẫn Build & Tải file IPA
 
-### Tải tài nguyên sau khi cài
+### 1. Tải bản IPA mới nhất
+Vào mục **[Releases](https://github.com/iOSVNNews/iosvn-unity-game/releases)** của repository:
+- Tải file `TuTienGioi-unsigned.ipa` từ release mới nhất.
+- Cài đặt lên iPhone/iPad thông qua các công cụ ký chứng chỉ phổ biến như **ESign**, **Scarlet**, **TrollStore** hoặc **AltStore/Sideloadly**.
+- Hệ thống tự động dọn dẹp các bản release cũ, chỉ giữ lại 2 phiên bản mới nhất để tránh đầy bộ nhớ.
 
-Game kiểm tra `version_manifest.json` khi mở. Gói tải được xác thực bằng SHA-256, lưu trong vùng dữ liệu của ứng dụng và chỉ nạp AssetBundle khi màn chơi yêu cầu. Đặt tên AssetBundle cho nội dung trong Unity rồi chạy `iOSVN > Assets > Build iOS downloadable bundles`; tải toàn bộ thư mục `build/AssetBundles/iOS` lên HTTPS CDN và đặt URL thư mục đó ở biến `ASSET_CDN_URL`. Bản cài hiện chưa có CDN nên sẽ vào nội dung thử nghiệm mà không chờ tải.
+### 2. Kích hoạt Build tự động trên GitHub Actions
+Mở tab **Actions** → chọn **Tu Tiên Giới iOS build** → bấm **Run workflow**:
+- **Mặc định:** Pipeline đã được cấu hình sẵn chế độ `use_prebuilt_xcode=true`, `export_ipa=true` và `publish_release=true`. Bạn chỉ cần bấm nút **Run workflow** mà không cần điều chỉnh tham số.
+- Workflow sẽ tự động tải bản xuất Xcode mới nhất, biên dịch mã nguồn qua máy ảo macOS runner, đóng gói IPA và tạo ngay một bản Release mới.
+- Đối với trường hợp cài đặt bằng **LCSign**, chạy tiếp workflow **Prepare IPA for LCSign** để được cấp chữ ký ad hoc thay thế.
+
+---
+
+## ⚙️ Cấu hình Máy chủ (Dành cho Quản trị viên)
+
+Chạy máy chủ qua Docker:
+```sh
+docker run -d --name iosvn-ipa-server \
+  --env-file ipa_server.env \
+  -p 8788:8788 \
+  -v iosvn-ipa-data:/data \
+  ghcr.io/iosvnnews/iosvn-ipa-server:latest
+```
+
+Kiểm tra API cục bộ:
+```sh
+npm test
+```

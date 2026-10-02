@@ -43,7 +43,7 @@ on:
         description: 'Use a cached Unity Xcode export (does not need a Unity CI license)'
         required: false
         type: boolean
-        default: false
+        default: true
       xcode_export_tag:
         description: 'Fallback release tag containing ios-xcode-export.zip'
         required: false
@@ -58,7 +58,7 @@ on:
         description: 'Build and package an unsigned IPA for testing'
         required: false
         type: boolean
-        default: false
+        default: true
       export_signed_ipa:
         description: 'Sign and package a development IPA for registered iPhones'
         required: false
@@ -68,7 +68,7 @@ on:
         description: 'Attach the unsigned IPA to a GitHub Release'
         required: false
         type: boolean
-        default: false
+        default: true
       publish_signed_release:
         description: 'Attach the signed IPA to a GitHub Release'
         required: false
@@ -117,7 +117,7 @@ jobs:
           UNITY_PASSWORD: ${{ secrets.UNITY_PASSWORD }}
           USE_PREBUILT_XCODE: ${{ inputs.use_prebuilt_xcode }}
         run: |
-          if [[ "${USE_PREBUILT_XCODE:-false}" == "true" ]]; then
+          if [[ "${USE_PREBUILT_XCODE:-true}" == "true" ]] || [[ "$GITHUB_EVENT_NAME" == "push" ]]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
           elif [[ -n "$UNITY_LICENSE" && -n "$UNITY_EMAIL" && -n "$UNITY_PASSWORD" ]]; then
             echo "configured=true" >> "$GITHUB_OUTPUT"
@@ -182,34 +182,43 @@ jobs:
       - uses: actions/checkout@v4
 
       - uses: actions/cache@v4
-        if: ${{ inputs.use_prebuilt_xcode != true }}
+        if: ${{ inputs.use_prebuilt_xcode != true && github.event_name != 'push' }}
         with:
           path: unity_project/Library
           key: unity-library-macos-${{ hashFiles('unity_project/ProjectSettings/ProjectVersion.txt', 'unity_project/Packages/manifest.json') }}
           restore-keys: unity-library-macos-
 
       - name: Download existing Unity Xcode export
-        if: ${{ inputs.use_prebuilt_xcode == true && inputs.xcode_export_run_id == '' }}
+        if: ${{ (inputs.use_prebuilt_xcode == true || github.event_name == 'push') && (inputs.xcode_export_run_id == '' || inputs.xcode_export_run_id == null) }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          XCODE_EXPORT_TAG: ${{ inputs.xcode_export_tag }}
+          XCODE_EXPORT_TAG: ${{ inputs.xcode_export_tag || 'iosvn-xcode-bootstrap' }}
         run: |
           set -euo pipefail
           mkdir -p "$RUNNER_TEMP/xcode-export"
-          RELEASES_JSON="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100")"
+          RELEASES_JSON="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" 2>/dev/null || echo "[]")"
           ASSET_ID="$(printf '%s\n' "$RELEASES_JSON" | jq -r --arg tag "$XCODE_EXPORT_TAG" \
             '.[] | select(.tag_name == $tag) | .assets[] | select(.name == "ios-xcode-export.zip") | .id' | head -n1)"
-          if [[ -z "$ASSET_ID" ]]; then
-            echo "Could not find ios-xcode-export.zip in release $XCODE_EXPORT_TAG." >&2
-            exit 1
+          if [[ -n "$ASSET_ID" ]]; then
+            echo "Downloading ios-xcode-export.zip from release $XCODE_EXPORT_TAG..."
+            gh api -H 'Accept: application/octet-stream' \
+              "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
+              > "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
+          else
+            echo "Release $XCODE_EXPORT_TAG not found. Searching latest Actions artifact..."
+            LATEST_RUN_ID="$(gh api "repos/$GITHUB_REPOSITORY/actions/artifacts?name=TuTienGioi-ios-xcode-export" --jq '.artifacts[0].workflow_run.id // empty')"
+            if [[ -n "$LATEST_RUN_ID" ]]; then
+              echo "Downloading TuTienGioi-ios-xcode-export from workflow run $LATEST_RUN_ID..."
+              gh run download "$LATEST_RUN_ID" --name TuTienGioi-ios-xcode-export --dir "$RUNNER_TEMP/xcode-export"
+            else
+              echo "Could not find ios-xcode-export artifact or release." >&2
+              exit 1
+            fi
           fi
-          gh api -H 'Accept: application/octet-stream' \
-            "repos/$GITHUB_REPOSITORY/releases/assets/$ASSET_ID" \
-            > "$RUNNER_TEMP/xcode-export/ios-xcode-export.zip"
 
       - name: Download Unity Xcode export from Actions artifact
-        if: ${{ inputs.use_prebuilt_xcode == true && inputs.xcode_export_run_id != '' }}
+        if: ${{ (inputs.use_prebuilt_xcode == true || github.event_name == 'push') && inputs.xcode_export_run_id != '' && inputs.xcode_export_run_id != null }}
         uses: actions/download-artifact@v4
         with:
           name: TuTienGioi-ios-xcode-export
@@ -218,7 +227,7 @@ jobs:
           path: ${{ runner.temp }}/xcode-export
 
       - name: Validate and extract Unity Xcode export
-        if: ${{ inputs.use_prebuilt_xcode == true }}
+        if: ${{ inputs.use_prebuilt_xcode == true || github.event_name == 'push' }}
         shell: bash
         run: |
           set -euo pipefail
@@ -229,7 +238,7 @@ jobs:
           unzip -q "$ARCHIVE" -d "$GITHUB_WORKSPACE/build/iOS"
 
       - name: Keep Xcode export available for future IPA builds
-        if: ${{ inputs.use_prebuilt_xcode == true }}
+        if: ${{ inputs.use_prebuilt_xcode == true || github.event_name == 'push' }}
         uses: actions/upload-artifact@v4
         with:
           name: TuTienGioi-ios-xcode-export
@@ -238,7 +247,7 @@ jobs:
           retention-days: 90
 
       - uses: game-ci/unity-builder@v5.0.0
-        if: ${{ inputs.use_prebuilt_xcode != true }}
+        if: ${{ inputs.use_prebuilt_xcode != true && github.event_name != 'push' }}
         env:
           UNITY_LICENSE: ${{ secrets.UNITY_LICENSE }}
           UNITY_EMAIL: ${{ secrets.UNITY_EMAIL }}
@@ -439,7 +448,7 @@ jobs:
           fi
 
       - name: Package unsigned IPA
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         shell: bash
         env:
           IOS_BUNDLE_ID: ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }}
@@ -485,7 +494,7 @@ jobs:
           /usr/bin/unzip -tq "$RUNNER_TEMP/TuTienGioi-unsigned.ipa"
 
       - uses: actions/upload-artifact@v4
-        if: ${{ !inputs.use_prebuilt_xcode }}
+        if: ${{ !inputs.use_prebuilt_xcode && github.event_name != 'push' }}
         with:
           name: TuTienGioi-ios-xcode-project
           path: build/iOS
@@ -493,7 +502,7 @@ jobs:
           retention-days: 7
 
       - uses: actions/upload-artifact@v4
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa }}
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         with:
           name: TuTienGioi-unsigned-ipa
           path: ${{ runner.temp }}/TuTienGioi-unsigned.ipa
@@ -511,7 +520,7 @@ jobs:
   publish-unsigned-ipa-release:
     name: Attach unsigned IPA to GitHub Release
     needs: [build-ios]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release }}
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
     runs-on: ubuntu-latest
     permissions:
       contents: write
@@ -551,7 +560,7 @@ jobs:
         run: |
           set -euo pipefail
           OLD_TAGS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '.[] | select((.tag_name | startswith("tutiengioi-unsigned-")) or .tag_name == "iosvn-unsigned-test") | [.tag_name, .published_at] | @tsv' \
+            --jq '.[] | select((.tag_name | startswith("tutiengioi-")) or .tag_name == "iosvn-unsigned-test") | [.tag_name, .published_at] | @tsv' \
             | sort -k2,2r | tail -n +3 | cut -f1)"
           while IFS= read -r tag; do
             [[ -z "$tag" ]] && continue
