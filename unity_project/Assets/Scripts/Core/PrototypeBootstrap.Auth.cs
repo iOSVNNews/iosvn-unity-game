@@ -52,9 +52,21 @@ namespace IOSVN.TuTien.Core
             AuthBrandHeader(card,
                 createAccount ? "KHỞI ĐẦU\nTIÊN LỘ" : "CHÀO MỪNG\nĐẠO HỮU",
                 createAccount ? "Tạo tài khoản để lưu hành trình tu luyện trên mọi thiết bị." : "Đăng nhập để tiếp tục hành trình tu luyện của bạn.");
-            AuthText(card, "OfflineCaption", "KHÔNG CẦN TÀI KHOẢN", ModernUi.SemiBold, 19, AuthTextTertiary, TextAnchor.MiddleLeft, AuthBrandTextX, 476f + grow, AuthBrandTextWidth, 30f);
-            AuthControl(AuthGhost(card, "Chơi ngoại tuyến", "compass", AuthBrandTextX, 514f + grow, AuthBrandTextWidth, 80f, EnterOfflinePreview));
-            AuthControl(AuthGhost(card, "Thử tạo nhân vật", "userPlus", AuthBrandTextX, 608f + grow, AuthBrandTextWidth, 80f, EnterOfflineCharacterCreationPreview));
+            // Official game server info on the brand panel
+            var badgeY = 460f + grow;
+            var infoBox = AuthNode("ServerInfoBox", card, AuthBrandTextX, badgeY, AuthBrandTextWidth, 190f);
+            var infoFill = infoBox.gameObject.AddComponent<Image>();
+            ModernUi.Fill(infoFill, 18f);
+            infoFill.color = new Color32(2, 7, 12, 130);
+            var infoEdge = AuthImage(infoBox, "Edge", 0f, 0f, AuthBrandTextWidth, 190f);
+            ModernUi.Ring(infoEdge, 18f, 1.2f);
+            infoEdge.color = new Color32(240, 228, 204, 38);
+
+            AuthText(infoBox, "ServerLabel", "MÁY CHỦ CHÍNH THỨC", ModernUi.Bold, 20, AuthGoldAccent, TextAnchor.MiddleLeft, 22f, 16f, AuthBrandTextWidth - 44f, 26f);
+            AuthText(infoBox, "ServerLine1", "• Thế giới mở Quỷ Cốc Bát Hoang", ModernUi.Regular, 19, AuthTextSecondary, TextAnchor.MiddleLeft, 22f, 52f, AuthBrandTextWidth - 44f, 26f);
+            AuthText(infoBox, "ServerLine2", "• Tu tiên độ kiếp · Trảm yêu trừ ma", ModernUi.Regular, 19, AuthTextSecondary, TextAnchor.MiddleLeft, 22f, 84f, AuthBrandTextWidth - 44f, 26f);
+            AuthText(infoBox, "ServerLine3", "• Đấu pháp liên server & Bang phái", ModernUi.Regular, 19, AuthTextSecondary, TextAnchor.MiddleLeft, 22f, 116f, AuthBrandTextWidth - 44f, 26f);
+            AuthText(infoBox, "ServerLine4", "• Trực tuyến: tutien.iosvn.com.vn", ModernUi.Medium, 17, AuthTextTertiary, TextAnchor.MiddleLeft, 22f, 150f, AuthBrandTextWidth - 44f, 24f);
 
             // Creating an account stacks three full-width fields, so a long password is readable while typing.
             var top = createAccount ? 44f : 60f;

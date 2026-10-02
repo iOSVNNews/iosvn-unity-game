@@ -62,12 +62,14 @@ namespace IOSVN.TuTien.Core
         {
             if (hub.IsNull) { RefreshHub(ShowWorld); return; }
             var town = hub["town"];
-            var mapId = town["mapId"].Str();
+            var mapId = town["mapId"].Str("map_1");
+            if (string.IsNullOrEmpty(mapId)) mapId = "map_1";
             var data = WorldMapData.Load(mapId);
             var painting = data == null ? null : GetPainting(mapId);
             if (data == null || painting == null)
             {
-                if (latestState != null) ShowHome(latestState);
+                if (latestState != null) { ShowHome(latestState); }
+                else { ShowWorldRecoveryScreen("Thiếu dữ liệu bản đồ " + mapId + " trong bản cài."); }
                 Toast("Thiếu dữ liệu bản đồ " + mapId + " trong bản cài.", true);
                 return;
             }
@@ -86,10 +88,6 @@ namespace IOSVN.TuTien.Core
                 Clean(player["name"].Str("Đạo hữu")), new Color32(255, 240, 200, 255));
             worldView.WalkSpeed = 3.2f;
             me.Speed = worldView.WalkSpeed;
-            var myRealm = hub["realm"]["index"].Int();
-            worldView.SetAura(me, LookOf(player), AvatarComposer.AuraStrength(myRealm));
-            me.Pressure = myRealm >= 6;
-            me.PressureColor = HeroSprites.ParseColor(LookOf(player).Get("auc", "#8fe0ff"), new Color32(140, 220, 255, 255));
             worldView.Player = me;
             worldView.Teleport(me, spawn);
             lastSavedTile = worldView.TileOf(spawn);
@@ -101,17 +99,40 @@ namespace IOSVN.TuTien.Core
             worldView.OnPoiTap = HandleWorldPoi;
             worldView.OnActorTap = HandleWorldActor;
             worldView.OnPlayerStep = OnWorldStep;
-            BuildWorldLabels(data);
-            SyncWorldMonsters(hub["worldMonsters"]);
+
+            try
+            {
+                var myRealm = hub["realm"]["index"].Int();
+                worldView.SetAura(me, LookOf(player), AvatarComposer.AuraStrength(myRealm));
+                me.Pressure = myRealm >= 6;
+                me.PressureColor = HeroSprites.ParseColor(LookOf(player).Get("auc", "#8fe0ff"), new Color32(140, 220, 255, 255));
+            }
+            catch (Exception ex) { Debug.LogWarning("SetAura error: " + ex.Message); }
+
+            try { BuildWorldLabels(data); }
+            catch (Exception ex) { Debug.LogWarning("BuildWorldLabels error: " + ex.Message); }
+
+            try { SyncWorldMonsters(hub["worldMonsters"]); }
+            catch (Exception ex) { Debug.LogWarning("SyncWorldMonsters error: " + ex.Message); }
+
             // cultivators (NPCs) are met inside the cities, not out on the map
-            var phase = hub["timePhase"]["phase"].Str();
-            worldView.SetNight(phase == "night" ? 1f : phase == "evening" ? .55f : phase == "dawn" ? .25f : 0f);
+            try
+            {
+                var phase = hub["timePhase"]["phase"].Str();
+                worldView.SetNight(phase == "night" ? 1f : phase == "evening" ? .55f : phase == "dawn" ? .25f : 0f);
+            }
+            catch (Exception ex) { Debug.LogWarning("SetNight error: " + ex.Message); }
+
             promptPoi = null;
-            BuildWorldHud(data);
+
+            try { BuildWorldHud(data); }
+            catch (Exception ex) { Debug.LogWarning("BuildWorldHud error: " + ex.Message); }
+
             nextMonsterRefresh = Time.time + 15f;
             worldReturnTile = null;
             if (worldTravel != TravelMode.Walk) ApplyWorldTravel(true);
-            UpdatePlacePrompt(worldView.TileOf(me.Pos));
+            try { UpdatePlacePrompt(worldView.TileOf(me.Pos)); }
+            catch (Exception ex) { Debug.LogWarning("UpdatePlacePrompt error: " + ex.Message); }
         }
 
         private Vector2 ResolveWorldSpawn(WorldMapData data, J player, string townId)
@@ -148,18 +169,39 @@ namespace IOSVN.TuTien.Core
         /// <summary>The player's layered look (creator look, or one derived from the legacy appearance).</summary>
         private static LookSpec LookOf(J player)
         {
-            // lookWorn = the creator look with the equipped weapon / armour applied by the server
-            var text = player["lookWorn"].Str(player["look"].Str());
-            if (!string.IsNullOrEmpty(text))
+            if (player.IsNull) return AvatarComposer.Default(false);
+            try
             {
-                var look = LookSpec.Parse(text);
-                return look.Fill(AvatarComposer.Default(look.Get("g", player["gender"].Str() == "nu" ? "f" : "m") == "f"));
+                // lookWorn = the creator look with the equipped weapon / armour applied by the server
+                var text = player["lookWorn"].Str(player["look"].Str());
+                if (!string.IsNullOrEmpty(text))
+                {
+                    var look = LookSpec.Parse(text);
+                    return look.Fill(AvatarComposer.Default(look.Get("g", player["gender"].Str() == "nu" ? "f" : "m") == "f"));
+                }
+                var colors = player["appearanceColors"];
+                var isFemale = player["gender"].Str() == "nu";
+                var hair = colors.IsObject ? colors["hair"].Str() : "";
+                var outfit = colors.IsObject ? colors["outfit"].Str() : "";
+                var eyes = colors.IsObject ? colors["eyes"].Str() : "";
+                return HeroSprites.LegacyLook(isFemale, hair, outfit, eyes);
             }
-            var colors = player["appearanceColors"];
-            return HeroSprites.LegacyLook(player["gender"].Str() == "nu", colors["hair"].Str(), colors["outfit"].Str(), colors["eyes"].Str());
+            catch (Exception ex)
+            {
+                Debug.LogWarning("LookOf fallback: " + ex.Message);
+                return AvatarComposer.Default(false);
+            }
         }
 
-        private Sprite[] HeroFramesFor(J player) => HeroSprites.Get(LookOf(player));
+        private Sprite[] HeroFramesFor(J player)
+        {
+            try { return HeroSprites.Get(LookOf(player)); }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("HeroFramesFor fallback: " + ex.Message);
+                return HeroSprites.Get(AvatarComposer.Default(false));
+            }
+        }
 
         // ------------------------------------------------------------------ labels
 
@@ -747,7 +789,15 @@ namespace IOSVN.TuTien.Core
             maskImage.color = new Color(1, 1, 1, .02f);
             portraitMask.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             var portrait = Anchored("Portrait", portraitMask, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
-            portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
+            try
+            {
+                portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
+            }
+            catch (Exception ex)
+            {
+                Debug.LogWarning("Avatar compose error: " + ex.Message);
+                portrait.texture = null;
+            }
             portrait.uvRect = new Rect(.28f, .69f, .44f, .2625f);   // head and shoulders of the front-view portrait
             portrait.raycastTarget = false;
             var discButton = disc.gameObject.AddComponent<Button>();

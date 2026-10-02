@@ -9,7 +9,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class ApiResult { public bool ok; public string error; public string message; public string accessToken; public long expiresAt; public bool verificationRequired; public string email; public string code; }
     [Serializable] public class ChoiceInfo { public string id; public string name; }
     [Serializable] public class GameCatalog { public ChoiceInfo[] mon; public ChoiceInfo[] he; }
-    [Serializable] public class RealmInfo { public int index; public string name; public int sub; public long experience; }
+    [Serializable] public class RealmInfo { public int index; public string name; public string sub; public long experience; }
     [Serializable] public class MapInfo { public string id; public string name; public string provinceName; public string desc; public int realmMin; public int realmMax; public bool ascensionRequired; public string realmMinName; public string realmMaxName; public string[] townIds; }
     [Serializable] public class TownInfo { public string id; public string name; public string mapId; public string icon; public string desc; public int realmMin; public string realmMinName; public int x; public int y; public string[] monsterPool; }
     [Serializable] public class DungeonInfo { public string id; public string name; public string icon; public string townId; public int realmMin; public int stamina; public string desc; }
@@ -24,7 +24,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class WorldMoveChoice { public string mapId; public int x; public int y; }
     [Serializable] public class EquippedItem { public string id; public string name; public string slot; }
     [Serializable] public class PlayerEquipment { public EquippedItem weapon; public EquippedItem phiKiem; }
-    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; public WorldMapPosition worldPosition; public PlayerEquipment equip; }
+    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string gender; public string look; public string lookWorn; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; public WorldMapPosition worldPosition; public PlayerEquipment equip; }
     [Serializable] public class AppearanceColors { public string hair; public string outfit; public string eyes; }
     [Serializable] public class WorldMonster { public string uid; public string monsterId; public string name; public string townId; public long hp; public long maxHp; public bool isBoss; }
     [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public TownInfo[] allTowns; public MapInfo[] allMaps; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }

@@ -700,12 +700,13 @@ namespace IOSVN.TuTien.Core
             ShowLoadingVeil("Đang tải hồ sơ từ máy chủ...");
             client.LoadStateBoth((state, raw, error) =>
             {
-                if (state == null) { ShowLoadError(error ?? "Không đọc được hồ sơ.", LoadState); return; }
+                if (state == null && !raw.IsObject) { ShowLoadError(error ?? "Không đọc được hồ sơ từ máy chủ.", LoadState); return; }
                 hub = raw;
-                currentCatalog = state.catalog;
+                currentCatalog = state?.catalog;
                 latestState = state;
-                SetRealmMusic(state);
-                if (!state.registered) { ShowCharacterCreation(); return; }
+                if (state != null) SetRealmMusic(state);
+                bool isRegistered = state != null ? state.registered : raw["registered"].Bool();
+                if (!isRegistered) { ShowCharacterCreation(); return; }
                 client.LoadCurrentBattle((battle, _) =>
                 {
                     // JsonUtility turns "battle": null into an empty object: only a battle with an id is a fight in progress
@@ -727,7 +728,7 @@ namespace IOSVN.TuTien.Core
             });
         }
 
-        /// <summary>Never leave the player on a blank screen: fall back to the classic home on any error.</summary>
+        /// <summary>Never leave the player on a blank screen: fall back to the classic home or recovery card on any error.</summary>
         private void SafeShowWorld()
         {
             try { ShowWorld(); }
@@ -735,9 +736,34 @@ namespace IOSVN.TuTien.Core
             {
                 Debug.LogException(ex);
                 ClearBattleScene();
-                if (latestState != null) ShowHome(latestState);
-                ShowStatus("Không mở được bản đồ: " + ex.Message);
+                try
+                {
+                    if (latestState != null) { ShowHome(latestState); return; }
+                }
+                catch (Exception homeEx)
+                {
+                    Debug.LogException(homeEx);
+                }
+                ShowWorldRecoveryScreen(ex.Message);
             }
+        }
+
+        private void ShowWorldRecoveryScreen(string detail)
+        {
+            PrepareAccountScreen();
+            var card = BuildAuthCard(true, 560f);
+            AuthBrandHeader(card, "THẾ GIỚI\nTU TIÊN", "Đã có sự cố khi dựng thế giới tu tiên.");
+            AuthText(card, "RecoveryTip", "Không thể hiển thị bản đồ ngoài thành.\n" + (detail ?? "Lỗi không xác định"),
+                ModernUi.Regular, 22, AuthTextTertiary, TextAnchor.UpperLeft, AuthBrandTextX, 360f, AuthBrandTextWidth, 140f);
+
+            var retryBtn = AuthPrimary(card, "VÀO LẠI BẢN ĐỒ", AuthFormX, 160f, AuthFormWidth, () => SafeShowWorld());
+            AuthControl(retryBtn);
+
+            var reloadStateBtn = AuthGhost(card, "Tải lại hồ sơ máy chủ", "refresh", AuthFormX, 270f, AuthFormWidth, 80f, () => LoadState());
+            AuthControl(reloadStateBtn);
+
+            var logoutBtn = AuthGhost(card, "Đăng xuất tài khoản", "logOut", AuthFormX, 370f, AuthFormWidth, 80f, () => client.Logout(_ => ShowLogin()));
+            AuthControl(logoutBtn);
         }
 
         private void ShowLoadingVeil(string message)
@@ -758,10 +784,17 @@ namespace IOSVN.TuTien.Core
 
         private void ShowLoadError(string message, Action retry)
         {
-            ClearContent();
-            Label(message, 26, Cream, TextAnchor.MiddleCenter, new Vector2(.1f, .5f), new Vector2(.9f, .65f));
-            Button("THỬ LẠI", new Vector2(.35f, .36f), new Vector2(.65f, .46f), Gold, () => retry?.Invoke());
-            Button("ĐĂNG XUẤT", new Vector2(.35f, .24f), new Vector2(.65f, .33f), Panel, () => client.Logout(_ => ShowLogin()));
+            PrepareAccountScreen();
+            var card = BuildAuthCard(true, 560f);
+            AuthBrandHeader(card, "LỖI KẾT NỐI", "Không thể đồng bộ dữ liệu với máy chủ game.");
+            AuthText(card, "ErrorTip", message ?? "Có lỗi khi tải hồ sơ từ máy chủ.",
+                ModernUi.Regular, 22, AuthTextTertiary, TextAnchor.UpperLeft, AuthBrandTextX, 360f, AuthBrandTextWidth, 140f);
+
+            var retryBtn = AuthPrimary(card, "THỬ LẠI", AuthFormX, 180f, AuthFormWidth, () => retry?.Invoke());
+            AuthControl(retryBtn);
+
+            var logoutBtn = AuthGhost(card, "ĐĂNG XUẤT", "logOut", AuthFormX, 290f, AuthFormWidth, 80f, () => client.Logout(_ => ShowLogin()));
+            AuthControl(logoutBtn);
         }
 
         private void ShowCharacterCreation()
