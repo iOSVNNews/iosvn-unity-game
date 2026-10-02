@@ -25,14 +25,20 @@
 
 ## 📸 Hình ảnh giao diện
 
-### Đăng nhập & Tạo tài khoản
-![Trang đăng nhập](unity_project/docs/login-home.png)
-![Trang đăng ký](unity_project/docs/login-register.png)
-![Xác minh email](unity_project/docs/login-verify.png)
+### 1. Màn hình Khởi đầu & Đăng nhập
+![Màn hình Đăng nhập](unity_project/docs/login-home.png)
 
-### Chiến đấu Pixel PvE
-![PvE Cửu Vĩ Ma Hồ](unity_project/docs/pve-cuu-vi-ma-ho.png)
-![PvE Thanh Long Chân Linh](unity_project/docs/pve-thanh-long.png)
+### 2. Tạo hình Nhân vật Đa tầng
+![Tạo hình Nhân vật](unity_project/docs/game-creator.png)
+
+### 3. Khám phá Thế giới 19 Châu
+![Bản đồ Thế giới](unity_project/docs/game-world.png)
+
+### 4. Chiến đấu Yêu thú Thời gian thực
+![Chiến đấu Yêu thú](unity_project/docs/game-battle.png)
+
+### 5. Hành trang & Trang bị Nhân vật
+![Hành trang & Trang bị](unity_project/docs/game-bag.png)
 
 ---
 
