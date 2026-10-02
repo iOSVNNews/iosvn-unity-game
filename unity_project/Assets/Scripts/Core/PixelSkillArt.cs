@@ -17,18 +17,35 @@ namespace IOSVN.TuTien.Core
         public static Sprite[] Frames(string id, string name, string kind, bool immortal)
         {
             var key = (id ?? "") + "|" + (name ?? "") + "|" + (kind ?? "") + "|" + immortal;
-            if (Cache.TryGetValue(key, out var cached)) return cached;
+            if (Cache.TryGetValue(key, out var cached) && cached != null && cached.Length > 0 && cached[0] != null) return cached;
             var normalized = Normalize((id ?? "") + " " + (name ?? ""));
             var role = Normalize(kind ?? "atk");
             var seed = StableHash(key);
             var shape = ResolveShape(normalized, role);
             var palette = ResolvePalette(shape, immortal, seed);
+            var identityArt = Resources.Load<Texture2D>("CombatPixel/Skills/" + ResourceId(id));
+            Color32[] identityPixels = null;
+            if (identityArt != null)
+            {
+                try { identityPixels = identityArt.GetPixels32(); }
+                catch (UnityException) { identityPixels = null; }
+            }
             const int size = 48;
             var frames = new Sprite[8];
             for (var frame = 0; frame < frames.Length; frame++)
             {
                 var pixels = new Color32[size * size];
                 DrawShape(pixels, size, frame, shape, palette, seed);
+                if (identityPixels != null)
+                {
+                    for (var y = 0; y < size; y++) for (var x = 0; x < size; x++)
+                    {
+                        var sx = x * identityArt.width / size;
+                        var sy = y * identityArt.height / size;
+                        var mark = identityPixels[sy * identityArt.width + sx];
+                        if (mark.a > 40) pixels[y * size + x] = mark;
+                    }
+                }
                 DrawRoleOverlay(pixels, size, frame, role, palette, seed);
                 DrawSignature(pixels, size, frame, palette, seed);
                 frames[frame] = MakeSprite(pixels, size, "PixelSkill_" + SafeName(id) + "_" + frame);
@@ -464,5 +481,6 @@ namespace IOSVN.TuTien.Core
         private static bool ContainsAny(string value, params string[] words) { foreach (var word in words) if (value.Contains(word)) return true; return false; }
         private static uint StableHash(string value) { unchecked { uint hash = 2166136261u; foreach (var ch in value) { hash ^= ch; hash *= 16777619u; } return hash; } }
         private static string SafeName(string value) { if (string.IsNullOrEmpty(value)) return "generic"; var b = new StringBuilder(); foreach (var c in value) if (char.IsLetterOrDigit(c) || c == '_') b.Append(c); return b.Length > 32 ? b.ToString(0, 32) : b.ToString(); }
+        private static string ResourceId(string value) { if (string.IsNullOrEmpty(value)) return "generic"; var b = new StringBuilder(); foreach (var c in value) if (char.IsLetterOrDigit(c) || c == '_') b.Append(c); return b.ToString(); }
     }
 }

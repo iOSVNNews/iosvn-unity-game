@@ -225,9 +225,12 @@ namespace IOSVN.TuTien.Core
                 if (distance < 178f && Time.time >= offlineNextEnemyAttackTime && Time.time >= offlineEnemyStunnedUntil)
                 {
                     offlineNextEnemyAttackTime = Time.time + 1.15f;
-                        var damage = OfflineMonsterAttackDamage(activeOfflineMonster);
+                    var damage = OfflineMonsterAttackDamage(activeOfflineMonster);
                     offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - damage);
-                    offlineMonsterImage.color = new Color32(255, 137, 112, 255);
+                    offlineMonsterImage.GetComponent<PixelCreatureAnimator>()?.Attack();
+                    offlinePlayerFighter.GetComponent<PixelCreatureAnimator>()?.Hit();
+                    offlinePlayerFighter.GetComponent<Image>().color = new Color32(255, 137, 112, 255);
+                    StartCoroutine(AnimateOfflineMonsterEffect());
                     StartCoroutine(ResetMonsterHitFlash());
                     offlineBattleMessage.text = activeOfflineMonster.name + " áp sát phản kích · mất " + damage + " khí huyết.";
                     if (offlineProgress.hp <= 0)
@@ -248,7 +251,7 @@ namespace IOSVN.TuTien.Core
         private IEnumerator ResetMonsterHitFlash()
         {
             yield return new WaitForSeconds(.12f);
-            if (offlineMonsterImage != null) offlineMonsterImage.color = Color.white;
+            if (offlinePlayerFighter != null) offlinePlayerFighter.GetComponent<Image>().color = Color.white;
         }
 
         private void SetOfflineBattleMove(Vector2 direction) => offlineBattleMoveInput = direction;
@@ -1465,7 +1468,7 @@ namespace IOSVN.TuTien.Core
             Action<int, int, int, int, Color32> rect = (x, y, rw, rh, c) => { for (var py = y; py < y + rh; py++) for (var px = x; px < x + rw; px++) if (px >= 0 && px < width && py >= 0 && py < height) pixels[py * width + px] = c; };
             rect(5, 18, 6, 4, hair); rect(4, 15, 8, 4, new Color32(220, 175, 137, 255)); rect(5, 16, 1, 1, eyes); rect(10, 16, 1, 1, eyes);
             rect(3, 7, 10, 8, robe); rect(1, 2, 14, 5, robe); rect(6, 7, 4, 7, new Color32(220, 193, 133, 255));
-            rect(4, 3, 8, 2, new Color32(197, 166, 100, 255)); rect(6, 1, 4, 2, new Color32(42, 44, 46, 255)); rect(13, 10, 1, 12, new Color32(195, 197, 191, 255));
+            rect(4, 3, 8, 2, new Color32(197, 166, 100, 255)); rect(6, 1, 4, 2, new Color32(42, 44, 46, 255));
             var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "PlayerPixelSprite", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
             texture.SetPixels32(pixels); texture.Apply(false, true);
             var sprite = Sprite.Create(texture, new Rect(0, 0, width, height), new Vector2(.5f, .1f), width);
@@ -1897,9 +1900,10 @@ namespace IOSVN.TuTien.Core
             if (offlineSkillButton == null) return;
             SetOfflineButtonLabel(offlineSkillButton, (activeOfflineSkill?.name ?? "Kỹ năng") + " · " + offlineBattleEnergy);
             if (offlineSkillIcon == null) return;
-            var sprite = LoadPixelIcon("PixelArt/Items/" + (activeOfflineSkill?.id ?? "kiem_khi_tram"));
-            offlineSkillIcon.sprite = sprite;
-            offlineSkillIcon.enabled = sprite != null;
+            var id = activeOfflineSkill?.id ?? "kiem_khi_tram";
+            PixelSkillArt.Animate(offlineSkillIcon, id, activeOfflineSkill?.name, activeOfflineSkill?.kind,
+                offlineProgress.realmIndex >= 11);
+            offlineSkillIcon.enabled = true;
         }
 
         private static Sprite LoadPixelIcon(string resourcePath)
@@ -1910,7 +1914,15 @@ namespace IOSVN.TuTien.Core
             // The redrawn monsters and item icons replace the original icons wherever they exist.
             var redrawn = ArtSprites.ForLegacyPath(resourcePath);
             if (redrawn != null) { PixelIconCache[resourcePath] = redrawn; return redrawn; }
-            var texture = Resources.Load<Texture2D>(resourcePath);
+            Texture2D texture = null;
+            if (resourcePath.StartsWith("PixelArt/Items/", StringComparison.Ordinal))
+            {
+                var itemId = resourcePath.Substring("PixelArt/Items/".Length);
+                texture = Resources.Load<Texture2D>("CombatPixel/Weapons/" + itemId)
+                    ?? Resources.Load<Texture2D>("CombatPixel/Skills/" + itemId)
+                    ?? Resources.Load<Texture2D>("CombatPixel/Items/" + itemId);
+            }
+            texture = texture ?? Resources.Load<Texture2D>(resourcePath);
             if (texture == null) return null;
             texture.filterMode = FilterMode.Point;
             var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 64);
@@ -2002,9 +2014,26 @@ namespace IOSVN.TuTien.Core
             offlinePlayerHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.035f, .15f), new Vector2(.37f, .43f), new Color32(73, 190, 111, 255));
             offlineMonsterHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.61f, .15f), new Vector2(.80f, .43f), new Color32(206, 72, 63, 255));
 
-            offlinePlayerFighter = MakeBattleFighter("PixelCultivator", CreateCultivatorSprite(offlinePreviewState.player.appearanceColors), new Vector2(.28f, .48f), new Vector2(114, 172));
-            offlineMonsterImage = MakeBattleFighterImage("PixelMonster", LoadPixelIcon("PixelArt/Monsters/" + activeOfflineMonster.id), new Vector2(.70f, .49f), new Vector2(190, 190), out offlineMonsterFighter);
+            var cultivatorFrames = PixelCreatureArt.Frames("player_cultivator");
+            offlinePlayerFighter = MakeBattleFighter("PixelCultivator", cultivatorFrames != null ? cultivatorFrames[0] : CreateCultivatorSprite(offlinePreviewState.player.appearanceColors), new Vector2(.28f, .48f), new Vector2(114, 172));
+            offlinePlayerFighter.GetComponent<Image>().rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+            if (cultivatorFrames != null) offlinePlayerFighter.gameObject.AddComponent<PixelCreatureAnimator>().SetMonster("player_cultivator");
+            var weaponSprite = PixelWeaponArt.ForClass(offlineProgress.monClass);
+            if (weaponSprite != null)
+            {
+                var weapon = new GameObject("EquippedPixelWeapon", typeof(RectTransform), typeof(Image));
+                weapon.transform.SetParent(offlinePlayerFighter, false);
+                var weaponRect = weapon.GetComponent<RectTransform>();
+                weaponRect.anchorMin = weaponRect.anchorMax = new Vector2(.79f, .44f);
+                weaponRect.sizeDelta = new Vector2(64f, 64f);
+                var weaponImage = weapon.GetComponent<Image>();
+                weaponImage.sprite = weaponSprite;
+                weaponImage.preserveAspect = true;
+                weaponImage.raycastTarget = false;
+            }
+            offlineMonsterImage = MakeBattleFighterImage("PixelMonster", LoadPixelIcon("CombatPixel/Monsters/" + activeOfflineMonster.id), new Vector2(.70f, .49f), new Vector2(190, 190), out offlineMonsterFighter);
             if (offlineMonsterImage.sprite == null) offlineMonsterImage.sprite = AtlasPixelSprite("Y");
+            offlineMonsterImage.gameObject.AddComponent<PixelCreatureAnimator>().SetMonster(activeOfflineMonster.id);
             offlineBattleTitle = ChildText(offlineBattleRoot.transform, "EnemyCaption", 18, Cream, TextAnchor.MiddleCenter, new Vector2(.54f, .35f), new Vector2(.86f, .42f));
             offlineBattleTitle.text = activeOfflineMonster.name;
             offlineBattleMessage = ChildText(offlineBattleRoot.transform, "CombatLog", 17, new Color32(255, 228, 169, 255), TextAnchor.MiddleCenter, new Vector2(.29f, .27f), new Vector2(.71f, .34f));
@@ -2139,6 +2168,7 @@ namespace IOSVN.TuTien.Core
             var range = Vector2.Distance(offlinePlayerFighter.localPosition, offlineMonsterFighter.localPosition);
             if (range > 310f) { offlineBattleMessage.text = "Yêu thú đang ở xa · dùng phím hướng để áp sát."; return; }
             offlineActionRunning = true;
+            offlinePlayerFighter.GetComponent<PixelCreatureAnimator>()?.Attack();
             StartCoroutine(ResolveOfflineBattleTurn(skill));
         }
 
@@ -2170,6 +2200,7 @@ namespace IOSVN.TuTien.Core
             var damage = Mathf.Max(18, rawDamage - Mathf.Clamp(activeOfflineMonster.def / 12, 0, 180));
             if (skill && activeOfflineSkill?.kind == "dot") damage += Mathf.Max(8, damage / 5);
             offlineBattleMonsterHp = Mathf.Max(0, offlineBattleMonsterHp - damage);
+            offlineMonsterImage.GetComponent<PixelCreatureAnimator>()?.Hit();
             for (var n = 0; n < 5; n++)
             {
                 offlineMonsterFighter.anchoredPosition = enemyHome + new Vector2(UnityEngine.Random.Range(-9, 10), UnityEngine.Random.Range(-6, 7));
@@ -2252,13 +2283,8 @@ namespace IOSVN.TuTien.Core
             var artId = skill ? activeOfflineSkill?.id ?? "kiem_khi_tram" : "kiem_phap_co_ban";
             var artName = skill ? activeOfflineSkill?.name ?? "Kiếm Khí Trảm" : "Đánh thường";
             var combatRole = skill ? activeOfflineSkill?.kind ?? offlineProgress.monClass : offlineProgress.monClass;
-            var detailedSkillSprite = skill ? LoadPixelIcon("PixelArt/Items/" + artId) : null;
-            if (detailedSkillSprite != null) image.sprite = detailedSkillSprite;
-            else
-            {
-                image.sprite = PixelSkillArt.Frames(artId, artName, combatRole, offlineProgress.realmIndex >= 11)[0];
-                PixelSkillArt.Animate(image, artId, artName, combatRole, offlineProgress.realmIndex >= 11);
-            }
+            image.sprite = PixelSkillArt.Frames(artId, artName, combatRole, offlineProgress.realmIndex >= 11)[0];
+            PixelSkillArt.Animate(image, artId, artName, combatRole, offlineProgress.realmIndex >= 11);
             var canvasSize = rootRect.rect.size;
             var start = new Vector2(-canvasSize.x * .10f, 0);
             var end = new Vector2(canvasSize.x * .12f, canvasSize.y * .015f);
@@ -2272,6 +2298,30 @@ namespace IOSVN.TuTien.Core
                 yield return null;
             }
             Destroy(effectObject);
+        }
+
+        private IEnumerator AnimateOfflineMonsterEffect()
+        {
+            if (offlineBattleRoot == null || activeOfflineMonster == null) yield break;
+            var effect = new GameObject("MonsterElementPixelSkill", typeof(RectTransform), typeof(Image));
+            effect.transform.SetParent(offlineBattleRoot.transform, false);
+            var rect = effect.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = new Vector2(.70f, .49f);
+            rect.sizeDelta = new Vector2(58f, 58f);
+            var image = effect.GetComponent<Image>();
+            image.raycastTarget = false;
+            PixelSkillArt.Animate(image, "quai_" + activeOfflineMonster.id, activeOfflineMonster.name + " " + activeOfflineMonster.element,
+                "atk", offlineProgress.realmIndex >= 11);
+            const float duration = .42f;
+            for (var elapsed = 0f; elapsed < duration; elapsed += Time.deltaTime)
+            {
+                var progress = Mathf.Clamp01(elapsed / duration);
+                rect.anchorMin = rect.anchorMax = Vector2.Lerp(new Vector2(.70f, .49f), new Vector2(.28f, .48f), progress);
+                rect.sizeDelta = Vector2.one * Mathf.Lerp(58f, 92f, progress);
+                image.color = new Color(1f, 1f, 1f, Mathf.Sin(progress * Mathf.PI));
+                yield return null;
+            }
+            Destroy(effect);
         }
 
         private Dictionary<string, int> RollOfflineDrops(OfflineMonsterData monster)
@@ -3133,7 +3183,7 @@ namespace IOSVN.TuTien.Core
             ClearContent();
             statusMin = new Vector2(0.25f, 0.245f); statusMax = new Vector2(0.75f, 0.28f);
             var view = CreatePixelCombatPresentation();
-            view.BuildPvp(battle, client, latestState?.player?.appearanceColors, IsImmortalRealm(latestState), pendingBattleVisualAction,
+            view.BuildPvp(battle, client, latestState?.player?.appearanceColors, latestState?.player?.monName, latestState?.player?.equip?.weapon?.id ?? latestState?.player?.equip?.phiKiem?.id, IsImmortalRealm(latestState), pendingBattleVisualAction,
                 pendingBattleVisualSkillId, pendingBattleVisualSkillName, pendingBattleVisualSkillKind,
                 (action, skillId, skillName, skillKind) => SendPvpAction(battle, action, skillId, skillName, skillKind),
                 RefreshPvpBattle, LoadState, ShowPvpBattle);
@@ -3293,7 +3343,7 @@ namespace IOSVN.TuTien.Core
             ClearContent();
             statusMin = new Vector2(0.25f, 0.245f); statusMax = new Vector2(0.75f, 0.28f);
             var view = CreatePixelCombatPresentation();
-            view.BuildPve(battle, client, latestState?.player?.appearanceColors, IsImmortalRealm(latestState), pendingBattleVisualAction,
+            view.BuildPve(battle, client, latestState?.player?.appearanceColors, latestState?.player?.monName, latestState?.player?.equip?.weapon?.id ?? latestState?.player?.equip?.phiKiem?.id, IsImmortalRealm(latestState), pendingBattleVisualAction,
                 pendingBattleVisualSkillId, pendingBattleVisualSkillName, pendingBattleVisualSkillKind,
                 SendBattleAction, SendBattleSkill, NextDungeonStage, LoadState, ShowBattle);
             ClearPendingBattleVisual();

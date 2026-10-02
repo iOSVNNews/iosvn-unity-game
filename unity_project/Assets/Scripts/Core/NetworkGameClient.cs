@@ -22,7 +22,9 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class PlayerTitle { public string id; public string name; public bool active; public string requirement; public string maintain; public string buff; public int rank; }
     [Serializable] public class WorldMapPosition { public string mapId; public int x; public int y; }
     [Serializable] public class WorldMoveChoice { public string mapId; public int x; public int y; }
-    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; public WorldMapPosition worldPosition; }
+    [Serializable] public class EquippedItem { public string id; public string name; public string slot; }
+    [Serializable] public class PlayerEquipment { public EquippedItem weapon; public EquippedItem phiKiem; }
+    [Serializable] public class PlayerInfo { public string userId; public string name; public string fullName; public string monName; public string heName; public string linhCan; public long stones; public long hp; public long maxHp; public bool ascended; public string appearanceId; public AppearanceColors appearanceColors; public string[] talents; public PlayerTitle[] titles; public WorldMapPosition worldPosition; public PlayerEquipment equip; }
     [Serializable] public class AppearanceColors { public string hair; public string outfit; public string eyes; }
     [Serializable] public class WorldMonster { public string uid; public string monsterId; public string name; public string townId; public long hp; public long maxHp; public bool isBoss; }
     [Serializable] public class GameState { public bool registered; public bool hasItems; public GameCatalog catalog; public RealmInfo realm; public TownInfo town; public TownInfo[] allTowns; public MapInfo[] allMaps; public PlayerInfo player; public WorldMonster[] worldMonsters; public string toast; }
@@ -41,7 +43,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class HuntChoice { public string monsterUid; }
     [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; }
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }
-    [Serializable] public class BattleMonsterView { public string name; public string icon; public long hp; public long maxHp; public BattleWarning warn; public int packSize; public int minionCount; }
+    [Serializable] public class BattleMonsterView { public string id; public string name; public string icon; public string element; public long hp; public long maxHp; public BattleWarning warn; public int packSize; public int minionCount; }
     [Serializable] public class BattleLogLine { public string text; public long t; }
     [Serializable] public class BattleSkill { public int i; public string id; public string name; public string icon; public string kind; public bool locked; public long readyAt; public long mp; }
     [Serializable] public class BattleView { public string id; public bool over; public string result; public string dungeonLeaderId; public BattleMapInfo battleMap; public BattlePlayerView p; public BattleMonsterView m; public BattleSkill[] skills; public BattleLogLine[] log; }
