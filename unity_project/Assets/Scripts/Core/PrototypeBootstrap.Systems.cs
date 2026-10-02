@@ -628,7 +628,17 @@ namespace IOSVN.TuTien.Core
                         {
                             if (current) { Toast("Đạo hữu đang ở " + Clean(t["name"].Str()) + "."); return; }
                             Confirm("Truyền tống", $"Truyền tống tới {Clean(t["name"].Str())} với giá {Vn(t["teleportCost"])} linh thạch?", "Truyền tống",
-                                () => Act("/market/teleport", Body("toTownId", t["id"].Str()), _ => { cityTownId = null; worldReturnTile = null; ShowWorld(); }));
+                                () => Act("/market/teleport", Body("toTownId", t["id"].Str()), _ =>
+                                {
+                                    cityTownId = null;
+                                    worldReturnTile = null;
+                                    if (hub.IsObject && hub["player"].IsObject) hub["player"].Remove("worldPosition");
+                                    if (latestState?.player != null) latestState.player.worldPosition = null;
+                                    PlayerPrefs.DeleteKey("tt_offline_world_x");
+                                    PlayerPrefs.DeleteKey("tt_offline_world_y");
+                                    PlayerPrefs.Save();
+                                    ShowWorld();
+                                }));
                         }, 96f, locked);
                 }
             }

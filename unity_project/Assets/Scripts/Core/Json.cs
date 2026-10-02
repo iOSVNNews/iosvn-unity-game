@@ -217,6 +217,14 @@ namespace IOSVN.TuTien.Core
             }
         }
 
+        public void Remove(string key)
+        {
+            if (Raw is Dictionary<string, object> map && key != null)
+            {
+                map.Remove(key);
+            }
+        }
+
         public J this[string key] => Raw is Dictionary<string, object> map && key != null && map.TryGetValue(key, out var v) ? new J(v) : Null;
         public J this[int index] => Raw is List<object> list && index >= 0 && index < list.Count ? new J(list[index]) : Null;
 

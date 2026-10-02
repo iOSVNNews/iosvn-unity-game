@@ -966,11 +966,12 @@ namespace IOSVN.TuTien.Core
                 ("ho_so", "Nhân vật", OpenCharacterScreen),
                 ("cong_phap", "Công pháp", () => OpenSkillsScreen()),
                 ("tong_mon", "Tông môn", () => OpenSectScreen()),
-                ("ban_be", "Xã giao", () => OpenSocialScreen()),
+                ("teleport", "Truyền tống", () => OpenTeleportScreen(true)),
                 ("scroll", "Nhiệm vụ", () => OpenBountyScreen()),
                 ("power", "Xếp hạng", () => OpenRankScreen()),
                 ("mail", "Hòm thư", () => OpenInboxScreen()),
                 ("sun", "Sự kiện", () => OpenEventsScreen()),
+                ("ban_be", "Xã giao", () => OpenSocialScreen()),
             };
             var x = -110f;
             var y = -300f;
@@ -1063,7 +1064,32 @@ namespace IOSVN.TuTien.Core
         {
             if (worldView?.Player == null || worldData == null) return;
             var card = Modal("Địa điểm · " + Clean(worldData.name), 1180f, 800f, out var close);
-            var area = Anchored("List", card, Vector2.zero, Vector2.one, new Vector2(22, 22), new Vector2(-22, -98));
+
+            // Direct Teleport / World Maps Shortcut at the top of the Places Modal
+            var tpBtn = Anchored("TeleportShortcut", card, new Vector2(0, 1), new Vector2(1, 1), new Vector2(24, -148), new Vector2(-24, -86));
+            var tpFill = tpBtn.gameObject.AddComponent<Image>();
+            ModernUi.Fill(tpFill, 16f);
+            tpFill.color = new Color32(24, 44, 68, 245);
+            var tpEdge = Anchored("Edge", tpBtn, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+            ModernUi.Ring(tpEdge, 16f, 1.4f);
+            tpEdge.color = new Color32(100, 195, 255, 180);
+            tpEdge.raycastTarget = false;
+            var tpIcon = Anchored("Icon", tpBtn, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(16, -18), new Vector2(52, 18)).gameObject.AddComponent<Image>();
+            tpIcon.sprite = UiPixelIcon("teleport");
+            tpIcon.preserveAspect = true;
+            tpIcon.raycastTarget = false;
+            var tpTitle = AnchoredText(tpBtn, "Title", "TRUYỀN TỐNG TRẬN · ĐỔI BẢN ĐỒ / CHÂU KHÁC", ModernUi.Bold, 21, new Color32(230, 245, 255, 255), TextAnchor.MiddleLeft,
+                Vector2.zero, Vector2.one, new Vector2(62, 0), new Vector2(-160, 0));
+            tpTitle.raycastTarget = false;
+            var tpHint = AnchoredText(tpBtn, "Hint", "Dịch chuyển tức thì", ModernUi.Regular, 18, new Color32(140, 195, 245, 255), TextAnchor.MiddleRight,
+                Vector2.zero, Vector2.one, new Vector2(0, 0), new Vector2(-20, 0));
+            tpHint.raycastTarget = false;
+            var tpAction = tpBtn.gameObject.AddComponent<Button>();
+            tpAction.targetGraphic = tpFill;
+            tpAction.onClick.AddListener(() => { close(); OpenTeleportScreen(true); });
+            tpBtn.gameObject.AddComponent<UiPressScale>();
+
+            var area = Anchored("List", card, Vector2.zero, Vector2.one, new Vector2(22, 22), new Vector2(-22, -156));
             var list = ScrollColumn(area, 8f, 6);
             var me = worldView.Player.Pos;
             var order = new Dictionary<string, int> { { "city", 0 }, { "zone", 1 }, { "dungeon", 2 }, { "portal", 3 }, { "landmark", 4 } };

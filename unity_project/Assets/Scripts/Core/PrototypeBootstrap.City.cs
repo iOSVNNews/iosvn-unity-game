@@ -54,6 +54,9 @@ namespace IOSVN.TuTien.Core
             var painting = CityPainting(biome);
             if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
             if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
+            HideHudAction();
+            if (wayfinderRoot != null) { Destroy(wayfinderRoot.gameObject); wayfinderRoot = null; }
+            wayfinders.Clear();
             ClearContent();
             ClearBattleScene();
             cityTownId = townId;
@@ -129,7 +132,7 @@ namespace IOSVN.TuTien.Core
                 ("swords", "Lôi Đài", "pvp"),
                 ("tong_mon", "Tông Môn", "sect"),
                 ("location", "Thành Chủ", "lord"),
-                ("teleport", "Ngự Kiếm", "teleport"),
+                ("teleport", "Truyền Tống", "teleport"),
                 ("arrowLeft", "Rời Thành", "exit"),
             };
 
@@ -176,43 +179,50 @@ namespace IOSVN.TuTien.Core
             var h = cityLayout.h;
             var cx = (spot.x + spot.w * .5f) / w;
             var cy = 1f - (spot.y + spot.h * .5f) / h;
-            var badgeW = Mathf.Max(160f, spot.w * 0.95f);
-            var badgeH = 54f;
+            var id = spot.id;
 
+            // Invisible hit box covering the building area so tapping the building directly opens its service
+            var hitArea = Anchored("Hit_" + spot.id, view,
+                new Vector2(spot.x / w, 1f - (spot.y + spot.h) / h),
+                new Vector2((spot.x + spot.w) / w, 1f - spot.y / h),
+                Vector2.zero, Vector2.zero);
+            var hitImg = hitArea.gameObject.AddComponent<Image>();
+            hitImg.color = new Color(0, 0, 0, 0);
+            var hitBtn = hitArea.gameObject.AddComponent<Button>();
+            hitBtn.transition = Selectable.Transition.None;
+            hitBtn.targetGraphic = hitImg;
+            hitBtn.onClick.AddListener(() => OpenCityService(id));
+
+            // Elegant compact medallion with icon only (replaces clutter of giant black rectangular textboxes)
+            const float badgeSize = 38f;
             var badge = Anchored("Spot_" + spot.id, view, new Vector2(cx, cy), new Vector2(cx, cy),
-                new Vector2(-badgeW * .5f, -badgeH * .5f), new Vector2(badgeW * .5f, badgeH * .5f));
+                new Vector2(-badgeSize * .5f, -badgeSize * .5f), new Vector2(badgeSize * .5f, badgeSize * .5f));
 
             var fill = badge.gameObject.AddComponent<Image>();
-            ModernUi.Fill(fill, 16f);
-            fill.color = new Color32(14, 22, 30, 240);
+            fill.sprite = InkUi.Glow;
+            fill.color = new Color32(14, 22, 30, 230);
 
             var border = Anchored("Border", badge, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            ModernUi.Ring(border, 16f, 1.8f);
-            border.color = new Color32(235, 196, 120, 230);
+            border.sprite = InkUi.Ring;
+            border.color = new Color32(235, 196, 120, 200);
             border.raycastTarget = false;
 
-            var glow = Anchored("Glow", badge, new Vector2(-.15f, -.1f), new Vector2(1.15f, 1.1f), Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+            var glow = Anchored("Glow", badge, new Vector2(-.2f, -.2f), new Vector2(1.2f, 1.2f), Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
             glow.sprite = InkUi.Glow;
             glow.color = new Color(1f, .92f, .7f, 0f);
             glow.raycastTarget = false;
 
             if (CityIcons.TryGetValue(spot.id, out var iconId))
             {
-                var icon = Anchored("Icon", badge, new Vector2(0f, .5f), new Vector2(0f, .5f), new Vector2(10f, -16f), new Vector2(44f, 18f)).gameObject.AddComponent<Image>();
+                var icon = Anchored("Icon", badge, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-13f, -13f), new Vector2(13f, 13f)).gameObject.AddComponent<Image>();
                 icon.sprite = UiPixelIcon(iconId);
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
             }
 
-            var text = AnchoredText(badge, "Label", spot.label, ModernUi.Bold, 22, AuthGoldTop, TextAnchor.MiddleLeft,
-                new Vector2(0f, 0f), new Vector2(1f, 1f), new Vector2(50f, 0f), new Vector2(-8f, 0f));
-            UiGradient.Apply(text, AuthGoldTop, AuthGoldBottom);
-            text.raycastTarget = false;
-
             var button = badge.gameObject.AddComponent<Button>();
             button.transition = Selectable.Transition.None;
             button.targetGraphic = fill;
-            var id = spot.id;
             button.onClick.AddListener(() => OpenCityService(id));
 
             var trigger = badge.gameObject.AddComponent<EventTrigger>();

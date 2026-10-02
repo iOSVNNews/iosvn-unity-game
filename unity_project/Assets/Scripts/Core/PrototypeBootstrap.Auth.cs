@@ -34,6 +34,9 @@ namespace IOSVN.TuTien.Core
         private static readonly Color AuthInkOnGold = new Color32(43, 28, 9, 255);
         private static readonly Color AuthError = new Color32(255, 146, 130, 255);
 
+        public const string PrefKeySavedAccount = "tutien_saved_auth_identity";
+        public const string PrefKeySavedPassword = "tutien_saved_auth_password";
+
         private RectTransform authCardRoot;
         private Image authPrimarySpinner;
         private Image authPrimaryArrow;
@@ -41,13 +44,16 @@ namespace IOSVN.TuTien.Core
 
         private void ShowAccountForm(bool createAccount)
         {
-            var previousIdentity = emailInput != null ? emailInput.text : string.Empty;
+            var savedAccount = PlayerPrefs.GetString(PrefKeySavedAccount, "");
+            var savedPassword = PlayerPrefs.GetString(PrefKeySavedPassword, "");
+            var previousIdentity = emailInput != null ? emailInput.text : (!createAccount ? savedAccount : string.Empty);
+            var previousPassword = passwordInput != null ? passwordInput.text : (!createAccount ? savedPassword : string.Empty);
             var tabSwitch = authTabSwitch;
             authTabSwitch = false;
             PrepareAccountScreen();
             passwordConfirmationInput = null;
 
-            var card = BuildAuthCard(!tabSwitch, createAccount ? AuthRegisterHeight : AuthCardHeight);
+            var card = BuildAuthCard(!tabSwitch, createAccount ? AuthRegisterHeight : (string.IsNullOrEmpty(savedAccount) ? AuthCardHeight : AuthCardHeight + 50f));
             var grow = authCardHeight - AuthCardHeight;
             AuthBrandHeader(card,
                 createAccount ? "KHỞI ĐẦU\nTIÊN LỘ" : "CHÀO MỪNG\nĐẠO HỮU",
@@ -91,6 +97,7 @@ namespace IOSVN.TuTien.Core
             else
             {
                 passwordInput = AuthField(card, "password", "Mật khẩu", "Nhập mật khẩu", "lock", AuthFormX, first + row, AuthFormWidth, true);
+                if (!string.IsNullOrEmpty(previousPassword)) passwordInput.text = previousPassword;
             }
             passwordInput.characterLimit = 128;
             AuthControl(passwordInput);
@@ -107,11 +114,29 @@ namespace IOSVN.TuTien.Core
             if (passwordConfirmationInput != null) passwordConfirmationInput.onSubmit.AddListener(_ => SubmitAuth(true));
 
             status = AuthText(card, "AuthFeedback",
-                createAccount ? "Đăng ký bằng email sẽ cần mã xác minh 6 số." : "Hồ sơ và nhân vật của bạn được lưu trên máy chủ game.",
+                createAccount ? "Tạo tài khoản xong sẽ tự động lưu và đăng nhập vào game." : (!string.IsNullOrEmpty(savedAccount) ? "Tài khoản đã lưu trên thiết bị. Bấm Đăng nhập nhanh để vào game." : "Hồ sơ và nhân vật của bạn được lưu trên máy chủ game."),
                 ModernUi.Regular, 24, AuthTextSecondary, TextAnchor.MiddleLeft, AuthFormX + 4f, createAccount ? 606f : 500f, AuthFormWidth - 8f, createAccount ? 48f : 64f);
 
-            authPrimaryButton = AuthPrimary(card, createAccount ? "TẠO TÀI KHOẢN" : "VÀO GAME", AuthFormX, createAccount ? 662f : 580f, AuthFormWidth, () => SubmitAuth(createAccount));
+            var hasSaved = !createAccount && !string.IsNullOrEmpty(emailInput.text) && !string.IsNullOrEmpty(passwordInput.text);
+            var primaryLabel = createAccount ? "TẠO TÀI KHOẢN & VÀO GAME" : (hasSaved ? "ĐĂNG NHẬP NHANH" : "VÀO GAME");
+            authPrimaryButton = AuthPrimary(card, primaryLabel, AuthFormX, createAccount ? 662f : 576f, AuthFormWidth, () => SubmitAuth(createAccount));
             AuthControl(authPrimaryButton);
+
+            if (!createAccount && hasSaved)
+            {
+                var changeAccount = AuthGhost(card, "Đổi tài khoản khác", "user", AuthFormX, 692f, AuthFormWidth, 72f, ClearSavedAccountFields);
+                AuthControl(changeAccount);
+            }
+        }
+
+        private void ClearSavedAccountFields()
+        {
+            PlayerPrefs.DeleteKey(PrefKeySavedAccount);
+            PlayerPrefs.DeleteKey(PrefKeySavedPassword);
+            PlayerPrefs.Save();
+            if (emailInput != null) emailInput.text = string.Empty;
+            if (passwordInput != null) passwordInput.text = string.Empty;
+            ShowAccountForm(false);
         }
 
         private void ShowEmailVerification(string email, string message = null)
@@ -480,16 +505,45 @@ namespace IOSVN.TuTien.Core
         }
     }
 
-    /// <summary>Smoothly moves the auth card up when the mobile on-screen keyboard is visible.</summary>
+    /// <summary>Smoothly moves the auth card up and creates a full-width bottom curtain when the mobile on-screen keyboard is visible.</summary>
     internal sealed class UiAuthKeyboardShift : MonoBehaviour
     {
         private RectTransform rect;
         private Vector2 basePos;
         private bool initialized;
+        private RectTransform curtain;
 
         private void Awake()
         {
             rect = (RectTransform)transform;
+        }
+
+        private void Start()
+        {
+            CreateCurtain();
+        }
+
+        private void CreateCurtain()
+        {
+            if (curtain != null) return;
+            var canvas = GetComponentInParent<Canvas>();
+            var parent = canvas != null ? canvas.transform : transform.parent;
+            var curtainObj = new GameObject("KeyboardCurtain", typeof(RectTransform), typeof(Image));
+            curtain = curtainObj.GetComponent<RectTransform>();
+            curtain.SetParent(parent, false);
+            curtain.SetSiblingIndex(Mathf.Max(0, transform.GetSiblingIndex() - 1));
+            // Full width across the entire bottom of the screen
+            curtain.anchorMin = new Vector2(0f, 0f);
+            curtain.anchorMax = new Vector2(1f, 0f);
+            curtain.pivot = new Vector2(0.5f, 0f);
+            curtain.sizeDelta = new Vector2(0f, 0f);
+            curtain.anchoredPosition = Vector2.zero;
+
+            var img = curtainObj.GetComponent<Image>();
+            // Apple standard iOS dark keyboard background color (#1C1C1E)
+            img.color = new Color32(28, 28, 30, 255);
+            img.raycastTarget = false;
+            curtainObj.SetActive(false);
         }
 
         private void Update()
@@ -499,13 +553,44 @@ namespace IOSVN.TuTien.Core
                 basePos = rect.anchoredPosition;
                 initialized = true;
             }
-            var targetY = TouchScreenKeyboard.visible ? basePos.y + 120f : basePos.y;
+            if (TouchScreenKeyboard.visible)
+            {
+                TouchScreenKeyboard.hideInput = true;
+            }
+            var isKeyboard = TouchScreenKeyboard.visible;
+            if (curtain != null)
+            {
+                if (isKeyboard)
+                {
+                    if (!curtain.gameObject.activeSelf) curtain.gameObject.SetActive(true);
+                    var canvas = GetComponentInParent<Canvas>();
+                    var canvasHeight = canvas != null ? ((RectTransform)canvas.transform).rect.height : 1080f;
+                    float kh = canvasHeight * 0.55f;
+                    if (TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
+                    {
+                        var ratio = TouchScreenKeyboard.area.height / (float)Screen.height;
+                        if (ratio > 0.1f && ratio < 0.9f) kh = canvasHeight * ratio;
+                    }
+                    curtain.sizeDelta = new Vector2(0f, kh);
+                }
+                else
+                {
+                    if (curtain.gameObject.activeSelf) curtain.gameObject.SetActive(false);
+                }
+            }
+
+            var targetY = isKeyboard ? basePos.y + 160f : basePos.y;
             var p = rect.anchoredPosition;
             if (Mathf.Abs(p.y - targetY) > 0.5f)
             {
-                p.y = Mathf.MoveTowards(p.y, targetY, Time.unscaledDeltaTime * 700f);
+                p.y = Mathf.MoveTowards(p.y, targetY, Time.unscaledDeltaTime * 750f);
                 rect.anchoredPosition = p;
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (curtain != null) Destroy(curtain.gameObject);
         }
     }
 }

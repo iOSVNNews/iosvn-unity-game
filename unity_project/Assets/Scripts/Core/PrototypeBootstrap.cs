@@ -442,6 +442,7 @@ namespace IOSVN.TuTien.Core
         {
             if (authRequestPending) return;
             var email = emailInput.text.Trim();
+            var password = passwordInput.text;
             var validIdentity = email.Contains("@")
                 ? email.Length <= 254 && System.Text.RegularExpressions.Regex.IsMatch(email, @"^[^\s@]+@[^\s@]+\.[^\s@]{2,}$")
                 : System.Text.RegularExpressions.Regex.IsMatch(email, @"^[a-zA-Z0-9][a-zA-Z0-9_.]{2,23}$");
@@ -452,14 +453,14 @@ namespace IOSVN.TuTien.Core
                 FocusAuthInput(emailInput);
                 return;
             }
-            if (passwordInput.text.Length < 10 || passwordInput.text.Length > 128)
+            if (password.Length < 10 || password.Length > 128)
             {
                 FlagAuthInput(passwordInput);
                 AuthFeedback("Mật khẩu cần có từ 10 đến 128 ký tự.", true);
                 FocusAuthInput(passwordInput);
                 return;
             }
-            if (createAccount && passwordConfirmationInput.text != passwordInput.text)
+            if (createAccount && passwordConfirmationInput.text != password)
             {
                 FlagAuthInput(passwordConfirmationInput);
                 AuthFeedback("Mật khẩu nhập lại chưa khớp.", true);
@@ -486,16 +487,40 @@ namespace IOSVN.TuTien.Core
                     AuthFeedback(detail, true);
                     return;
                 }
+
+                // Auto-save account and password to device
+                PlayerPrefs.SetString(PrefKeySavedAccount, email);
+                PlayerPrefs.SetString(PrefKeySavedPassword, password);
+                PlayerPrefs.Save();
+
                 if (string.IsNullOrWhiteSpace(result.accessToken))
                 {
+                    if (createAccount)
+                    {
+                        AuthFeedback("Tạo tài khoản thành công! Đang tự động đăng nhập...");
+                        client.Login(email, password, loginResult =>
+                        {
+                            if (loginResult != null && loginResult.ok && !string.IsNullOrEmpty(loginResult.accessToken))
+                            {
+                                LoadState();
+                            }
+                            else
+                            {
+                                SetAuthBusy(false);
+                                AuthFeedback("Tài khoản đã tạo. Hãy bấm Đăng nhập.", false);
+                            }
+                        });
+                        return;
+                    }
                     SetAuthBusy(false);
                     AuthFeedback("Máy chủ chưa trả phiên đăng nhập. Hãy thử lại.", true);
                     return;
                 }
+                AuthFeedback(createAccount ? "Tạo tài khoản thành công! Đang vào game..." : "Đang vào game...");
                 LoadState();
             };
-            if (createAccount) client.SignUp(email, passwordInput.text, finish);
-            else client.Login(email, passwordInput.text, finish);
+            if (createAccount) client.SignUp(email, password, finish);
+            else client.Login(email, password, finish);
         }
 
         private void SubmitEmailVerification()
@@ -514,6 +539,8 @@ namespace IOSVN.TuTien.Core
             {
                 if (screenVersion != authScreenVersion) return;
                 if (result == null || !result.ok) { SetAuthBusy(false); AuthFeedback(result?.error ?? "Không xác minh được email.", true); return; }
+                PlayerPrefs.SetString(PrefKeySavedAccount, pendingVerificationEmail);
+                PlayerPrefs.Save();
                 pendingVerificationEmail = null;
                 LoadState();
             });
