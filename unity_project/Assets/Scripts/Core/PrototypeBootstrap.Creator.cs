@@ -60,12 +60,21 @@ namespace IOSVN.TuTien.Core
         // categories that change the head: the preview moves in on the face while one of them is open
         private static readonly HashSet<string> CreatorFaceCategories = new HashSet<string> { "fa", "ey", "br", "no", "mo", "ea", "bd", "ha", "hat" };
 
-        private void ShowCreator()
+        private bool creatorEditingExisting;
+
+        private void ShowCreator(bool editingExisting = false)
         {
+            creatorEditingExisting = editingExisting;
             if (!AvatarComposer.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
             ClearContent();
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
-            if (creatorLook == null) { creatorLook = AvatarComposer.Default(gender == "nu"); creatorZoomChoice = false; }   // first shown as the whole figure
+            if (editingExisting && hub.IsObject && hub["player"].IsObject)
+            {
+                creatorLook = LookOf(hub["player"]);
+                gender = creatorLook.Get("g", hub["player"]["gender"].Str() == "nu" ? "f" : "m") == "f" ? "nu" : "nam";
+                creatorZoomChoice = false;
+            }
+            else if (creatorLook == null) { creatorLook = AvatarComposer.Default(gender == "nu"); creatorZoomChoice = false; }   // first shown as the whole figure
             var root = Anchored("Creator", content.transform, new Vector2(-.05f, -.03f), new Vector2(1.05f, 1.03f), Vector2.zero, Vector2.zero);
             // scroll: two rollers and parchment
             var paper = Anchored("Paper", root, Vector2.zero, Vector2.one, new Vector2(70, 18), new Vector2(-70, -18));
@@ -124,6 +133,11 @@ namespace IOSVN.TuTien.Core
             var nameBox = Anchored("NameBox", col, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-230, 62), new Vector2(230, 62 + 38 + AuthFieldHeight));
             nameInput = AuthField(nameBox, "name", "Đạo hiệu", "Tên nhân vật (2–24 ký tự)", "user", 0f, 0f, 460f, false);
             nameInput.characterLimit = 24;
+            if (creatorEditingExisting && hub.IsObject && hub["player"].IsObject)
+            {
+                nameInput.text = Clean(hub["player"]["fullName"].Str(hub["player"]["name"].Str()));
+                nameInput.interactable = false;
+            }
             var genderRow = Anchored("Gender", col, new Vector2(0, 0), new Vector2(1, 0), new Vector2(10, 0), new Vector2(-10, 56));
             CreatorChip(genderRow, "Nam", new Vector2(0, 0), new Vector2(.33f, 1), gender != "nu", () => SetCreatorGender("nam"));
             CreatorChip(genderRow, "Nữ", new Vector2(.34f, 0), new Vector2(.66f, 1), gender == "nu", () => SetCreatorGender("nu"));
@@ -175,8 +189,54 @@ namespace IOSVN.TuTien.Core
             var back = Anchored("Back", footer, new Vector2(.61f, .1f), new Vector2(.75f, .9f), Vector2.zero, Vector2.zero);
             PillButton(back, "Quay lại", "arrowLeft", false, BackFromCharacterCreation);
             var start = Anchored("Start", footer, new Vector2(.76f, .1f), new Vector2(1, .9f), Vector2.zero, Vector2.zero);
-            PillButton(start, "Bắt đầu tu luyện", "arrowRight", true, CreateCharacter);
+            if (creatorEditingExisting)
+                PillButton(start, "Lưu diện mạo", "arrowRight", true, SaveAppearance);
+            else
+                PillButton(start, "Bắt đầu tu luyện", "arrowRight", true, CreateCharacter);
             statusMin = new Vector2(.3f, .135f); statusMax = new Vector2(.7f, .17f);
+        }
+
+        private void SaveAppearance()
+        {
+            if (creatorLook == null) return;
+            var text = creatorLook.ToString();
+            ShowBusy(true);
+            if (offlinePreview)
+            {
+                ShowBusy(false);
+                if (hub.IsObject && hub["player"].IsObject)
+                {
+                    hub["player"].Set("look", text);
+                    hub["player"].Set("lookWorn", text);
+                }
+                if (latestState?.player != null)
+                {
+                    latestState.player.look = text;
+                    latestState.player.lookWorn = text;
+                }
+                PlayerPrefs.SetString("tutien_offline_look", text);
+                PlayerPrefs.Save();
+                Toast("Đã lưu diện mạo mới thành công!");
+                OpenCharacterScreen();
+                return;
+            }
+            client.Post("/player/look", Body("look", text), (result, error) =>
+            {
+                ShowBusy(false);
+                if (error != null) { Toast(error, true); return; }
+                if (hub.IsObject && hub["player"].IsObject)
+                {
+                    hub["player"].Set("look", text);
+                    hub["player"].Set("lookWorn", text);
+                }
+                if (latestState?.player != null)
+                {
+                    latestState.player.look = text;
+                    latestState.player.lookWorn = text;
+                }
+                Toast("Đã áp dụng diện mạo mới thành công!");
+                OpenCharacterScreen();
+            });
         }
 
         private void CreatorChip(RectTransform parent, string label, Vector2 min, Vector2 max, bool active, Action click)

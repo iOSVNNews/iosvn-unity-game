@@ -129,9 +129,24 @@ namespace IOSVN.TuTien.Core
 
         private void OpenBattle(string kind, J battle)
         {
-            var json = Json.Serialize(battle.Raw);
-            if (kind == "pvp") ShowPvpBattle(JsonUtility.FromJson<PvpBattle>(json));
-            else ShowBattle(JsonUtility.FromJson<BattleView>(json));
+            if (kind == "pvp")
+            {
+                var json = Json.Serialize(battle.Raw);
+                ShowPvpBattle(JsonUtility.FromJson<PvpBattle>(json));
+            }
+            else
+            {
+                try
+                {
+                    BuildActionBattle(battle);
+                }
+                catch (Exception ex)
+                {
+                    Debug.LogException(ex);
+                    var json = Json.Serialize(battle.Raw);
+                    ShowBattle(JsonUtility.FromJson<BattleView>(json));
+                }
+            }
         }
 
         /// <summary>Reloads the player view, then runs <paramref name="then"/> (defaults to the hub).</summary>

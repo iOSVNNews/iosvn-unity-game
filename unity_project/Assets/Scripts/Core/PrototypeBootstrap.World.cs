@@ -339,7 +339,7 @@ namespace IOSVN.TuTien.Core
                     WalkToPoi(poi, () => OpenDungeonDialog(poi));
                     break;
                 case "portal":
-                    WalkToPoi(poi, () => OpenTeleportScreen(true));
+                    WalkToPoi(poi, () => InteractBorderPortal(poi));
                     break;
                 case "landmark":
                     WalkToPoi(poi, () => Toast(poi.label + " · Nơi linh khí hội tụ, đạo hữu có thể dừng chân ngắm cảnh."));
@@ -579,7 +579,14 @@ namespace IOSVN.TuTien.Core
             var target = near;
             if (near.kind == "city") ShowHudAction("Vào thành · " + near.label, () => EnterCityFromWorld(target.townId));
             else if (near.kind == "dungeon") ShowHudAction("Bí cảnh · " + near.label, () => OpenDungeonDialog(target));
-            else ShowHudAction("Cổng Ngự Kiếm", () => OpenTeleportScreen(true));
+            else
+            {
+                var border = CurrentProvinceBorder();
+                var promptName = border.HasValue && !string.IsNullOrEmpty(border.Value.nextTownName)
+                    ? "Vượt núi · Sang " + border.Value.nextTownName
+                    : "Cổng biên giới · Vượt núi";
+                ShowHudAction(promptName, () => WalkToPoi(target, () => InteractBorderPortal(target)));
+            }
             hudActionAuto = true;
         }
 
@@ -892,7 +899,7 @@ namespace IOSVN.TuTien.Core
             UpdateMiniPlayer();
             var button = frame.gameObject.AddComponent<Button>();
             button.targetGraphic = bg;
-            button.onClick.AddListener(() => OpenTeleportScreen(true));
+            button.onClick.AddListener(() => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
 
             // North badge
             var northBadge = Anchored("North", frame, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-26, -18), new Vector2(26, 6));
@@ -1212,6 +1219,126 @@ namespace IOSVN.TuTien.Core
                 }
             worldView.Teleport(worldView.Player, over);
             worldView.SnapTravel(new Vector2(1f, -.35f));
+        }
+
+        private struct ProvinceBorderEntry
+        {
+            public string mapId;
+            public string name;
+            public string nextMapId;
+            public string nextTownId;
+            public string nextTownName;
+            public string prevMapId;
+            public string prevTownId;
+            public string prevTownName;
+
+            public ProvinceBorderEntry(string mapId, string name, string nextMapId, string nextTownId, string nextTownName, string prevMapId, string prevTownId, string prevTownName)
+            {
+                this.mapId = mapId;
+                this.name = name;
+                this.nextMapId = nextMapId;
+                this.nextTownId = nextTownId;
+                this.nextTownName = nextTownName;
+                this.prevMapId = prevMapId;
+                this.prevTownId = prevTownId;
+                this.prevTownName = prevTownName;
+            }
+        }
+
+        private static readonly ProvinceBorderEntry[] ProvinceBorders = new[]
+        {
+            new ProvinceBorderEntry("map_1", "Thanh Châu", "map_2", "thien_nam", "Thiên Nam Cổ Thành (U Châu)", null, null, null),
+            new ProvinceBorderEntry("map_2", "U Châu", "map_3", "lac_duong", "Lạc Dương Thành (Vân Châu)", "map_1", "thanh_van", "Thanh Vân Trấn (Thanh Châu)"),
+            new ProvinceBorderEntry("map_3", "Vân Châu", "map_4", "loan_tinh_hai", "Loạn Tinh Hải (Hải Châu)", "map_2", "thien_nam", "Thiên Nam Cổ Thành (U Châu)"),
+            new ProvinceBorderEntry("map_4", "Hải Châu", "map_5", "am_la_tong", "Âm La Quỷ Vực (Lôi Châu)", "map_3", "lac_duong", "Lạc Dương Thành (Vân Châu)"),
+            new ProvinceBorderEntry("map_5", "Lôi Châu", "map_6", "chu_tuoc_quoc", "Chu Tước Tinh Đô (Viêm Châu)", "map_4", "loan_tinh_hai", "Loạn Tinh Hải (Hải Châu)"),
+            new ProvinceBorderEntry("map_6", "Viêm Châu", "map_7", "kiem_khi_truong_thanh", "Kiếm Khí Trường Thành (Cương Châu)", "map_5", "am_la_tong", "Âm La Quỷ Vực (Lôi Châu)"),
+            new ProvinceBorderEntry("map_7", "Cương Châu", "map_8", "man_hoang_thien_dia", "Man Hoang Thiên Địa (Man Châu)", "map_6", "chu_tuoc_quoc", "Chu Tước Tinh Đô (Viêm Châu)"),
+            new ProvinceBorderEntry("map_8", "Man Châu", "map_9", "tien_gioi_khoi_nguyen", "Bắc Hàn Tiên Vực (Tiên Giới)", "map_7", "kiem_khi_truong_thanh", "Kiếm Khí Trường Thành (Cương Châu)"),
+            new ProvinceBorderEntry("map_9", "Cửu Thiên Tiên Giới", "map_10", "map_10_town_1", "Thiên Ngoại Thành (Thiên Ngoại Tiên Vực)", "map_8", "man_hoang_thien_dia", "Man Hoang Thiên Địa (Man Châu)"),
+        };
+
+        private ProvinceBorderEntry? CurrentProvinceBorder()
+        {
+            var curMap = worldData?.id ?? hub["town"]["mapId"].Str("map_1");
+            for (var i = 0; i < ProvinceBorders.Length; i++)
+                if (ProvinceBorders[i].mapId == curMap) return ProvinceBorders[i];
+            return null;
+        }
+
+        private void InteractBorderPortal(WorldPoi poi)
+        {
+            var border = CurrentProvinceBorder();
+            var card = Modal("CỔNG BIÊN GIỚI · THÔNG ĐẠO VƯỢT NÚI", 860f, 540f, out var close);
+            var (left, right) = Split(card, .48f);
+            var panel = Anchored("Panel", left, Vector2.zero, Vector2.one, new Vector2(10, 10), new Vector2(-10, -10));
+            GlassPanel(panel, 22f, new Color32(24, 28, 32, 230), new Color32(14, 16, 20, 230));
+            var icon = InkUi.Simple(panel, "Icon", UiPixelIcon("teleport"), HudGold, Vector2.zero);
+            icon.rectTransform.anchorMin = new Vector2(.25f, .45f); icon.rectTransform.anchorMax = new Vector2(.75f, .90f);
+            icon.preserveAspect = true;
+            AnchoredText(panel, "Desc", "Dãy núi cao ngút ngàn phân chia các đại châu của Phàm Giới. Tại đây có Thông Đạo Truyền Tống Trận viễn cổ giúp tu sĩ vượt núi sang địa phận kế tiếp.",
+                ModernUi.Regular, 19, new Color32(230, 224, 212, 255), TextAnchor.MiddleCenter, new Vector2(.06f, .05f), new Vector2(.94f, .42f), Vector2.zero, Vector2.zero);
+
+            var col = ScrollColumn(right, 10f, 8);
+            if (border.HasValue)
+            {
+                var b = border.Value;
+                if (!string.IsNullOrEmpty(b.nextTownId))
+                {
+                    Row(col, UiPixelIcon("arrowRight"), HudGold, "VƯỢT NÚI SANG " + b.nextTownName.ToUpperInvariant(), "Tiến vào đại châu tiếp theo", "Khởi hành", null, false, () =>
+                    {
+                        close();
+                        CrossBorderTravelTo(b.nextTownId, b.nextMapId);
+                    }, 88f);
+                }
+                if (!string.IsNullOrEmpty(b.prevTownId))
+                {
+                    Row(col, UiPixelIcon("arrowLeft"), new Color32(180, 190, 200, 255), "TRỞ VỀ " + b.prevTownName.ToUpperInvariant(), "Quay lại đại châu trước đó", "Quay lại", null, false, () =>
+                    {
+                        close();
+                        CrossBorderTravelTo(b.prevTownId, b.prevMapId);
+                    }, 88f);
+                }
+            }
+            Row(col, UiPixelIcon("map"), HudGold, "BẢN ĐỒ TỔNG THỂ (WORLD ATLAS)", "Xem toàn cảnh Phàm Giới & Tiên Giới", "Mở", null, false, () =>
+            {
+                close();
+                OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub));
+            }, 88f);
+            Row(col, UiPixelIcon("teleport"), HudGold, "TRUYỀN TỐNG TRẬN TOÀN CÕI", "Dịch chuyển tức thời đến các thành trì", "Mở", null, false, () =>
+            {
+                close();
+                OpenTeleportScreen(true);
+            }, 88f);
+        }
+
+        private void CrossBorderTravelTo(string targetTownId, string targetMapId)
+        {
+            cityTownId = null;
+            worldReturnTile = null;
+            if (hub.IsObject && hub["player"].IsObject) hub["player"].Remove("worldPosition");
+            if (latestState?.player != null) latestState.player.worldPosition = null;
+            PlayerPrefs.DeleteKey("tt_offline_world_x");
+            PlayerPrefs.DeleteKey("tt_offline_world_y");
+            PlayerPrefs.Save();
+            if (offlinePreview)
+            {
+                offlineProgress.currentTownId = targetTownId;
+                SaveOfflineProgress();
+                if (hub.IsObject && hub["town"].IsObject)
+                {
+                    hub["town"].Set("id", targetTownId);
+                    hub["town"].Set("mapId", targetMapId);
+                }
+                Toast("Đã vượt sơn mạch thành công sang bản đồ mới!");
+                ShowWorld();
+                return;
+            }
+            Act("/market/teleport", Body("toTownId", targetTownId), _ =>
+            {
+                Toast("Đã vượt sơn mạch thành công sang bản đồ mới!");
+                ShowWorld();
+            });
         }
     }
 

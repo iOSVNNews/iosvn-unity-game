@@ -707,18 +707,11 @@ namespace IOSVN.TuTien.Core
 
         private void ReturnFromWorldAtlas(GameState state)
         {
-            if (atlasFromExploration)
-            {
-                atlasFromExploration = false;
-                RenderExplorationMap(state);
-                return;
-            }
-            if (!offlinePreview) { LoadState(); return; }
-            offlinePreview = false;
-            offlinePreviewState = null;
-            pendingVerificationEmail = null;
+            if (atlasMapRoot != null) { Destroy(atlasMapRoot); atlasMapRoot = null; }
+            atlasLayer = null;
+            ClearContent();
             SetAtlasOrientation(false);
-            ShowLogin("Bản xem ngoại tuyến chỉ để duyệt bản đồ.");
+            SafeShowWorld();
         }
 
         private void LoadState()
@@ -971,6 +964,12 @@ namespace IOSVN.TuTien.Core
 
         private void BackFromCharacterCreation()
         {
+            if (creatorEditingExisting)
+            {
+                creatorEditingExisting = false;
+                OpenCharacterScreen();
+                return;
+            }
             if (offlineCreationPreview)
             {
                 offlineCreationPreview = false;
@@ -1127,6 +1126,7 @@ namespace IOSVN.TuTien.Core
 
         private void OpenWorldAtlas(GameState state)
         {
+            state = state ?? latestState ?? NetworkGameClient.ToGameState(hub);
             StopExplorationMovement(savePosition: true);
             if (!atlasRealmInitialized)
             {
@@ -1140,11 +1140,11 @@ namespace IOSVN.TuTien.Core
             explorationViewport = null;
             if (atlasSelectedTown == null || !IsTownInAtlas(atlasSelectedTown, atlasImmortalRealm))
             {
-                atlasSelectedTown = IsTownInAtlas(state.town, atlasImmortalRealm) ? state.town : FirstTownInAtlas(atlasImmortalRealm);
+                atlasSelectedTown = IsTownInAtlas(state?.town, atlasImmortalRealm) ? state?.town : FirstTownInAtlas(atlasImmortalRealm);
                 atlasSelectedDungeon = null;
                 atlasSelectionKind = "town";
             }
-            atlasFromExploration = true;
+            atlasFromExploration = false;
             RenderWorldAtlas(state);
         }
 
@@ -3657,13 +3657,22 @@ namespace IOSVN.TuTien.Core
 
         private void ShowBattle(BattleView battle)
         {
-            // Real-time action battle (joystick / skills / quick items); the classic view stays as a fallback.
-            if (battle != null && !battle.over && !actionBattleFailed && AvatarComposer.Available && hub.IsObject)
+            if (battle == null) return;
+            try
             {
-                ShowActionBattle(_ => ShowClassicBattle(battle));
-                return;
+                var json = JsonUtility.ToJson(battle);
+                var j = new J(Json.Parse(json));
+                if (j.IsObject && !j.IsNull)
+                {
+                    BuildActionBattle(j);
+                    return;
+                }
             }
-            ShowClassicBattle(battle);
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+            }
+            ShowActionBattle(_ => ShowClassicBattle(battle));
         }
 
         private void ShowClassicBattle(BattleView battle)

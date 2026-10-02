@@ -402,6 +402,8 @@ namespace IOSVN.TuTien.Core
                 hero.preserveAspect = true;
                 hero.raycastTarget = false;
             }
+            var dichDungBtn = Anchored("DichDungBtn", portraitArea, new Vector2(.56f, .03f), new Vector2(.96f, .125f), Vector2.zero, Vector2.zero);
+            PillButton(dichDungBtn, "Dịch dung", "ui:ho_so", false, () => ShowCreator(true));
             var actions = Anchored("Actions", left, Vector2.zero, new Vector2(1, .22f), Vector2.zero, new Vector2(0, -14));
             PillButton(Anchored("Break", actions, new Vector2(0, .5f), new Vector2(.5f, 1), new Vector2(0, 6), new Vector2(-6, 0)), "Đột phá", "ui:sense", true, () => Act("/breakthrough", Body(), _ => OpenCharacterScreen()));
             PillButton(Anchored("Ascend", actions, new Vector2(.5f, .5f), new Vector2(1, 1), new Vector2(6, 6), new Vector2(0, 0)), "Phi thăng", "ui:flight", false, () =>

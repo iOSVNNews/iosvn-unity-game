@@ -1789,7 +1789,7 @@ class Battle {
             if (now < p.atkReadyAt) return { ok: false, msg: 'Chưa hồi.' };
             mark();
             const curSpd = p.spd + ((p.buffs?.spd && p.buffs.spd.until > now) ? p.buffs.spd.value : 0);
-            let cd = Math.max(100, 1000 - (curSpd - 10) * 4);
+            let cd = Math.max(100, 320 - (curSpd - 10) * 3);
             if (p.slowUntil > now) cd *= 1.2;
             p.atkReadyAt = now + cd;
             const hit = this.playerHit(p, 1, now, { isSkill: false });

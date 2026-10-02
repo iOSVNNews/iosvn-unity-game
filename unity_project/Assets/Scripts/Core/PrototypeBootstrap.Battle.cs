@@ -53,8 +53,9 @@ namespace IOSVN.TuTien.Core
             actionBattle = root.gameObject.AddComponent<ActionBattle>();
             var hud = HudRoot();
             BuildOverlays();
-            var player = hub["player"];
-            var mapId = hub["town"]["mapId"].Str();
+            var player = hub.IsObject && hub["player"].IsObject ? hub["player"] : (battle.IsObject && battle["p"].IsObject ? battle["p"] : J.Null);
+            var mapId = hub.IsObject && hub["town"].IsObject ? hub["town"]["mapId"].Str("map_1") : "map_1";
+            var realmIdx = hub.IsObject && hub["realm"].IsObject ? hub["realm"]["index"].Int() : (battle.IsObject && battle["p"].IsObject ? battle["p"]["realmIndex"].Int() : 0);
             Texture painting = null;
             Rect uv = new Rect(0, 0, 1, 1);
             var data = WorldMapData.Load(mapId);
@@ -70,7 +71,7 @@ namespace IOSVN.TuTien.Core
                 var v = Mathf.Clamp(1f - cy / data.h - h / 2, 0, 1 - h);
                 uv = new Rect(u, v, w, h);
             }
-            actionBattle.Init(this, client, root, hud, battle, painting, uv, LookOf(player), AvatarComposer.AuraStrength(hub["realm"]["index"].Int()), hub["realm"]["index"].Int());
+            actionBattle.Init(this, client, root, hud, battle, painting, uv, LookOf(player), AvatarComposer.AuraStrength(realmIdx), realmIdx);
         }
 
         // ---- callbacks used by the battle component (keeps the partial's private helpers in reach)
@@ -123,10 +124,13 @@ namespace IOSVN.TuTien.Core
         private J battle;
         private double serverOffset;          // server ms - local ms
         private bool over;
-        private bool requestPending;
         private bool applied;
         private float nextPoll;
         private bool attackHeld;
+        private float nextAttackLocalTime;
+        private bool attackInFlight;
+        private float dodgeCooldownUntil;
+        private readonly Queue<double> pendingDamageQueue = new Queue<double>();
 
         private FighterView hero;
         private Vector2 playerPos = new Vector2(260, -120);
@@ -346,7 +350,7 @@ namespace IOSVN.TuTien.Core
             stick.OnMove = v => moveInput = v;
             // attack + skills (bottom right)
             var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-370, 60), new Vector2(-110, 320));
-            RoundButton(attack, "swords", "Đánh", new Color32(150, 40, 34, 235), null, 40);
+            RoundButton(attack, "swords", "Đánh", new Color32(150, 40, 34, 235), TryAttack, 40);
             attackCooldown = Cooldown(attack);
             var hold = attack.gameObject.AddComponent<BattleHold>();
             hold.OnDown = () => { attackHeld = true; TryAttack(); };
@@ -363,7 +367,7 @@ namespace IOSVN.TuTien.Core
                 var index = i;
                 var locked = skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str());
                 var skillElement = BattleFx.ElementOfSkill(skill["name"].Str(), element);
-                RoundButton(rect, null, null, new Color32(24, 30, 34, 225), locked ? (Action)null : () => Send("skill", index), 20,
+                RoundButton(rect, null, null, new Color32(24, 30, 34, 225), locked ? (Action)null : () => PerformSkill(index), 20,
                     locked ? (Color?)null : Color.Lerp(BattleFx.ElementColor(skillElement), Color.white, .15f));
                 var icon = InkUi.Simple(rect, "Icon", locked ? owner.BattleUiIcon("lock") : owner.BattleSkillIcon(skill), locked ? new Color(1, 1, 1, .4f) : Color.white, Vector2.zero);
                 icon.rectTransform.anchorMin = new Vector2(.2f, .2f); icon.rectTransform.anchorMax = new Vector2(.8f, .8f);
@@ -383,7 +387,7 @@ namespace IOSVN.TuTien.Core
             var dodgeA = 187f * Mathf.Deg2Rad;
             var dpos = center + new Vector2(Mathf.Cos(dodgeA), Mathf.Sin(dodgeA)) * 415f;
             var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(64, 64), dpos + new Vector2(64, 64));
-            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), () => Send("dodge", -1), 22);
+            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), PerformDodge, 22);
             dodgeCooldown = Cooldown(dodge);
             // quick consumables (bottom centre)
             var items = b["items"];
@@ -404,7 +408,7 @@ namespace IOSVN.TuTien.Core
                 qty.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var button = rect.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
-                button.onClick.AddListener(() => Send("item", index));
+                button.onClick.AddListener(() => PerformItem(index));
                 rect.gameObject.AddComponent<UiPressScale>();
                 itemButtons.Add((rect, qty, i));
             }
@@ -611,84 +615,202 @@ namespace IOSVN.TuTien.Core
 
         private void TryAttack()
         {
-            if (over || requestPending) return;
-            if (ServerNow < battle["p"]["atkReadyAt"].Num()) return;
-            Send("attack", -1);
+            if (over) return;
+            if (Time.time < nextAttackLocalTime) return;
+            nextAttackLocalTime = Time.time + 0.32f;
+            FireLocalAttack();
+        }
+
+        private void FireLocalAttack()
+        {
+            if (over || hero == null || monster == null) return;
+            hero.Play(FighterAction.Attack);
+            playerLungeUntil = Time.time + 0.20f;
+            var right = monsterPos.x > playerPos.x;
+            hero.FaceRight = right;
+            var trail = BattleFx.ElementColor(element);
+            hero.Ghost(trail);
+            BattleFx.After(this, 0.06f, () => { if (hero != null) hero.Ghost(trail); });
+            GameAudioController.Instance?.PlaySkillEffect();
+
+            var from = playerPos + new Vector2(right ? 40f : -40f, hero.Height * 0.45f);
+            var to = monsterPos + new Vector2(UnityEngine.Random.Range(-25f, 25f), monster.Height * UnityEngine.Random.Range(0.35f, 0.65f));
+            var arc = UnityEngine.Random.Range(-18f, 18f);
+            var fxName = "sword";
+            BattleFx.Projectile(fxLayer, fxName, element, from, to, 0.13f, 1.25f, 0f, arc, () =>
+            {
+                if (this == null || monster == null || over) return;
+                monster.Hit(0.14f);
+                BattleFx.Spawn(fxLayer, "hit", element, to, 1.05f);
+                Shake(0.12f);
+                combo = Time.time < comboUntil ? combo + 1 : 1;
+                comboUntil = Time.time + 2.5f;
+
+                if (pendingDamageQueue.Count > 0)
+                {
+                    var dmg = pendingDamageQueue.Dequeue();
+                    Float(to, "−" + Vn(dmg), new Color32(255, 246, 230, 255), 36);
+                }
+            }, true);
+
+            if (!attackInFlight)
+            {
+                attackInFlight = true;
+                client.Post("/battle/act", new Dictionary<string, object> { { "a", "attack" } }, (result, error) =>
+                {
+                    attackInFlight = false;
+                    if (this == null || over || error != null) return;
+                    var r = result["result"];
+                    if (r.IsObject && r["ok"].Bool())
+                    {
+                        var dmg = r["dmg"].Num();
+                        if (dmg > 0) pendingDamageQueue.Enqueue(dmg);
+                        if (r["crit"].Bool())
+                        {
+                            Float(monsterPos + new Vector2(UnityEngine.Random.Range(-30f, 30f), monster.Height * 0.82f), "CHÍ MẠNG −" + Vn(dmg), new Color32(255, 214, 90, 255), 48);
+                            Shake(0.35f);
+                        }
+                    }
+                    if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
+                    if (result["battle"].IsObject) Apply(result["battle"]);
+                });
+            }
+        }
+
+        private void PerformDodge()
+        {
+            if (over || hero == null) return;
+            if (Time.time < dodgeCooldownUntil)
+            {
+                Float(playerPos + new Vector2(0, hero.Height * 0.9f), "Thân pháp chưa hồi", new Color32(220, 220, 220, 255), 26);
+                return;
+            }
+            dodgeCooldownUntil = Time.time + 4.0f;
+            playerDashUntil = Time.time + 0.30f;
+
+            var bounds = arena.rect;
+            var dir = moveInput.sqrMagnitude > 0.05f ? moveInput.normalized : (monsterPos.x > playerPos.x ? Vector2.left : Vector2.right);
+            playerPos += dir * 260f;
+            playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .44f, bounds.width * .44f);
+            playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .42f, bounds.height * .12f);
+
+            hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.95f));
+            BattleFx.After(this, 0.05f, () => { if (hero != null) hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.7f)); });
+            BattleFx.After(this, 0.11f, () => { if (hero != null) hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.5f)); });
+            BattleFx.Spawn(fxLayer, "burst", "phong", playerPos, 1.25f);
+            GameAudioController.Instance?.PlaySkillEffect();
+
+            if (warnActive && !warnDodged)
+            {
+                warnDodged = true;
+                Float(playerPos + new Vector2(0, hero.Height * 0.9f), "NÉ ĐÒN THÀNH CÔNG!", new Color32(100, 240, 255, 255), 38);
+            }
+            else
+            {
+                Float(playerPos + new Vector2(0, hero.Height * 0.9f), "Thân Pháp!", new Color32(140, 230, 255, 255), 30);
+            }
+
+            client.Post("/battle/act", new Dictionary<string, object> { { "a", "dodge" } }, (result, error) =>
+            {
+                if (this == null || over || error != null) return;
+                if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
+                if (result["battle"].IsObject) Apply(result["battle"]);
+            });
+        }
+
+        private void PerformSkill(int index)
+        {
+            if (over || battle.IsNull) return;
+            var skills = battle["skills"];
+            if (index < 0 || index >= skills.Count) return;
+            var skill = skills[index];
+            if (skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str())) return;
+
+            if (ServerNow < skill["readyAt"].Num())
+            {
+                Float(playerPos + new Vector2(0, hero.Height * .9f), "Chiêu chưa hồi", new Color32(220, 220, 220, 255), 26);
+                return;
+            }
+            if (skill["mp"].Num() > battle["p"]["mp"].Num())
+            {
+                Float(playerPos + new Vector2(0, hero.Height * .9f), "Không đủ linh lực", new Color32(140, 200, 255, 255), 26);
+                return;
+            }
+
+            var kind = skill["kind"].Str();
+            hero.Play(kind == "atk" || kind == "multi" ? FighterAction.Attack : FighterAction.Cast);
+            GameAudioController.Instance?.PlaySkillEffect();
+
+            var skillName = owner.BattleClean(skill["name"].Str());
+            var skillEl = BattleFx.ElementOfSkill(skillName, element);
+            Float(playerPos + new Vector2(0, hero.Height * 0.95f), "« " + skillName + " »", BattleFx.ElementColor(skillEl), 34);
+
+            var stage = HeroStage();
+            var delay = SkillStage.Player(stage, skill["id"].Str(), skillName, kind, skill["big"].Bool());
+            var big = skill["big"].Bool();
+
+            BattleFx.After(this, delay, () =>
+            {
+                if (this == null || monster == null || over) return;
+                monster.Hit(big ? 0.32f : 0.20f);
+                Shake(big ? 0.75f : 0.35f);
+                combo = Time.time < comboUntil ? combo + 2 : 2;
+                comboUntil = Time.time + 3.0f;
+            });
+
+            client.Post("/battle/act", new Dictionary<string, object> { { "a", "skill" }, { "i", index } }, (result, error) =>
+            {
+                if (this == null || over) return;
+                if (error != null) { owner.BattleToast(error, true); return; }
+                var r = result["result"];
+                if (!r["ok"].Bool())
+                {
+                    if (!string.IsNullOrEmpty(r["msg"].Str()))
+                        Float(playerPos + new Vector2(0, hero.Height * .9f), owner.BattleClean(r["msg"].Str()), new Color32(220, 220, 220, 255), 26);
+                }
+                else
+                {
+                    var msg = owner.BattleClean(r["msg"].Str());
+                    var crit = r["crit"].Bool();
+                    Float(monsterPos + new Vector2(UnityEngine.Random.Range(-40f, 40f), monster.Height * .8f), msg, crit ? new Color32(255, 214, 90, 255) : new Color32(255, 246, 230, 255), crit || big ? 50 : 36);
+                }
+                if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
+                if (result["battle"].IsObject) Apply(result["battle"]);
+            });
+        }
+
+        private void PerformItem(int index)
+        {
+            if (over || battle.IsNull) return;
+            BattleFx.OnGround(fxLayer, "heal", "moc", playerPos + new Vector2(0, 14), 1.1f, false, 0, .8f);
+            GameAudioController.Instance?.PlaySkillEffect();
+            client.Post("/battle/act", new Dictionary<string, object> { { "a", "item" }, { "i", index } }, (result, error) =>
+            {
+                if (this == null || over) return;
+                if (error != null) { owner.BattleToast(error, true); return; }
+                var r = result["result"];
+                if (r.IsObject && r["ok"].Bool())
+                {
+                    var msg = owner.BattleClean(r["msg"].Str());
+                    Float(playerPos + new Vector2(0, hero.Height * .9f), msg, new Color32(140, 230, 160, 255), 32);
+                }
+                if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
+                if (result["battle"].IsObject) Apply(result["battle"]);
+            });
         }
 
         private void Send(string action, int index)
         {
-            if (over || requestPending) return;
-            var skill = action == "skill" ? battle["skills"][index] : J.Null;
-            if (action == "skill")
-            {
-                if (ServerNow < skill["readyAt"].Num()) { Float(playerPos + new Vector2(0, hero.Height * .9f), "Chiêu chưa hồi", new Color32(220, 220, 220, 255), 26); return; }
-                if (skill["mp"].Num() > battle["p"]["mp"].Num()) { Float(playerPos + new Vector2(0, hero.Height * .9f), "Không đủ linh lực", new Color32(140, 200, 255, 255), 26); return; }
-            }
-            requestPending = true;
+            if (action == "attack") { TryAttack(); return; }
+            if (action == "dodge") { PerformDodge(); return; }
+            if (action == "skill") { PerformSkill(index); return; }
+            if (action == "item") { PerformItem(index); return; }
             var body = new Dictionary<string, object> { { "a", action } };
             if (index >= 0) body["i"] = index;
-            // the figure moves at once; the effect and the numbers follow the server's answer
-            var kind = skill["kind"].Str();
-            if (action == "attack")
-            {
-                hero.Play(FighterAction.Attack);
-                playerLungeUntil = Time.time + .25f;
-                var trail = BattleFx.ElementColor(element);
-                BattleFx.After(this, .05f, () => { if (hero != null) hero.Ghost(trail); });
-                BattleFx.After(this, .11f, () => { if (hero != null) hero.Ghost(trail); });
-            }
-            else if (action == "skill") hero.Play(kind == "atk" || kind == "multi" ? FighterAction.Attack : FighterAction.Cast);
             client.Post("/battle/act", body, (result, error) =>
             {
-                requestPending = false;
-                if (this == null) return;
+                if (this == null || over) return;
                 if (error != null) { owner.BattleToast(error, true); return; }
-                var r = result["result"];
-                if (!r["ok"].Bool()) { if (!string.IsNullOrEmpty(r["msg"].Str())) Float(playerPos + new Vector2(0, hero.Height * .9f), owner.BattleClean(r["msg"].Str()), new Color32(220, 220, 220, 255), 26); }
-                else
-                {
-                    var msg = owner.BattleClean(r["msg"].Str());
-                    var stage = HeroStage();
-                    if (action == "attack" || action == "skill")
-                    {
-                        var crit = r["crit"].Bool();
-                        var offensive = action == "attack" || kind == "atk" || kind == "multi" || kind == "dot" || kind == "stun";
-                        if (action == "skill")
-                            Float(playerPos + new Vector2(0, hero.Height * .95f), "« " + owner.BattleClean(skill["name"].Str()) + " »", BattleFx.ElementColor(BattleFx.ElementOfSkill(skill["name"].Str(), element)), 30);
-                        var delay = action == "attack"
-                            ? SkillStage.Player(stage, "attack", "", "attack", false)
-                            : SkillStage.Player(stage, skill["id"].Str(), skill["name"].Str(), kind, skill["big"].Bool());
-                        var big = action == "skill" && skill["big"].Bool();
-                        BattleFx.After(this, delay, () =>
-                        {
-                            if (this == null || monster == null) return;
-                            if (offensive)
-                            {
-                                monster.Hit(crit ? .24f : .16f);
-                                Float(monsterPos + new Vector2(UnityEngine.Random.Range(-40f, 40f), monster.Height * .8f), msg, crit ? new Color32(255, 214, 90, 255) : new Color32(255, 246, 230, 255), crit || big ? 50 : 36);
-                                Shake(crit || big ? .6f : .18f);
-                                combo = Time.time < comboUntil ? combo + 1 : 1;
-                                comboUntil = Time.time + 2.6f;
-                            }
-                            else Float(playerPos + new Vector2(0, hero.Height * .8f), msg, new Color32(140, 230, 160, 255));
-                        });
-                    }
-                    else if (action == "dodge")
-                    {
-                        playerDashUntil = Time.time + .28f;
-                        hero.Ghost(new Color(.7f, .95f, 1f));
-                        BattleFx.After(this, .07f, () => { if (hero != null) hero.Ghost(new Color(.7f, .95f, 1f)); });
-                        BattleFx.After(this, .14f, () => { if (hero != null) hero.Ghost(new Color(.7f, .95f, 1f)); });
-                        SkillStage.Player(stage, "dodge", "", "escape", false);
-                        Float(playerPos + new Vector2(0, hero.Height * .9f), msg, new Color32(150, 230, 255, 255));
-                    }
-                    else
-                    {
-                        if (action == "item") BattleFx.OnGround(fxLayer, "heal", "moc", playerPos + new Vector2(0, 14), 1.1f, false, 0, .8f);
-                        Float(playerPos + new Vector2(0, hero.Height * .9f), msg, new Color32(140, 230, 160, 255));
-                    }
-                }
                 if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
                 if (result["battle"].IsObject) Apply(result["battle"]);
             });
@@ -836,16 +958,17 @@ namespace IOSVN.TuTien.Core
                 warnCircle.GetComponent<Image>().color = new Color(1f, .15f, .1f, .15f + .35f * t);
                 warnCircle.localScale = Vector3.one * (.6f + .4f * t);
                 warnLabel.color = new Color(1f, .47f, .38f, .65f + .35f * Mathf.Sin(Time.time * 14f));
-                if (!warnDodged && Vector2.Distance(playerPos, warnCenter) > WarnRadius * .9f && ServerNow >= battle["p"]["dodgeReadyAt"].Num())
+                if (!warnDodged && Vector2.Distance(playerPos, warnCenter) > WarnRadius * .9f && Time.time >= dodgeCooldownUntil)
                 {
-                    warnDodged = true;
-                    Send("dodge", -1);
+                    PerformDodge();
                 }
             }
             // cooldowns
             var now = ServerNow;
-            SetCooldown(attackCooldown, battle["p"]["atkReadyAt"].Num() - now, 1000);
-            SetCooldown(dodgeCooldown, battle["p"]["dodgeReadyAt"].Num() - now, 6000);
+            var atkLeft = (nextAttackLocalTime - Time.time) * 1000f;
+            SetCooldown(attackCooldown, atkLeft, 320);
+            var dodgeLeft = (dodgeCooldownUntil - Time.time) * 1000f;
+            SetCooldown(dodgeCooldown, dodgeLeft, 4000);
             var skills = battle["skills"];
             var mp = battle["p"]["mp"].Num();
             foreach (var (rect, cd, seconds, icon, index) in skillButtons)
@@ -858,7 +981,7 @@ namespace IOSVN.TuTien.Core
             }
             if (attackHeld) TryAttack();
             // polling
-            if (!over && Time.time >= nextPoll && !requestPending)
+            if (!over && Time.time >= nextPoll && !attackInFlight)
             {
                 nextPoll = Time.time + .6f;
                 client.Get("/battle/current", (data, error) =>
