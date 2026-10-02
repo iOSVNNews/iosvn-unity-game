@@ -55,13 +55,17 @@ namespace IOSVN.TuTien.Core
         private static readonly string[] HairNamesFemale = { "Song búi tiên nữ", "Búi cao xõa dài", "Rẽ ngôi xõa", "Đuôi ngựa cao", "Nửa búi", "Bím lệch", "Hai bím", "Búi cung trang", "Tóc ngắn", "Vương miện tết" };
 
         private RectTransform creatorAvatar;
+        private RectTransform creatorZoom;
+        private bool? creatorZoomChoice;          // set by tapping the figure; cleared when another category is picked
+        // categories that change the head: the preview moves in on the face while one of them is open
+        private static readonly HashSet<string> CreatorFaceCategories = new HashSet<string> { "fa", "ey", "br", "no", "mo", "ea", "bd", "ha", "hat" };
 
         private void ShowCreator()
         {
             if (offlineCreationPreview || !AvatarComposer.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
             ClearContent();
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
-            creatorLook = creatorLook ?? AvatarComposer.Default(gender == "nu");
+            if (creatorLook == null) { creatorLook = AvatarComposer.Default(gender == "nu"); creatorZoomChoice = false; }   // first shown as the whole figure
             var root = Anchored("Creator", content.transform, new Vector2(-.05f, -.03f), new Vector2(1.05f, 1.03f), Vector2.zero, Vector2.zero);
             // scroll: two rollers and parchment
             var paper = Anchored("Paper", root, Vector2.zero, Vector2.one, new Vector2(70, 18), new Vector2(-70, -18));
@@ -105,7 +109,16 @@ namespace IOSVN.TuTien.Core
             halo.color = new Color(.62f, .66f, .66f, .55f);
             halo.raycastTarget = false;
             var view = Anchored("Preview", col, new Vector2(.02f, .19f), new Vector2(.98f, 1f), Vector2.zero, Vector2.zero);
-            creatorAvatar = AvatarComposer.Build(view, creatorLook, .9f);
+            // the figure sits in a frame that can be scaled up around the face; the view clips what falls outside
+            view.gameObject.AddComponent<RectMask2D>();
+            var touch = view.gameObject.AddComponent<Image>();
+            touch.color = new Color(0, 0, 0, 0);
+            var toggle = view.gameObject.AddComponent<Button>();
+            toggle.transition = Selectable.Transition.None;
+            toggle.targetGraphic = touch;
+            toggle.onClick.AddListener(() => { creatorZoomChoice = !CreatorZoomed(); ApplyCreatorZoom(); });
+            creatorZoom = Anchored("Zoom", view, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            creatorAvatar = AvatarComposer.Build(creatorZoom, creatorLook, .9f);
             creatorPreview = creatorAvatar.Find("Figure").GetComponent<RawImage>();
             // name input
             var nameBox = Anchored("NameBox", col, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-230, 62), new Vector2(230, 62 + 38 + AuthFieldHeight));
@@ -193,6 +206,7 @@ namespace IOSVN.TuTien.Core
         {
             if (creatorPreview == null) return;
             AvatarComposer.Refresh(creatorAvatar, creatorLook, .9f);
+            ApplyCreatorZoom();
             // category chips (3 columns)
             for (var i = creatorChips.childCount - 1; i >= 0; i--) Destroy(creatorChips.GetChild(i).gameObject);
             for (var i = 0; i < CreatorCategories.Length; i++)
@@ -202,7 +216,7 @@ namespace IOSVN.TuTien.Core
                 var row = i / 3;
                 var rows = (CreatorCategories.Length + 2) / 3;
                 CreatorChip(creatorChips, c.label, new Vector2(col / 3f, 1f - (row + 1f) / rows), new Vector2((col + 1) / 3f, 1f - row / (float)rows),
-                    c.key == creatorCategory, () => { creatorCategory = c.key; RefreshCreator(); });
+                    c.key == creatorCategory, () => { creatorCategory = c.key; creatorZoomChoice = null; RefreshCreator(); });
             }
             var key = creatorCategory;
             var names = key == "ha" && creatorLook.Get("g") == "f" ? HairNamesFemale : StyleNames.TryGetValue(key, out var n) ? n : new[] { "Kiểu 1" };
@@ -255,6 +269,29 @@ namespace IOSVN.TuTien.Core
                         RefreshCreator();
                     });
             }
+        }
+
+        private bool CreatorZoomed() => creatorZoomChoice ?? CreatorFaceCategories.Contains(creatorCategory);
+
+        /// <summary>Full figure, or a close-up of the head while the face is being edited (tap the figure to switch).</summary>
+        private void ApplyCreatorZoom()
+        {
+            if (creatorZoom == null) return;
+            var zoomed = CreatorZoomed();
+            // where the face is in the portrait (0 = soles, 1 = top), corrected for the letterboxing of the 3:5 figure
+            var head = .835f;
+            var view = ((RectTransform)creatorZoom.parent).rect;
+            if (view.height > 1f)
+            {
+                var figure = Mathf.Min(view.height, view.width * AvatarComposer.H / AvatarComposer.W);
+                head = .5f + (head - .5f) * figure / view.height;
+            }
+            var shift = zoomed ? head - .52f : 0f;
+            creatorZoom.pivot = new Vector2(.5f, head);
+            creatorZoom.anchorMin = new Vector2(0, -shift);
+            creatorZoom.anchorMax = new Vector2(1, 1 - shift);
+            creatorZoom.offsetMin = creatorZoom.offsetMax = Vector2.zero;
+            creatorZoom.localScale = zoomed ? new Vector3(2.3f, 2.3f, 1f) : Vector3.one;
         }
 
         private void StepCreatorStyle(int delta)

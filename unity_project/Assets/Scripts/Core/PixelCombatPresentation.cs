@@ -43,9 +43,17 @@ namespace IOSVN.TuTien.Core
         private static readonly Color Gold = new Color32(225, 185, 104, 255);
         private static readonly Color Cream = new Color32(239, 228, 203, 255);
         private static readonly Color Panel = new Color32(25, 33, 43, 255);
+        private static readonly Vector2[] SkillCenters = {
+            new Vector2(.75f, .145f), new Vector2(.795f, .282f), new Vector2(.86f, .39f),
+            new Vector2(.935f, .40f), new Vector2(.97f, .28f)
+        };
         private static readonly Dictionary<string, Texture2D> TerrainCache = new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Sprite[]> FighterCache = new Dictionary<string, Sprite[]>();
+        private static readonly Dictionary<string, Sprite> ItemSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
+        private static Dictionary<string, string> itemIdsByName;
         private readonly Dictionary<string, SkillFxInfo> knownSkills = new Dictionary<string, SkillFxInfo>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Text> skillCooldownLabels = new Dictionary<string, Text>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Button> skillButtons = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
         private static Sprite projectileSprite;
         private static Sprite shadowSprite;
 
@@ -63,6 +71,16 @@ namespace IOSVN.TuTien.Core
         private string enemyName;
         private string enemyId;
         private string enemyElement;
+        private Sprite activeWeaponSprite;
+        private Button attackButton;
+        private float controlScale = 1f;
+        private Action<string> pveAction;
+        private Action<BattleSkill> pveSkillAction;
+        private Action<string, string, string, string> pvpAction;
+        private static float nextAutoPveActionAt;
+        private static float nextAutoPvpActionAt;
+        private static string autoBattleId;
+        private static string autoPvpBattleId;
         private Coroutine sceneLoop;
         private Coroutine pollLoop;
         private Action<BattleView> pveComplete;
@@ -70,19 +88,25 @@ namespace IOSVN.TuTien.Core
 
         public void BuildPve(BattleView battle, NetworkGameClient network, AppearanceColors appearance, string playerClass, string weaponId, bool immortal,
             string initialAction, string initialSkillId, string initialSkillName, string initialSkillKind,
-            Action<string> act, Action<BattleSkill> useSkill, Action nextStage, Action exit,
+            Action<string> act, Action<BattleSkill> useSkill, Action<BattleItem> useItem, Action nextStage, Action exit,
             Action<BattleView> completed)
         {
             pvp = false;
             client = network;
             immortalRealm = immortal;
             battleId = battle.id;
+            if (autoBattleId != battleId) { autoBattleId = battleId; nextAutoPveActionAt = Time.unscaledTime + 0.65f; }
             playerName = battle.p?.name ?? "Đạo hữu";
             enemyName = battle.m?.name ?? "Yêu thú";
             enemyId = battle.m?.id;
             enemyElement = battle.m?.element ?? "";
+            activeWeaponSprite = PixelWeaponArt.ForId(weaponId) ?? PixelWeaponArt.ForClass(playerClass);
+            pveAction = act;
+            pveSkillAction = useSkill;
             pveComplete = completed;
             BuildGround(battle.battleMap);
+            Canvas.ForceUpdateCanvases();
+            controlScale = Mathf.Clamp(Mathf.Min(root.rect.width / 1500f, root.rect.height / 790f), .72f, 1.22f);
             BuildHeader(enemyName, battle.m?.hp ?? 0, battle.m?.maxHp ?? 0,
                 "PVE · " + (battle.battleMap?.name ?? "Chiến trường"), battle.m?.warn != null ? "CẢNH BÁO · YÊU THÚ SẮP TUNG CHIÊU" : null);
             AddPveFighters(battle, appearance, playerClass, weaponId);
@@ -95,9 +119,9 @@ namespace IOSVN.TuTien.Core
                 foreach (var skill in battle.skills ?? Array.Empty<BattleSkill>())
                 {
                     RememberSkill(skill?.id, skill?.name, skill?.kind);
-                    if (skill != null && !skill.locked && !string.IsNullOrEmpty(skill.id) && visible.Count < 2) visible.Add(skill);
+                    if (skill != null && !skill.locked && !string.IsNullOrEmpty(skill.id) && visible.Count < 5) visible.Add(skill);
                 }
-                BuildPveActions(visible.ToArray(), act, useSkill, nextStage, exit, battle.over);
+                BuildPveActions(visible.ToArray(), battle, act, useSkill, useItem, nextStage, exit, battle.over);
                 SetStatus("Thao tác và sát thương do máy chủ xử lý.");
             }
             else if (!string.IsNullOrEmpty(battle.dungeonLeaderId) && (battle.result == "win" || battle.result == "win_down"))
@@ -125,9 +149,14 @@ namespace IOSVN.TuTien.Core
             immortalRealm = immortal;
             battleId = battle.id;
             playerName = battle.me?.name ?? "Đạo hữu";
+            pvpAction = act;
+            if (autoPvpBattleId != battleId) { autoPvpBattleId = battleId; nextAutoPvpActionAt = Time.unscaledTime + .65f; }
             enemyName = battle.opponent?.name ?? "Đối thủ";
+            activeWeaponSprite = PixelWeaponArt.ForId(weaponId) ?? PixelWeaponArt.ForClass(playerClass);
             pvpComplete = completed;
             BuildGround(battle.battleMap);
+            Canvas.ForceUpdateCanvases();
+            controlScale = Mathf.Clamp(Mathf.Min(root.rect.width / 1500f, root.rect.height / 790f), .72f, 1.22f);
             BuildHeader(enemyName, battle.opponent?.hp ?? 0, battle.opponent?.maxHp ?? 0,
                 "LÔI ĐÀI · " + (battle.battleMap?.name ?? "Chiến trường PvP"), battle.over ? (battle.isWin ? "CHIẾN THẮNG" : "KẾT THÚC") : null);
             AddPvpFighters(battle, appearance, playerClass, weaponId);
@@ -192,20 +221,22 @@ namespace IOSVN.TuTien.Core
             AddMeter(box.transform, "PlayerMP", "LINH LỰC", mp, maxMp, new Color32(63, 156, 224, 255), new Vector2(0.045f, 0.10f), new Vector2(0.955f, 0.375f));
         }
 
-        private void BuildPveActions(BattleSkill[] skills, Action<string> act, Action<BattleSkill> useSkill, Action next, Action exit, bool over)
+        private void BuildPveActions(BattleSkill[] skills, BattleView battle, Action<string> act, Action<BattleSkill> useSkill, Action<BattleItem> useItem, Action next, Action exit, bool over)
         {
             if (over) return;
             foreach (var skill in skills) RememberSkill(skill?.id, skill?.name, skill?.kind);
-            AddButton("ĐÁNH THƯỜNG", new Vector2(0.36f, 0.045f), new Vector2(0.505f, 0.215f), Gold, () => act?.Invoke("attack"));
-            AddButton("NÉ ĐÒN", new Vector2(0.51f, 0.045f), new Vector2(0.655f, 0.215f), Panel, () => act?.Invoke("dodge"));
-            var positions = new[] { new Vector2(0.66f, 0.045f), new Vector2(0.81f, 0.045f) };
-            var limits = new[] { new Vector2(0.805f, 0.215f), new Vector2(0.955f, 0.215f) };
-            for (var i = 0; i < skills.Length && i < positions.Length; i++)
+            AddAttackCircle(() => act?.Invoke("attack"));
+            for (var i = 0; i < SkillCenters.Length; i++)
             {
-                var skill = skills[i];
-                var button = AddButton(skill.name, positions[i], limits[i], new Color32(48, 67, 87, 255), () => useSkill?.Invoke(skill));
-                SetButtonFont(button, 14);
-                AttachSkillIcon(button, skill.id, skill.name, skill.kind);
+                var selected = i < skills.Length ? skills[i] : null;
+                AddSkillCircle(selected, SkillCenters[i], i + 1,
+                    selected == null ? null : (Action)(() => useSkill?.Invoke(selected)));
+            }
+            UpdatePveCooldownLabels(battle);
+            for (var i = 0; i < 3; i++)
+            {
+                var item = battle.items != null && i < battle.items.Length ? battle.items[i] : null;
+                AddItemCircle(item, new Vector2(.51f + i * .068f, .105f), () => { if (item != null) useItem?.Invoke(item); });
             }
             AddButton("RÚT LUI", new Vector2(0.02f, 0.775f), new Vector2(0.15f, 0.84f), new Color32(53, 48, 43, 255), () => act?.Invoke("flee"));
         }
@@ -215,21 +246,163 @@ namespace IOSVN.TuTien.Core
             if (battle.over) return;
             foreach (var skill in battle.me?.skills ?? Array.Empty<PvpSkill>()) RememberSkill(skill?.id, skill?.name, skill?.kind);
             foreach (var skill in battle.opponent?.skills ?? Array.Empty<PvpSkill>()) RememberSkill(skill?.id, skill?.name, skill?.kind);
-            AddButton("ĐÁNH THƯỜNG", new Vector2(0.36f, 0.045f), new Vector2(0.505f, 0.215f), Gold, () => act?.Invoke("attack", null, null, null));
-            AddButton("NÉ ĐÒN", new Vector2(0.51f, 0.045f), new Vector2(0.655f, 0.215f), Panel, () => act?.Invoke("dodge", null, null, null));
-            var positions = new[] { new Vector2(0.66f, 0.045f), new Vector2(0.81f, 0.045f) };
-            var limits = new[] { new Vector2(0.805f, 0.215f), new Vector2(0.955f, 0.215f) };
+            AddAttackCircle(() => act?.Invoke("attack", null, null, null));
+            if (attackButton != null) attackButton.interactable = battle.me?.attackCdLeft <= 0;
             var index = 0;
             foreach (var skill in battle.me?.skills ?? Array.Empty<PvpSkill>())
             {
-                if (skill == null || !skill.canUse || index >= positions.Length) continue;
+                if (skill == null || index >= SkillCenters.Length) continue;
                 var skillId = skill.id;
-                var button = AddButton(skill.name, positions[index], limits[index], new Color32(48, 67, 87, 255),
+                var button = AddSkillCircle(skill.id, skill.name, skill.kind, SkillCenters[index], index + 1,
                     () => act?.Invoke("skill", skillId, skill.name, skill.kind));
-                SetButtonFont(button, 14);
-                AttachSkillIcon(button, skill.id, skill.name, skill.kind);
+                button.interactable = skill.canUse;
+                var cooldown = button.transform.Find("Cooldown")?.GetComponent<Text>();
+                if (cooldown != null) cooldown.text = skill.cdLeft > 0 ? skill.cdLeft.ToString() : "";
                 index++;
             }
+            for (; index < SkillCenters.Length; index++) AddSkillCircle(null, SkillCenters[index], index + 1, null);
+        }
+
+        private Button AddCircle(string name, Vector2 center, float diameter, bool attack, bool item, Action click)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = center;
+            rect.anchoredPosition = Vector2.zero;
+            rect.sizeDelta = Vector2.one * diameter * controlScale;
+            var image = go.GetComponent<Image>(); image.sprite = PixelCombatHudArt.Circle(attack, item); image.preserveAspect = true;
+            var button = go.GetComponent<Button>();
+            var colors = button.colors;
+            colors.normalColor = Color.white; colors.highlightedColor = new Color(1f, 1f, .78f); colors.pressedColor = Gold;
+            colors.disabledColor = new Color(.50f, .58f, .61f, .7f); button.colors = colors;
+            button.interactable = click != null;
+            if (click != null) button.onClick.AddListener(() => click());
+            return button;
+        }
+
+        private Image AddCircleIcon(Button button, string name, Sprite sprite, Vector2 min, Vector2 max)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(button.transform, false);
+            var rect = go.GetComponent<RectTransform>(); Place(rect, min, max);
+            var image = go.GetComponent<Image>(); image.sprite = sprite; image.preserveAspect = true; image.raycastTarget = false;
+            return image;
+        }
+
+        private void AddAttackCircle(Action click)
+        {
+            var button = AddCircle("AttackSword", new Vector2(.91f, .14f), 112f, true, false, click);
+            attackButton = button;
+            AddCircleIcon(button, "WeaponPixel", activeWeaponSprite ?? PixelWeaponArt.ForClass("Kiếm"), new Vector2(.18f, .19f), new Vector2(.82f, .87f));
+            var label = AddText(button.transform, "AttackLabel", 13, Gold, TextAnchor.MiddleCenter, new Vector2(.15f, .015f), new Vector2(.85f, .22f));
+            label.text = "ĐÁNH"; label.raycastTarget = false;
+        }
+
+        private Button AddSkillCircle(BattleSkill skill, Vector2 center, int slot, Action click) =>
+            AddSkillCircle(skill?.id, skill?.name, skill?.kind, center, slot, click);
+
+        private Button AddSkillCircle(string id, string name, string kind, Vector2 center, int slot, Action click)
+        {
+            var button = AddCircle("SkillSlot" + slot, center, 68f, false, false, click);
+            if (!string.IsNullOrEmpty(id))
+            {
+                var icon = AddCircleIcon(button, "SkillPixel", null, new Vector2(.16f, .16f), new Vector2(.84f, .84f));
+                PixelSkillArt.Animate(icon, id, name, kind, immortalRealm, slot * .37f);
+                skillButtons[id] = button;
+                skillCooldownLabels[id] = AddText(button.transform, "Cooldown", 25, Cream, TextAnchor.MiddleCenter, new Vector2(.10f, .10f), new Vector2(.90f, .90f));
+                skillCooldownLabels[id].raycastTarget = false;
+            }
+            var label = AddText(button.transform, "Slot", 11, Gold, TextAnchor.LowerRight, new Vector2(.58f, .04f), new Vector2(.86f, .33f));
+            label.text = slot.ToString(); label.raycastTarget = false;
+            return button;
+        }
+
+        private static string ResolveItemId(BattleItem item)
+        {
+            if (item == null) return null;
+            if (!string.IsNullOrEmpty(item.id)) return item.id;
+            if (itemIdsByName == null)
+            {
+                itemIdsByName = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase);
+                foreach (var entry in OfflineHuntCatalogData.Load()?.items ?? Array.Empty<OfflineItemData>())
+                    if (entry != null && !string.IsNullOrEmpty(entry.name)) itemIdsByName[entry.name] = entry.id;
+            }
+            return !string.IsNullOrEmpty(item.name) && itemIdsByName.TryGetValue(item.name, out var id) ? id : null;
+        }
+
+        private void AddItemCircle(BattleItem item, Vector2 center, Action click)
+        {
+            var id = ResolveItemId(item);
+            var button = AddCircle("BattleItem" + (item?.i ?? 0), center, 58f, false, true,
+                item != null && !string.IsNullOrEmpty(item.uid) && item.qty > 0 ? click : null);
+            if (!string.IsNullOrEmpty(id))
+            {
+                if (!ItemSpriteCache.TryGetValue(id, out var sprite) || sprite == null)
+                {
+                    var texture = Resources.Load<Texture2D>("CombatPixel/Items/" + id);
+                    sprite = texture == null ? null : Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 64f);
+                    ItemSpriteCache[id] = sprite;
+                }
+                if (sprite != null) AddCircleIcon(button, "ItemPixel", sprite, new Vector2(.17f, .16f), new Vector2(.83f, .84f));
+            }
+            if (item != null)
+            {
+                var label = AddText(button.transform, "Quantity", 12, Cream, TextAnchor.LowerRight, new Vector2(.54f, .03f), new Vector2(.93f, .37f));
+                label.text = item.qty.ToString(); label.raycastTarget = false;
+            }
+        }
+
+        private void UpdatePveCooldownLabels(BattleView battle)
+        {
+            var now = battle.now > 0 ? battle.now : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (attackButton != null) attackButton.interactable = battle.p != null && battle.p.atkReadyAt <= now && battle.p.stunUntil <= now;
+            foreach (var skill in battle.skills ?? Array.Empty<BattleSkill>())
+            {
+                if (skill == null || string.IsNullOrEmpty(skill.id)) continue;
+                var seconds = Mathf.CeilToInt(Mathf.Max(0, skill.readyAt - now) / 1000f);
+                if (skillCooldownLabels.TryGetValue(skill.id, out var label) && label != null) label.text = seconds > 0 ? seconds.ToString() : "";
+                if (skillButtons.TryGetValue(skill.id, out var button) && button != null)
+                    button.interactable = !skill.locked && seconds == 0 && (battle.p?.mp ?? 0) >= skill.mp;
+            }
+        }
+
+        private void UpdatePvpCooldownLabels(PvpBattle battle)
+        {
+            if (attackButton != null) attackButton.interactable = battle.me?.attackCdLeft <= 0 && battle.me?.stunTurns <= 0;
+            foreach (var skill in battle.me?.skills ?? Array.Empty<PvpSkill>())
+            {
+                if (skill == null || string.IsNullOrEmpty(skill.id)) continue;
+                if (skillButtons.TryGetValue(skill.id, out var button) && button != null) button.interactable = skill.canUse;
+                if (skillCooldownLabels.TryGetValue(skill.id, out var label) && label != null) label.text = skill.cdLeft > 0 ? skill.cdLeft.ToString() : "";
+            }
+        }
+
+        private void TryAutoPveAction(BattleView battle)
+        {
+            if (client == null || battle == null || battle.over || Time.unscaledTime < nextAutoPveActionAt) return;
+            var now = battle.now > 0 ? battle.now : DateTimeOffset.UtcNow.ToUnixTimeMilliseconds();
+            if (battle.p == null || battle.p.stunUntil > now || battle.p.atkReadyAt > now) return;
+            nextAutoPveActionAt = Time.unscaledTime + 1.15f;
+            foreach (var skill in battle.skills ?? Array.Empty<BattleSkill>())
+            {
+                if (skill == null || skill.locked || skill.readyAt > now || skill.mp > battle.p.mp || skill.kind == "escape") continue;
+                pveSkillAction?.Invoke(skill); return;
+            }
+            pveAction?.Invoke("attack");
+        }
+
+        private void TryAutoPvpAction(PvpBattle battle)
+        {
+            if (client == null || battle == null || battle.over || !battle.myTurn || Time.unscaledTime < nextAutoPvpActionAt) return;
+            if (battle.me == null || battle.me.stunTurns > 0) return;
+            nextAutoPvpActionAt = Time.unscaledTime + 1.25f;
+            foreach (var skill in battle.me.skills ?? Array.Empty<PvpSkill>())
+            {
+                if (skill == null || !skill.canUse || skill.kind == "escape") continue;
+                pvpAction?.Invoke("skill", skill.id, skill.name, skill.kind); return;
+            }
+            if (battle.me.attackCdLeft <= 0) pvpAction?.Invoke("attack", null, null, null);
         }
 
         private void AttachSkillIcon(Button button, string id, string name, string kind)
@@ -357,8 +530,13 @@ namespace IOSVN.TuTien.Core
                     var hurt = fighter.hitUntil > now;
                     var dash = striking ? Mathf.Sin((1f - (fighter.attackUntil - now) / .34f) * Mathf.PI) : 0f;
                     var direction = fighter.role == 0 || fighter.role >= 2 && fighter.role % 2 == 0 ? -1f : 1f;
-                    var x = fighter.home.x + Mathf.Sin(time * (1.35f + fighter.role * 0.09f)) * 0.012f + direction * dash * (fighter.role >= 2 ? 0.06f : 0.13f);
-                    var y = fighter.home.y + Mathf.Sin(time * (2.0f + fighter.phase)) * 0.017f + dash * 0.025f;
+                    var duelist = fighter.role < 2;
+                    var pursuit = active && duelist ? .5f + .5f * Mathf.Sin(now * 1.12f) : 0f;
+                    var chaseX = duelist ? (fighter.role == 0 ? -.13f : .13f) * pursuit : 0f;
+                    var runX = active ? Mathf.Sin(time * (duelist ? 1.75f : 1.4f)) * (duelist ? .055f : .032f) : Mathf.Sin(time * 1.4f) * .008f;
+                    var runY = active ? Mathf.Cos(time * (duelist ? 1.53f : 1.91f)) * (duelist ? .065f : .045f) : Mathf.Sin(time * 2f) * .011f;
+                    var x = fighter.home.x + chaseX + runX + direction * dash * (duelist ? .10f : .045f);
+                    var y = fighter.home.y + runY + dash * .022f;
                     fighter.rect.anchorMin = fighter.rect.anchorMax = new Vector2(Mathf.Clamp(x, 0.08f, 0.92f), Mathf.Clamp(y, 0.28f, 0.72f));
                     if (fighter.shadow != null)
                     {
@@ -367,7 +545,7 @@ namespace IOSVN.TuTien.Core
                     }
                     var frame = hurt ? 6 + Mathf.FloorToInt(now * 9f) % 2
                         : striking ? 4 + Mathf.FloorToInt(now * 9f) % 2
-                        : Mathf.FloorToInt(time * (active ? 5f : 2f)) % 4;
+                        : Mathf.FloorToInt(time * (active ? 8f : 2f)) % 4;
                     frame %= fighter.frames.Length;
                     fighter.image.sprite = fighter.frames[frame];
                     fighter.image.rectTransform.localScale = new Vector3(fighter.role == 1 && pvp ? -1f : 1f, 1f, 1f);
@@ -499,12 +677,20 @@ namespace IOSVN.TuTien.Core
         private void PlayAction(string action, string skillId, string skillName, string skillKind)
         {
             if (string.IsNullOrEmpty(action)) return;
-            var player = new Vector2(0.70f, pvp ? 0.45f : 0.46f);
-            var target = new Vector2(0.30f, pvp ? 0.45f : 0.47f);
-            if (action == "dodge") SpawnSkillEffect(player, player, "phu_don_quyet", "Vạn Dặm Thần Hành Phù", "escape");
+            var player = FighterAnchor(0);
+            var target = FighterAnchor(1);
+            if (action == "item") SpawnSkillEffect(player, player, skillId, skillName, "heal");
+            else if (action == "dodge") SpawnSkillEffect(player, player, "phu_don_quyet", "Vạn Dặm Thần Hành Phù", "escape");
             else if (action == "skill") SpawnSkillEffect(player, target, skillId, skillName, skillKind);
             else SpawnVolley(player, target, new Color32(255, 204, 94, 255), false, 7);
-            if (action != "dodge") ShowImpact(true);
+            if (action != "dodge" && action != "item") ShowImpact(true);
+        }
+
+        private Vector2 FighterAnchor(int role)
+        {
+            foreach (var fighter in fighters)
+                if (fighter.role == role && fighter.rect != null) return fighter.rect.anchorMin;
+            return role == 0 ? new Vector2(.70f, .45f) : new Vector2(.30f, .45f);
         }
 
         private IEnumerator PollPve()
@@ -524,6 +710,8 @@ namespace IOSVN.TuTien.Core
                     var warning = transform.Find("BattleWarning");
                     if (warning != null) warning.gameObject.SetActive(battle.m?.warn != null);
                     UpdateLog(LastPveLog(battle), battle.p?.name, battle.m?.name);
+                    UpdatePveCooldownLabels(battle);
+                    TryAutoPveAction(battle);
                 });
                 while (!complete) yield return null;
             }
@@ -544,6 +732,8 @@ namespace IOSVN.TuTien.Core
                     UpdateMeter("PlayerCombatHUD/PlayerHP", "KHÍ HUYẾT", battle.me?.hp ?? 0, battle.me?.maxHp ?? 0);
                     UpdateMeter("PlayerCombatHUD/PlayerMP", "LINH LỰC", battle.me?.mp ?? 0, battle.me?.maxMp ?? 0);
                     UpdateLog(LastPvpLog(battle), battle.me?.name, battle.opponent?.name);
+                    UpdatePvpCooldownLabels(battle);
+                    TryAutoPvpAction(battle);
                 });
                 while (!complete) yield return null;
             }
@@ -568,8 +758,8 @@ namespace IOSVN.TuTien.Core
             var playerHit = !string.IsNullOrEmpty(attackerName) && line.Contains(attackerName) || line.Contains("Bạn tấn công") || line.Contains("Bạn dùng");
             var enemyHit = !string.IsNullOrEmpty(targetName) && line.Contains(targetName) || line.Contains("Bầy tiểu yêu");
             if (!playerHit && !enemyHit) return;
-            var from = playerHit ? new Vector2(0.70f, pvp ? 0.45f : 0.46f) : new Vector2(0.30f, pvp ? 0.45f : 0.47f);
-            var to = playerHit ? new Vector2(0.30f, pvp ? 0.45f : 0.47f) : new Vector2(0.70f, pvp ? 0.45f : 0.46f);
+            var from = FighterAnchor(playerHit ? 0 : 1);
+            var to = FighterAnchor(playerHit ? 1 : 0);
             ShowImpact(playerHit);
             foreach (var skill in knownSkills.Values)
             {
@@ -600,7 +790,7 @@ namespace IOSVN.TuTien.Core
             var go = new GameObject(name, typeof(RectTransform), typeof(Text));
             go.transform.SetParent(parent, false);
             Place(go.GetComponent<RectTransform>(), min, max);
-            var text = go.GetComponent<Text>(); text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.fontSize = size; text.color = color; text.alignment = anchor;
+            var text = go.GetComponent<Text>(); text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.fontSize = Mathf.RoundToInt(size * 1.4f); text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
             PixelUiSkin.ApplyTextTreatment(text);
             return text;

@@ -5,7 +5,7 @@ using UnityEngine;
 namespace IOSVN.TuTien.Core
 {
     /// <summary>
-    /// Figure sheets composed from the same layered parts as the portrait (Resources/Avatar3/w_*):
+    /// Figure sheets composed from the same layers and colours as the portrait (Resources/Avatar3/w_*):
     /// 20 frames of 112x128 facing left — 8 walk, 4 idle (wind flutter), 4 attack (the weapon or
     /// sword seal thrusts forward), 3 cast (hand raised) and 1 hurt. Facing right is the mirrored
     /// sprite (QCBH style: characters only turn left/right). The frame is wide so a held weapon

@@ -41,12 +41,13 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class EmptyPayload { }
     [Serializable] public class RegisterChoice { public string name; public string gender; public string mon; public string he; public string appearance; public string[] talents; public string look; }
     [Serializable] public class HuntChoice { public string monsterUid; }
-    [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; }
+    [Serializable] public class BattlePlayerView { public string name; public long hp; public long maxHp; public long mp; public long maxMp; public long atkReadyAt; public long stunUntil; }
     [Serializable] public class BattleWarning { public long at; public bool stun; public bool all; }
     [Serializable] public class BattleMonsterView { public string id; public string name; public string icon; public string element; public long hp; public long maxHp; public BattleWarning warn; public int packSize; public int minionCount; }
     [Serializable] public class BattleLogLine { public string text; public long t; }
     [Serializable] public class BattleSkill { public int i; public string id; public string name; public string icon; public string kind; public bool locked; public long readyAt; public long mp; }
-    [Serializable] public class BattleView { public string id; public bool over; public string result; public string dungeonLeaderId; public BattleMapInfo battleMap; public BattlePlayerView p; public BattleMonsterView m; public BattleSkill[] skills; public BattleLogLine[] log; }
+    [Serializable] public class BattleItem { public int i; public string id; public string uid; public string name; public int qty; }
+    [Serializable] public class BattleView { public string id; public long now; public bool over; public string result; public string dungeonLeaderId; public BattleMapInfo battleMap; public BattlePlayerView p; public BattleMonsterView m; public BattleSkill[] skills; public BattleItem[] items; public BattleLogLine[] log; }
     [Serializable] public class BattleEnvelope { public BattleView battle; }
     [Serializable] public class BattleAction { public string a; public int i; }
     [Serializable] public class BattleActionOutcome { public bool ok; public string msg; }
@@ -58,7 +59,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class PvpChallengeGroup { public PvpChallenge[] received; public PvpChallenge[] sent; }
     [Serializable] public class PvpMe { public int points; public int wins; public int losses; public int dailyPvpRemaining; public string townName; }
     [Serializable] public class PvpList { public PvpMe me; public PvpOpponent[] sameTownPlayers; public PvpOpponent[] opponents; public PvpChallengeGroup challenges; }
-    [Serializable] public class PvpSide { public string name; public long hp; public long maxHp; public long mp; public long maxMp; public long power; public PvpSkill[] skills; }
+    [Serializable] public class PvpSide { public string name; public long hp; public long maxHp; public long mp; public long maxMp; public long power; public int attackCdLeft; public int stunTurns; public PvpSkill[] skills; }
     [Serializable] public class PvpSkill { public string id; public string name; public string icon; public string kind; public int mp; public int cdLeft; public bool canUse; }
     [Serializable] public class PvpLogLine { public string text; public long t; }
     [Serializable] public class PvpBattle { public string id; public bool none; public bool over; public bool isWin; public bool myTurn; public int round; public BattleMapInfo battleMap; public PvpSide me; public PvpSide opponent; public PvpLogLine[] log; public string result; }

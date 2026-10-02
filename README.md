@@ -31,6 +31,8 @@ Mở **Actions** → **Tu Tiên Giới iOS build**. Workflow biên dịch projec
 
 Mỗi lần build từ artifact sẽ lưu lại Xcode export để làm nguồn cho lần build tiếp theo. IPA unsigned được lưu thành Actions artifact và đính kèm vào Release. Cần ký bằng chứng chỉ và provisioning profile của Apple trước khi cài lên iPhone. Khi đã có license Unity cho CI, đặt `use_prebuilt_xcode=false` để build lại trực tiếp từ `unity_project/`.
 
+Nếu trình ký LCSign không nhận IPA hoàn toàn chưa ký, workflow **Prepare IPA for LCSign** nhận run ID chứa IPA và release tag, rồi thêm chữ ký ad hoc vào app cùng framework trước khi đóng `TuTienGioi-LCSign-ready.ipa`. Chữ ký ad hoc chỉ là chỗ cho công cụ ký lại; vẫn cần chứng chỉ và provisioning profile hợp lệ để cài lên iPhone. Tương thích thực tế với LCSign cần kiểm tra trên thiết bị.
+
 ### Cấu hình bắt buộc
 
 - Secrets `UNITY_LICENSE`, `UNITY_EMAIL`, `UNITY_PASSWORD` để bật Unity Personal build. `UNITY_LICENSE` là nội dung tệp `.ulf` do Unity Hub kích hoạt cấp; không commit hoặc đính kèm nó vào Release.
@@ -63,6 +65,7 @@ Nút **CHƠI NGOẠI TUYẾN** mở vòng săn quái lưu cục bộ: đi bộ t
 - Chế độ săn quái ngoại tuyến đóng gói 19 map, 65 thành, 279 quái và 245 kỹ năng. Màn PvE ưu tiên sprite `CombatPixel` theo ID; hình cũ từ bot chỉ là dự phòng cho ID chưa có trong bộ mới.
 - Chiến đấu online (PvE và PvP) dùng bộ ảnh trong `Art/`: quái 4 khung động kèm hào quang, vật phẩm 128px và 240 bảng hiệu ứng kỹ năng theo ngũ hành. Nhân vật ghép lớp theo trang bị đang mặc (`Avatar3`).
 - Bản đồ châu (`Resources/World`) rộng 256×160 ô, có dãy núi biên giới khép kín. Đi bộ bị núi, rừng và nước chặn; phi kiếm và tọa kỵ (ô trang bị `phiKiem`) bay qua được núi rừng nhưng không vượt được núi ngăn cách châu. NPC chỉ xuất hiện trong thành.
+- Màn chiến đấu ngoại tuyến và màn dự phòng có nút kiếm lớn, năm ô kỹ năng, ba ô vật phẩm nhanh, thanh máu boss phía trên và thanh HP/MP nhân vật phía dưới. Cả hai đấu thủ di chuyển và tự ra chiêu theo hồi chiêu; nút bấm vẫn cho phép chủ động đánh. Các ô neo trong vùng màn hình an toàn, co theo kích thước nội dung để dùng trên iPhone nhỏ và iPad. Ảnh kiểm tra ở `unity_project/docs/pve-iphone-small.png` và `unity_project/docs/pve-ipad-4x3.png`.
 - Pixel art khớp đủ với game Telegram: 1.860 icon vật phẩm/kỹ năng/lửa luyện/hồ lô, 279 quái và 58 icon HUD (`PixelArt/UI`). Emoji trong dữ liệu (thành, bí cảnh, đối thủ) được đổi sang đúng icon HUD như Mini App vì Unity không vẽ được emoji màu. Texture pixel được nhập lossless ở lưới gốc 64×64 (HUD 32×32), lọc point, không mipmap, không nén.
 - Hồ sơ ngoại tuyến lưu trên thiết bị. Tài khoản online dùng server IPA đã triển khai; liên kết email/Google/Facebook chờ cấu hình dịch vụ của chủ ứng dụng.
 - Dữ liệu tài khoản và nhân vật tách riêng khỏi Mini App Telegram; service `iosvn-ipa` lưu dưới `/var/lib/iosvn-ipa`.

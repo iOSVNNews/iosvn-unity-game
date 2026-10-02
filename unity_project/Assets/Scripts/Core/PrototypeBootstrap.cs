@@ -118,14 +118,13 @@ namespace IOSVN.TuTien.Core
         private RectTransform offlineMonsterFighter;
         private Image offlineMonsterImage;
         private Image offlinePlayerHealthFill;
+        private Image offlinePlayerManaFill;
         private Image offlineMonsterHealthFill;
+        private Text offlinePlayerVitals;
         private Text offlineBattleMessage;
         private Text offlineBattleTitle;
         private bool offlineActionRunning;
         private bool offlineProgressLoaded;
-        private Button offlineSkillButton;
-        private Image offlineSkillIcon;
-        private Button offlineSkillCycleButton;
         private readonly List<OfflineSkillData> offlineBattleSkills = new List<OfflineSkillData>();
         private int offlineBattleSkillIndex;
         private Vector2 offlineBattleMoveInput;
@@ -133,6 +132,12 @@ namespace IOSVN.TuTien.Core
         private float offlineNextEnemyAttackTime;
         private float offlineBattleMotionTime;
         private float offlineEnemyStunnedUntil;
+        private float offlineNextPlayerAttackTime;
+        private int offlineBasicAttackCount;
+        private readonly Dictionary<string, float> offlineSkillReadyAt = new Dictionary<string, float>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Text> offlineSkillCooldownLabels = new Dictionary<string, Text>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Button> offlineSkillCircleButtons = new Dictionary<string, Button>(StringComparer.OrdinalIgnoreCase);
+        private readonly Dictionary<string, Text> offlineItemCountLabels = new Dictionary<string, Text>(StringComparer.OrdinalIgnoreCase);
         private string[] sectNames;
         private string[] elementNames;
         private string gender = "nam";
@@ -200,18 +205,26 @@ namespace IOSVN.TuTien.Core
             if (offlineBattleRoot == null || offlinePlayerFighter == null || offlineMonsterFighter == null || offlineBattleOver) return;
             var bounds = offlineBattleRoot.GetComponent<RectTransform>().rect;
             var playerPosition = offlinePlayerBattlePosition;
-            if (offlineBattleMoveInput.sqrMagnitude > .01f && !offlineActionRunning)
+            if (!offlineActionRunning)
             {
-                playerPosition += offlineBattleMoveInput.normalized * (330f * Time.deltaTime);
+                var enemy = (Vector2)offlineMonsterFighter.localPosition;
+                var distanceToEnemy = Vector2.Distance(playerPosition, enemy);
+                var orbit = new Vector2(Mathf.Sin(offlineBattleMotionTime * 1.85f), Mathf.Cos(offlineBattleMotionTime * 2.2f)) * 92f;
+                var destination = distanceToEnemy > 150f ? enemy : enemy + orbit;
+                var automaticDirection = (destination - playerPosition).normalized;
+                var input = offlineBattleMoveInput.sqrMagnitude > .01f ? offlineBattleMoveInput.normalized : automaticDirection;
+                playerPosition += input * ((offlineBattleMoveInput.sqrMagnitude > .01f ? 330f : 155f) * Time.deltaTime);
                 playerPosition.x = Mathf.Clamp(playerPosition.x, -bounds.width * .45f, bounds.width * .45f);
                 playerPosition.y = Mathf.Clamp(playerPosition.y, -bounds.height * .31f, bounds.height * .32f);
                 offlinePlayerBattlePosition = playerPosition;
+                offlinePlayerFighter.localPosition = playerPosition + Vector2.up * Mathf.Sin(offlineBattleMotionTime * 7f) * 3f;
             }
-            offlinePlayerFighter.localPosition = playerPosition + Vector2.up * Mathf.Sin(offlineBattleMotionTime * 7f) * 3f;
 
             offlineBattleMotionTime += Time.deltaTime;
             var enemyPosition = offlineMonsterFighter.localPosition;
             var distance = Vector2.Distance(playerPosition, enemyPosition);
+            offlinePlayerFighter.localScale = new Vector3(enemyPosition.x > playerPosition.x ? -1f : 1f, 1f, 1f);
+            offlineMonsterFighter.localScale = new Vector3(playerPosition.x < enemyPosition.x ? -1f : 1f, 1f, 1f);
             if (!offlineActionRunning)
             {
                 var orbit = new Vector2(Mathf.Sin(offlineBattleMotionTime * 2.1f), Mathf.Cos(offlineBattleMotionTime * 1.7f)) * 30f;
@@ -221,6 +234,20 @@ namespace IOSVN.TuTien.Core
                 enemyPosition.x = Mathf.Clamp(enemyPosition.x, -bounds.width * .45f, bounds.width * .45f);
                 enemyPosition.y = Mathf.Clamp(enemyPosition.y, -bounds.height * .31f, bounds.height * .32f);
                 offlineMonsterFighter.localPosition = enemyPosition;
+
+                if (distance < 250f && Time.time >= offlineNextPlayerAttackTime)
+                {
+                    OfflineSkillData ready = null;
+                    if (offlineBattleEnergy > 0)
+                    {
+                        for (var i = offlineBattleSkills.Count - 1; i >= Mathf.Max(0, offlineBattleSkills.Count - 5); i--)
+                        {
+                            var candidate = offlineBattleSkills[i];
+                            if (!offlineSkillReadyAt.TryGetValue(candidate.id, out var readyAt) || Time.time >= readyAt) { ready = candidate; break; }
+                        }
+                    }
+                    OfflineBattleAction(ready != null, ready);
+                }
 
                 if (distance < 178f && Time.time >= offlineNextEnemyAttackTime && Time.time >= offlineEnemyStunnedUntil)
                 {
@@ -245,6 +272,8 @@ namespace IOSVN.TuTien.Core
                     ShowOfflineBattleVitals();
                 }
             }
+
+            UpdateOfflineSkillPresentation();
 
         }
 
@@ -1886,24 +1915,88 @@ namespace IOSVN.TuTien.Core
             activeOfflineSkill = offlineBattleSkills[offlineBattleSkillIndex];
         }
 
-        private void CycleOfflineSkill()
-        {
-            if (offlineBattleSkills.Count == 0) return;
-            offlineBattleSkillIndex = (offlineBattleSkillIndex + offlineBattleSkills.Count - 1) % offlineBattleSkills.Count;
-            activeOfflineSkill = offlineBattleSkills[offlineBattleSkillIndex];
-            UpdateOfflineSkillPresentation();
-            if (offlineBattleMessage != null) offlineBattleMessage.text = activeOfflineSkill.desc ?? "Đã chọn kỹ năng.";
-        }
-
         private void UpdateOfflineSkillPresentation()
         {
-            if (offlineSkillButton == null) return;
-            SetOfflineButtonLabel(offlineSkillButton, (activeOfflineSkill?.name ?? "Kỹ năng") + " · " + offlineBattleEnergy);
-            if (offlineSkillIcon == null) return;
-            var id = activeOfflineSkill?.id ?? "kiem_khi_tram";
-            PixelSkillArt.Animate(offlineSkillIcon, id, activeOfflineSkill?.name, activeOfflineSkill?.kind,
-                offlineProgress.realmIndex >= 11);
-            offlineSkillIcon.enabled = true;
+            foreach (var skill in offlineBattleSkills)
+            {
+                if (!offlineSkillCooldownLabels.TryGetValue(skill.id, out var label) || label == null) continue;
+                var seconds = offlineSkillReadyAt.TryGetValue(skill.id, out var readyAt) ? Mathf.CeilToInt(Mathf.Max(0f, readyAt - Time.time)) : 0;
+                label.text = seconds > 0 ? seconds.ToString() : "";
+                if (offlineSkillCircleButtons.TryGetValue(skill.id, out var button) && button != null)
+                    button.interactable = !offlineBattleOver && offlineBattleEnergy > 0 && seconds == 0;
+            }
+            if (offlinePlayerVitals != null) offlinePlayerVitals.text = "ĐẠO HỮU  ·  HP " + offlineProgress.hp + "/" + OfflinePlayerMaxHp() + "  ·  MP " + offlineBattleEnergy + "/3";
+            if (offlinePlayerManaFill != null) offlinePlayerManaFill.fillAmount = offlineBattleEnergy / 3f;
+            foreach (var pair in offlineItemCountLabels)
+                if (pair.Value != null) pair.Value.text = OfflineInventoryCount(pair.Key).ToString();
+        }
+
+        private int OfflineInventoryCount(string id)
+        {
+            foreach (var stack in offlineProgress?.items ?? new List<OfflineInventoryStack>())
+                if (stack.id == id) return stack.quantity;
+            return 0;
+        }
+
+        private Button MakeOfflineBattleCircle(string name, Vector2 center, float size, bool attack, bool item, Action click)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image), typeof(Button));
+            go.transform.SetParent(offlineBattleRoot.transform, false);
+            var rect = go.GetComponent<RectTransform>();
+            rect.anchorMin = rect.anchorMax = center; rect.anchoredPosition = Vector2.zero;
+            var area = offlineBattleRoot.GetComponent<RectTransform>().rect;
+            var scale = Mathf.Clamp(Mathf.Min(area.width / 1500f, area.height / 790f), .72f, 1.22f);
+            rect.sizeDelta = Vector2.one * size * scale;
+            var image = go.GetComponent<Image>(); image.sprite = PixelCombatHudArt.Circle(attack, item); image.preserveAspect = true;
+            var button = go.GetComponent<Button>(); button.interactable = click != null;
+            if (click != null) button.onClick.AddListener(() => click());
+            return button;
+        }
+
+        private Image AddOfflineBattleCircleIcon(Button button, Sprite sprite, string name)
+        {
+            var go = new GameObject(name, typeof(RectTransform), typeof(Image));
+            go.transform.SetParent(button.transform, false);
+            Place(go.GetComponent<RectTransform>(), new Vector2(.17f, .16f), new Vector2(.83f, .84f));
+            var image = go.GetComponent<Image>(); image.sprite = sprite; image.preserveAspect = true; image.raycastTarget = false;
+            return image;
+        }
+
+        private void BuildOfflineCombatControls()
+        {
+            Canvas.ForceUpdateCanvases();
+            offlineSkillCooldownLabels.Clear(); offlineSkillCircleButtons.Clear(); offlineItemCountLabels.Clear();
+            var attack = MakeOfflineBattleCircle("AttackSword", new Vector2(.91f, .14f), 112f, true, false, () => OfflineBattleAction(false));
+            AddOfflineBattleCircleIcon(attack, PixelWeaponArt.ForClass(offlineProgress.monClass), "WeaponPixel");
+            ChildText(attack.transform, "AttackLabel", 18, Gold, TextAnchor.MiddleCenter, new Vector2(.15f, .01f), new Vector2(.85f, .22f)).text = "ĐÁNH";
+            var positions = new[] { new Vector2(.75f, .145f), new Vector2(.795f, .282f), new Vector2(.86f, .39f), new Vector2(.935f, .40f), new Vector2(.97f, .28f) };
+            var first = Mathf.Max(0, offlineBattleSkills.Count - 5);
+            for (var i = 0; i < positions.Length; i++)
+            {
+                var skill = first + i < offlineBattleSkills.Count ? offlineBattleSkills[first + i] : null;
+                var circle = MakeOfflineBattleCircle("SkillSlot" + (i + 1), positions[i], 68f, false, false,
+                    skill == null ? null : (Action)(() => OfflineBattleAction(true, skill)));
+                if (skill != null)
+                {
+                    var icon = AddOfflineBattleCircleIcon(circle, null, "SkillPixel");
+                    PixelSkillArt.Animate(icon, skill.id, skill.name, skill.kind, offlineProgress.realmIndex >= 11, i * .37f);
+                    offlineSkillCircleButtons[skill.id] = circle;
+                    offlineSkillCooldownLabels[skill.id] = ChildText(circle.transform, "Cooldown", 28, Cream, TextAnchor.MiddleCenter, new Vector2(.11f, .10f), new Vector2(.89f, .90f));
+                    offlineSkillCooldownLabels[skill.id].raycastTarget = false;
+                }
+                ChildText(circle.transform, "Slot", 14, Gold, TextAnchor.LowerRight, new Vector2(.58f, .03f), new Vector2(.88f, .33f)).text = (i + 1).ToString();
+            }
+            var itemIds = new[] { "hoi_xuan_dan", "hoi_linh_dan", "phu_dinh_than" };
+            var itemActions = new Action[] { UseOfflineHealingPill, UseOfflineManaPill, UseOfflineStunTalisman };
+            for (var i = 0; i < itemIds.Length; i++)
+            {
+                var id = itemIds[i];
+                var circle = MakeOfflineBattleCircle("BattleItem" + i, new Vector2(.51f + i * .068f, .105f), 58f, false, true, itemActions[i]);
+                AddOfflineBattleCircleIcon(circle, LoadPixelIcon("PixelArt/Items/" + id), "ItemPixel");
+                offlineItemCountLabels[id] = ChildText(circle.transform, "Quantity", 15, Cream, TextAnchor.LowerRight, new Vector2(.54f, .03f), new Vector2(.93f, .37f));
+                offlineItemCountLabels[id].raycastTarget = false;
+            }
+            UpdateOfflineSkillPresentation();
         }
 
         private static Sprite LoadPixelIcon(string resourcePath)
@@ -1992,6 +2085,8 @@ namespace IOSVN.TuTien.Core
             offlineBattleOver = false;
             offlineBattleMonsterHp = OfflineMonsterBattleMaxHp(activeOfflineMonster);
             offlineBattleEnergy = 3;
+            offlineBasicAttackCount = 0;
+            offlineSkillReadyAt.Clear();
             offlineEnemyStunnedUntil = 0f;
             PrepareOfflineBattleSkills();
             if (explorationMapRoot != null) explorationMapRoot.SetActive(false);
@@ -2007,12 +2102,14 @@ namespace IOSVN.TuTien.Core
             ground.GetComponent<RawImage>().raycastTarget = false;
             PanelObject("BattleShade", offlineBattleRoot.transform, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, new Color(0, 0, 0, .20f));
 
-            var header = PanelObject("BattleHud", offlineBattleRoot.transform, new Vector2(.025f, .815f), new Vector2(.975f, .98f), Vector2.zero, Vector2.zero, new Color32(15, 20, 24, 235));
-            ChildText(header.transform, "PlayerVitals", 17, Cream, TextAnchor.MiddleLeft, new Vector2(.035f, .53f), new Vector2(.37f, .94f)).text = $"ĐẠO HỮU  ·  {offlineProgress.hp}/{OfflinePlayerMaxHp()} KHÍ HUYẾT";
-            ChildText(header.transform, "BattleLocation", 15, Gold, TextAnchor.MiddleCenter, new Vector2(.38f, .53f), new Vector2(.60f, .94f)).text = "PVE  ·  " + (point.town?.name ?? offlineHuntCatalog.sourceMapName);
-            ChildText(header.transform, "EnemyName", 17, Cream, TextAnchor.MiddleRight, new Vector2(.61f, .53f), new Vector2(.80f, .94f)).text = activeOfflineMonster.name;
-            offlinePlayerHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.035f, .15f), new Vector2(.37f, .43f), new Color32(73, 190, 111, 255));
-            offlineMonsterHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.61f, .15f), new Vector2(.80f, .43f), new Color32(206, 72, 63, 255));
+            var header = PanelObject("BossBattleHud", offlineBattleRoot.transform, new Vector2(.225f, .835f), new Vector2(.775f, .98f), Vector2.zero, Vector2.zero, new Color32(15, 20, 24, 235));
+            ChildText(header.transform, "EnemyName", 26, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .52f), new Vector2(.95f, .96f)).text = activeOfflineMonster.name;
+            offlineMonsterHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.05f, .14f), new Vector2(.95f, .47f), new Color32(206, 72, 63, 255));
+            ChildText(offlineBattleRoot.transform, "BattleLocation", 20, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .89f), new Vector2(.215f, .975f)).text = "PVE  ·  " + (point.town?.name ?? offlineHuntCatalog.sourceMapName);
+            var playerHud = PanelObject("PlayerBattleHud", offlineBattleRoot.transform, new Vector2(.015f, .225f), new Vector2(.345f, .365f), Vector2.zero, Vector2.zero, new Color32(15, 24, 28, 237));
+            offlinePlayerVitals = ChildText(playerHud.transform, "PlayerVitals", 20, Cream, TextAnchor.MiddleLeft, new Vector2(.04f, .69f), new Vector2(.96f, .98f));
+            offlinePlayerHealthFill = MakeBattleHealthBar(playerHud.transform, new Vector2(.04f, .40f), new Vector2(.96f, .65f), new Color32(73, 190, 111, 255));
+            offlinePlayerManaFill = MakeBattleHealthBar(playerHud.transform, new Vector2(.04f, .10f), new Vector2(.96f, .35f), new Color32(66, 152, 220, 255));
 
             var cultivatorFrames = PixelCreatureArt.Frames("player_cultivator");
             offlinePlayerFighter = MakeBattleFighter("PixelCultivator", cultivatorFrames != null ? cultivatorFrames[0] : CreateCultivatorSprite(offlinePreviewState.player.appearanceColors), new Vector2(.28f, .48f), new Vector2(114, 172));
@@ -2034,41 +2131,19 @@ namespace IOSVN.TuTien.Core
             offlineMonsterImage = MakeBattleFighterImage("PixelMonster", LoadPixelIcon("CombatPixel/Monsters/" + activeOfflineMonster.id), new Vector2(.70f, .49f), new Vector2(190, 190), out offlineMonsterFighter);
             if (offlineMonsterImage.sprite == null) offlineMonsterImage.sprite = AtlasPixelSprite("Y");
             offlineMonsterImage.gameObject.AddComponent<PixelCreatureAnimator>().SetMonster(activeOfflineMonster.id);
-            offlineBattleTitle = ChildText(offlineBattleRoot.transform, "EnemyCaption", 18, Cream, TextAnchor.MiddleCenter, new Vector2(.54f, .35f), new Vector2(.86f, .42f));
+            offlineBattleTitle = ChildText(offlineBattleRoot.transform, "EnemyCaption", 23, Cream, TextAnchor.MiddleCenter, new Vector2(.54f, .35f), new Vector2(.86f, .42f));
             offlineBattleTitle.text = activeOfflineMonster.name;
-            offlineBattleMessage = ChildText(offlineBattleRoot.transform, "CombatLog", 17, new Color32(255, 228, 169, 255), TextAnchor.MiddleCenter, new Vector2(.29f, .27f), new Vector2(.71f, .34f));
+            offlineBattleMessage = ChildText(offlineBattleRoot.transform, "CombatLog", 21, new Color32(255, 228, 169, 255), TextAnchor.MiddleCenter, new Vector2(.29f, .27f), new Vector2(.71f, .34f));
             offlineBattleMessage.text = "Yêu thú phát hiện đạo hữu!";
 
             BattleMoveButton("↑", new Vector2(.105f, .135f), new Vector2(.175f, .205f), Vector2.up);
             BattleMoveButton("←", new Vector2(.035f, .055f), new Vector2(.105f, .125f), Vector2.left);
             BattleMoveButton("↓", new Vector2(.105f, .055f), new Vector2(.175f, .125f), Vector2.down);
             BattleMoveButton("→", new Vector2(.175f, .055f), new Vector2(.245f, .125f), Vector2.right);
-            Button("ĐÁNH", new Vector2(.64f, .045f), new Vector2(.75f, .19f), Gold, () => OfflineBattleAction(false), offlineBattleRoot.transform);
-            offlineSkillButton = Button((activeOfflineSkill?.name ?? "Kỹ năng") + " · " + offlineBattleEnergy,
-                new Vector2(.69f, .045f), new Vector2(.84f, .19f), new Color32(52, 75, 96, 255), () => OfflineBattleAction(true), offlineBattleRoot.transform);
-            var skillLabel = offlineSkillButton.GetComponentInChildren<Text>()?.GetComponent<RectTransform>();
-            if (skillLabel != null)
-            {
-                skillLabel.anchorMin = new Vector2(.27f, 0f);
-                skillLabel.anchorMax = new Vector2(.98f, 1f);
-                skillLabel.offsetMin = Vector2.zero;
-                skillLabel.offsetMax = Vector2.zero;
-            }
-            var skillIconObject = new GameObject("SkillPixelArt", typeof(RectTransform), typeof(Image));
-            skillIconObject.transform.SetParent(offlineSkillButton.transform, false);
-            var skillIconRect = skillIconObject.GetComponent<RectTransform>();
-            skillIconRect.anchorMin = new Vector2(.025f, .10f);
-            skillIconRect.anchorMax = new Vector2(.265f, .90f);
-            skillIconRect.offsetMin = Vector2.zero;
-            skillIconRect.offsetMax = Vector2.zero;
-            offlineSkillIcon = skillIconObject.GetComponent<Image>();
-            offlineSkillIcon.preserveAspect = true;
-            offlineSkillIcon.raycastTarget = false;
-            UpdateOfflineSkillPresentation();
-            offlineSkillCycleButton = Button("ĐỔI PHÁP", new Vector2(.845f, .045f), new Vector2(.91f, .19f), Panel, CycleOfflineSkill, offlineBattleRoot.transform);
-            Button("HỒI ĐAN", new Vector2(.915f, .045f), new Vector2(.99f, .19f), new Color32(57, 90, 70, 255), UseOfflineHealingPill, offlineBattleRoot.transform);
-            offlineLeaveButton = Button("RÚT LUI", new Vector2(.82f, .85f), new Vector2(.97f, .95f), Panel, FinishOfflineBattle, header.transform);
+            BuildOfflineCombatControls();
+            offlineLeaveButton = Button("RÚT LUI", new Vector2(.82f, .86f), new Vector2(.975f, .955f), Panel, FinishOfflineBattle, offlineBattleRoot.transform);
             offlineNextEnemyAttackTime = Time.time + 1.1f;
+            offlineNextPlayerAttackTime = Time.time + .65f;
             offlineBattleMotionTime = 0f;
             offlineBattleMoveInput = Vector2.zero;
             offlinePlayerBattlePosition = offlinePlayerFighter.localPosition;
@@ -2161,13 +2236,21 @@ namespace IOSVN.TuTien.Core
             return damage + UnityEngine.Random.Range(0, 7);
         }
 
-        private void OfflineBattleAction(bool skill)
+        private void OfflineBattleAction(bool skill, OfflineSkillData selected = null)
         {
             if (offlineActionRunning || offlineBattleOver) return;
             if (skill && offlineBattleEnergy <= 0) { offlineBattleMessage.text = "Linh lực đã cạn · đánh thường để tiếp tục."; return; }
+            if (skill)
+            {
+                activeOfflineSkill = selected ?? activeOfflineSkill;
+                if (activeOfflineSkill != null && offlineSkillReadyAt.TryGetValue(activeOfflineSkill.id, out var readyAt) && Time.time < readyAt) return;
+            }
             var range = Vector2.Distance(offlinePlayerFighter.localPosition, offlineMonsterFighter.localPosition);
-            if (range > 310f) { offlineBattleMessage.text = "Yêu thú đang ở xa · dùng phím hướng để áp sát."; return; }
+            if (range > 250f) { offlineBattleMessage.text = "Đang áp sát yêu thú..."; return; }
+            if (Time.time < offlineNextPlayerAttackTime) return;
             offlineActionRunning = true;
+            offlineNextPlayerAttackTime = Time.time + (skill ? 1.25f : .90f);
+            if (skill && activeOfflineSkill != null) offlineSkillReadyAt[activeOfflineSkill.id] = Time.time + Mathf.Max(1, activeOfflineSkill.cd);
             offlinePlayerFighter.GetComponent<PixelCreatureAnimator>()?.Attack();
             StartCoroutine(ResolveOfflineBattleTurn(skill));
         }
@@ -2175,6 +2258,7 @@ namespace IOSVN.TuTien.Core
         private IEnumerator ResolveOfflineBattleTurn(bool skill)
         {
             if (skill) offlineBattleEnergy--;
+            else if (++offlineBasicAttackCount % 3 == 0) offlineBattleEnergy = Mathf.Min(3, offlineBattleEnergy + 1);
             UpdateOfflineSkillPresentation();
             StartCoroutine(AnimateOfflineSwordEffect(skill));
             var playerHome = offlinePlayerFighter.anchoredPosition;
@@ -2245,25 +2329,7 @@ namespace IOSVN.TuTien.Core
                 offlineBattleMessage.text = skill
                     ? (activeOfflineSkill?.name ?? "Kỹ năng") + " · gây " + damage + " sát thương."
                     : "Một đòn đánh trúng yêu thú · " + damage + " sát thương.";
-                if (skill && activeOfflineSkill?.kind == "stun")
-                {
-                    offlineBattleMessage.text += " Yêu thú bị định thân.";
-                    SaveOfflineProgress(); ShowOfflineBattleVitals();
-                    offlineActionRunning = false;
-                    yield break;
-                }
-                yield return new WaitForSeconds(.38f);
-                var incoming = OfflineMonsterAttackDamage(activeOfflineMonster);
-                offlineProgress.hp = Mathf.Max(0, offlineProgress.hp - incoming);
-                offlineBattleMessage.text = activeOfflineMonster.name + " phản kích · mất " + incoming + " khí huyết.";
-                if (offlineProgress.hp <= 0)
-                {
-                    offlineProgress.hp = OfflinePlayerMaxHp() / 2;
-                    offlineBattleOver = true;
-                    offlineBattleTitle.text = "TRỌNG THƯƠNG  ·  ĐƯỢC CỨU VỀ THÀNH";
-                    offlineBattleMessage.text = "Chưa nhận được chiến lợi phẩm. Khí huyết đã hồi một nửa.";
-                    SetOfflineButtonLabel(offlineLeaveButton, "HỒI THÀNH  ·  VỀ MAP");
-                }
+                if (skill && activeOfflineSkill?.kind == "stun") offlineBattleMessage.text += " Yêu thú bị định thân.";
                 SaveOfflineProgress();
                 ShowOfflineBattleVitals();
             }
@@ -2272,11 +2338,10 @@ namespace IOSVN.TuTien.Core
 
         private IEnumerator AnimateOfflineSwordEffect(bool skill)
         {
-            var rootRect = offlineBattleRoot.GetComponent<RectTransform>();
             var effectObject = new GameObject("AnimatedPixelSwordQi", typeof(RectTransform), typeof(Image));
             effectObject.transform.SetParent(offlineBattleRoot.transform, false);
             var rect = effectObject.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .49f);
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
             rect.sizeDelta = new Vector2(skill ? 112 : 84, skill ? 112 : 84);
             var image = effectObject.GetComponent<Image>();
             image.raycastTarget = false;
@@ -2285,9 +2350,8 @@ namespace IOSVN.TuTien.Core
             var combatRole = skill ? activeOfflineSkill?.kind ?? offlineProgress.monClass : offlineProgress.monClass;
             image.sprite = PixelSkillArt.Frames(artId, artName, combatRole, offlineProgress.realmIndex >= 11)[0];
             PixelSkillArt.Animate(image, artId, artName, combatRole, offlineProgress.realmIndex >= 11);
-            var canvasSize = rootRect.rect.size;
-            var start = new Vector2(-canvasSize.x * .10f, 0);
-            var end = new Vector2(canvasSize.x * .12f, canvasSize.y * .015f);
+            var start = (Vector2)offlinePlayerFighter.localPosition;
+            var end = (Vector2)offlineMonsterFighter.localPosition;
             var duration = skill ? .29f : .20f;
             for (var t = 0f; t < duration; t += Time.deltaTime)
             {
@@ -2306,17 +2370,19 @@ namespace IOSVN.TuTien.Core
             var effect = new GameObject("MonsterElementPixelSkill", typeof(RectTransform), typeof(Image));
             effect.transform.SetParent(offlineBattleRoot.transform, false);
             var rect = effect.GetComponent<RectTransform>();
-            rect.anchorMin = rect.anchorMax = new Vector2(.70f, .49f);
+            rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
             rect.sizeDelta = new Vector2(58f, 58f);
             var image = effect.GetComponent<Image>();
             image.raycastTarget = false;
             PixelSkillArt.Animate(image, "quai_" + activeOfflineMonster.id, activeOfflineMonster.name + " " + activeOfflineMonster.element,
                 "atk", offlineProgress.realmIndex >= 11);
             const float duration = .42f;
+            var start = (Vector2)offlineMonsterFighter.localPosition;
+            var end = (Vector2)offlinePlayerFighter.localPosition;
             for (var elapsed = 0f; elapsed < duration; elapsed += Time.deltaTime)
             {
                 var progress = Mathf.Clamp01(elapsed / duration);
-                rect.anchorMin = rect.anchorMax = Vector2.Lerp(new Vector2(.70f, .49f), new Vector2(.28f, .48f), progress);
+                rect.anchoredPosition = Vector2.Lerp(start, end, progress);
                 rect.sizeDelta = Vector2.one * Mathf.Lerp(58f, 92f, progress);
                 image.color = new Color(1f, 1f, 1f, Mathf.Sin(progress * Mathf.PI));
                 yield return null;
@@ -2344,7 +2410,27 @@ namespace IOSVN.TuTien.Core
             if (offlineProgress.hp >= OfflinePlayerMaxHp()) { AddOfflineInventory("hoi_xuan_dan", 1); offlineBattleMessage.text = "Khí huyết đã đầy."; return; }
             offlineProgress.hp = Mathf.Min(OfflinePlayerMaxHp(), offlineProgress.hp + 82 + offlineProgress.realmIndex * 10);
             SaveOfflineProgress(); ShowOfflineBattleVitals();
-            OfflineBattleAction(false);
+            offlineBattleMessage.text = "Hồi Xuân Đan khôi phục khí huyết.";
+            UpdateOfflineSkillPresentation();
+        }
+
+        private void UseOfflineManaPill()
+        {
+            if (offlineActionRunning || offlineBattleOver) return;
+            if (offlineBattleEnergy >= 3) { offlineBattleMessage.text = "Linh lực đã đầy."; return; }
+            if (!RemoveOfflineInventory("hoi_linh_dan", 1)) { offlineBattleMessage.text = "Túi không còn Hồi Linh Đan."; return; }
+            offlineBattleEnergy = Mathf.Min(3, offlineBattleEnergy + 2);
+            offlineBattleMessage.text = "Hồi Linh Đan khôi phục linh lực.";
+            SaveOfflineProgress(); UpdateOfflineSkillPresentation();
+        }
+
+        private void UseOfflineStunTalisman()
+        {
+            if (offlineActionRunning || offlineBattleOver) return;
+            if (!RemoveOfflineInventory("phu_dinh_than", 1)) { offlineBattleMessage.text = "Túi không còn Phù Định Thân."; return; }
+            offlineEnemyStunnedUntil = Mathf.Max(offlineEnemyStunnedUntil, Time.time + 2.5f);
+            offlineBattleMessage.text = activeOfflineMonster.name + " bị định thân.";
+            SaveOfflineProgress(); UpdateOfflineSkillPresentation();
         }
 
         private void FinishOfflineBattle()
@@ -2355,7 +2441,9 @@ namespace IOSVN.TuTien.Core
             offlineBattleTexture = null;
             offlineBattleRoot = null; activeOfflineMonster = null; offlineLeaveButton = null;
             activeRoamingMonster = null;
-            offlineBattleOver = false; offlineActionRunning = false; offlineSkillButton = null; offlineSkillIcon = null;
+            offlineBattleOver = false; offlineActionRunning = false;
+            offlinePlayerVitals = null; offlinePlayerManaFill = null; offlinePlayerHealthFill = null; offlineMonsterHealthFill = null;
+            offlineSkillCooldownLabels.Clear(); offlineSkillCircleButtons.Clear(); offlineItemCountLabels.Clear();
             offlineBattleMoveInput = Vector2.zero;
             SaveOfflineProgress();
             RenderExplorationMap(offlinePreviewState);
@@ -3345,7 +3433,7 @@ namespace IOSVN.TuTien.Core
             var view = CreatePixelCombatPresentation();
             view.BuildPve(battle, client, latestState?.player?.appearanceColors, latestState?.player?.monName, latestState?.player?.equip?.weapon?.id ?? latestState?.player?.equip?.phiKiem?.id, IsImmortalRealm(latestState), pendingBattleVisualAction,
                 pendingBattleVisualSkillId, pendingBattleVisualSkillName, pendingBattleVisualSkillKind,
-                SendBattleAction, SendBattleSkill, NextDungeonStage, LoadState, ShowBattle);
+                SendBattleAction, SendBattleSkill, SendBattleItem, NextDungeonStage, LoadState, ShowBattle);
             ClearPendingBattleVisual();
         }
         private void SendBattleAction(string action)
@@ -3371,6 +3459,22 @@ namespace IOSVN.TuTien.Core
             ShowStatus("Đang thi triển kỹ năng...");
             GameAudioController.Instance?.PlaySkillEffect();
             client.BattleAct("skill", skill?.i ?? 0, (result, error) =>
+            {
+                if (result?.battle == null) { ClearPendingBattleVisual(); ShowStatus(error); return; }
+                ShowBattle(result.battle);
+                if (!string.IsNullOrWhiteSpace(result.result?.msg)) ShowStatus(result.result.msg);
+            });
+        }
+
+        private void SendBattleItem(BattleItem item)
+        {
+            if (item == null || string.IsNullOrEmpty(item.uid)) return;
+            pendingBattleVisualAction = "item";
+            pendingBattleVisualSkillId = item.id;
+            pendingBattleVisualSkillName = item.name;
+            pendingBattleVisualSkillKind = "heal";
+            ShowStatus("Đang dùng vật phẩm...");
+            client.BattleAct("item", item.i, (result, error) =>
             {
                 if (result?.battle == null) { ClearPendingBattleVisual(); ShowStatus(error); return; }
                 ShowBattle(result.battle);

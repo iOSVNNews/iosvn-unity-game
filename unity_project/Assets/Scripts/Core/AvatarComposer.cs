@@ -6,15 +6,18 @@ using UnityEngine.UI;
 namespace IOSVN.TuTien.Core
 {
     /// <summary>
-    /// Composes the layered QCBH-style pixel figure from Resources/Avatar3 parts. Parts are grey-ramp
-    /// PNGs (levels 40..255, 160 = base colour) recoloured per colour key; coloured pixels are kept.
-    /// The portrait is 192x320 (3/4 view facing left); the same layers drawn at a third of the size
-    /// make the 20-frame figure sheets (see HeroSprites). Composition adds contact shadows under
-    /// overlapping layers and a coloured outer outline, exactly like the art generator's preview.
+    /// Composes the layered figure from Resources/Avatar3 parts. Parts are grey-ramp PNGs (160 = base
+    /// colour) recoloured per colour key; coloured pixels are kept, translucent ones are blended.
+    /// The portrait (p_*) is a 384x640 front view: the figure faces the viewer, so the face has room
+    /// for detailed eyes, nose and lips. The figure sheets used on the map and in battle (w_*, see
+    /// HeroSprites) keep their own side-facing drawing of the same layers. Composition adds contact
+    /// shadows under overlapping layers, a rim light and a coloured outer outline.
     /// </summary>
     public static class AvatarComposer
     {
-        public const int W = 192, H = 320;
+        public const int W = 384, H = 640;
+        /// <summary>Aura sheets behind / in front of the portrait are soft glows and stay at half that size.</summary>
+        public const int AuraW = 192, AuraH = 320;
         public const string Folder = "Avatar3/";
         private static readonly Dictionary<string, Color32[]> PartCache = new Dictionary<string, Color32[]>();
         private static readonly Dictionary<string, Texture2D> LookCache = new Dictionary<string, Texture2D>();
@@ -62,6 +65,8 @@ namespace IOSVN.TuTien.Core
                 if (texture.LoadImage(asset.bytes) && texture.width == width && texture.height == height) pixels = texture.GetPixels32();
                 Kill(texture);
             }
+            // a portrait layer is a megabyte of pixels: browsing every option in the creator must not keep them all
+            if (PartCache.Count > 72) PartCache.Clear();
             PartCache[name] = pixels;
             return pixels;
         }
@@ -160,7 +165,7 @@ namespace IOSVN.TuTien.Core
                     for (var x = shadowDx; x < width; x++)
                     {
                         var i = y * width + x;
-                        if (src[i].a == 0 || dst[i].a == 0) continue;
+                        if (src[i].a != 0 || dst[i].a == 0) continue;          // only where the layer itself leaves the canvas visible
                         if (src[sy * width + x - shadowDx].a == 0) continue;
                         var d = dst[i];
                         dst[i] = new Color32((byte)(d.r * shadow), (byte)(d.g * shadow), (byte)(d.b * shadow), d.a);
@@ -232,61 +237,12 @@ namespace IOSVN.TuTien.Core
             }
         }
 
-        /// <summary>Subsurface peach blush and piercing eye reflections in portrait mode.</summary>
-        private static void ApplyCultivatorFacialGlow(Color32[] canvas, int width, int height, Color32 eyeCol, Color32 skinCol)
-        {
-            // Head region: y ~ 215..260, x ~ 75..115
-            for (var y = 215; y <= 260 && y < height; y++)
-            {
-                for (var x = 75; x <= 115 && x < width; x++)
-                {
-                    var i = y * width + x;
-                    var p = canvas[i];
-                    if (p.a == 0) continue;
-
-                    // Cheek blush (y ~ 222..234, x ~ 82..108)
-                    if (y >= 222 && y <= 234 && (x <= 91 || x >= 99))
-                    {
-                        // Check if pixel is skin tone
-                        if (p.r > 170 && p.g > 130 && p.r > p.b + 20)
-                        {
-                            // Peach warmth
-                            byte nr = (byte)Mathf.Min(255, p.r + 18);
-                            byte ng = (byte)Mathf.Max(0, p.g - 4);
-                            byte nb = (byte)Mathf.Max(0, p.b - 2);
-                            canvas[i] = new Color32(nr, ng, nb, p.a);
-                        }
-                    }
-
-                    // Eye reflections (y ~ 238..252, x ~ 82..106)
-                    if (y >= 238 && y <= 252)
-                    {
-                        var distToEye = Mathf.Abs(p.r - eyeCol.r) + Mathf.Abs(p.g - eyeCol.g) + Mathf.Abs(p.b - eyeCol.b);
-                        if (distToEye < 55)
-                        {
-                            // Gemstone luminous bottom of iris
-                            if (y == 240 || y == 241)
-                            {
-                                byte nr = (byte)Mathf.Min(255, p.r + 40);
-                                byte ng = (byte)Mathf.Min(255, p.g + 40);
-                                byte nb = (byte)Mathf.Min(255, p.b + 40);
-                                canvas[i] = new Color32(nr, ng, nb, p.a);
-                            }
-                        }
-                    }
-                }
-            }
-        }
-
         /// <summary>Composes all layers of a look into a pixel array (portrait or world sheet).</summary>
         internal static Color32[] ComposePixels(LookSpec look, string prefix, int width, int height, int frameWidth, int sdx, int sdy)
         {
             var canvas = new Color32[width * height];
             var any = false;
-            var isPortrait = (prefix == "p_");
             var auraCol = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), new Color32(142, 224, 255, 255));
-            var skinCol = HeroSprites.ParseColor(look.Get("sk", "#f0d2b4"), new Color32(240, 210, 180, 255));
-            var eyeCol = HeroSprites.ParseColor(look.Get("ec", "#3a8f7a"), new Color32(58, 143, 122, 255));
 
             foreach (var (id, color, shadow) in Layers(look))
             {
@@ -297,13 +253,8 @@ namespace IOSVN.TuTien.Core
             }
             if (!any) return null;
 
+            // blush, lip colour and the light in the eyes are drawn in the portrait parts themselves
             ApplyCelestialRim(canvas, width, height, frameWidth, auraCol);
-
-            if (isPortrait)
-            {
-                ApplyCultivatorFacialGlow(canvas, width, height, eyeCol, skinCol);
-            }
-
             Outline(canvas, width, height, frameWidth);
             return canvas;
         }
@@ -312,8 +263,9 @@ namespace IOSVN.TuTien.Core
         {
             var key = look.ToString();
             if (LookCache.TryGetValue(key, out var cached) && cached != null) return cached;
-            var pixels = ComposePixels(look, "p_", W, H, 0, 1, 2) ?? new Color32[W * H];
-            var texture = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Avatar" };
+            var pixels = ComposePixels(look, "p_", W, H, 0, 2, 3) ?? new Color32[W * H];
+            // the portrait is drawn at twice the old size and is shown at arbitrary scales: smooth sampling keeps fine lines even
+            var texture = new Texture2D(W, H, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, name = "Avatar" };
             texture.SetPixels32(pixels);
             texture.Apply(false, false);
             if (LookCache.Count > 24)
@@ -333,8 +285,8 @@ namespace IOSVN.TuTien.Core
             if (style <= 0) return null;
             var key = $"{style}_{layer}_{world}_{hex}";
             if (AuraCache.TryGetValue(key, out var cached) && (cached == null || (cached.Length > 0 && cached[0] != null))) return cached;
-            var fw = world ? HeroSprites.FrameW : W;
-            var fh = world ? HeroSprites.FrameH : H;
+            var fw = world ? HeroSprites.FrameW : AuraW;
+            var fh = world ? HeroSprites.FrameH : AuraH;
             var src = Part($"au_{layer}_{style}_{(world ? "w" : "p")}", fw * 8, fh);
             Sprite[] frames = null;
             if (src != null)

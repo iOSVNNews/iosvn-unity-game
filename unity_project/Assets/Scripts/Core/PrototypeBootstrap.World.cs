@@ -707,7 +707,7 @@ namespace IOSVN.TuTien.Core
             portraitMask.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             var portrait = Anchored("Portrait", portraitMask, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
             portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
-            portrait.uvRect = new Rect(.30f, .69f, .44f, .2625f);   // head and shoulders
+            portrait.uvRect = new Rect(.28f, .69f, .44f, .2625f);   // head and shoulders of the front-view portrait
             portrait.raycastTarget = false;
             var discButton = disc.gameObject.AddComponent<Button>();
             discButton.onClick.AddListener(OpenCharacterScreen);
