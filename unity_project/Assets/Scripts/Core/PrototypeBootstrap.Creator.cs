@@ -62,7 +62,7 @@ namespace IOSVN.TuTien.Core
 
         private void ShowCreator()
         {
-            if (offlineCreationPreview || !AvatarComposer.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
+            if (!AvatarComposer.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
             ClearContent();
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
             if (creatorLook == null) { creatorLook = AvatarComposer.Default(gender == "nu"); creatorZoomChoice = false; }   // first shown as the whole figure

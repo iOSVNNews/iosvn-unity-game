@@ -535,48 +535,143 @@ namespace IOSVN.TuTien.Core
 
         private void EnterOfflinePreview()
         {
-            var catalogAsset = Resources.Load<TextAsset>("MapCatalog");
-            if (catalogAsset == null)
+            var charCatAsset = Resources.Load<TextAsset>("CharacterCatalog");
+            if (charCatAsset != null) currentCatalog = JsonUtility.FromJson<GameCatalog>(charCatAsset.text);
+
+            RegisterChoice savedChoice = null;
+            var savedChoiceJson = PlayerPrefs.GetString("tutien_offline_character_demo", "");
+            if (!string.IsNullOrEmpty(savedChoiceJson))
             {
-                ShowStatus("Thiếu danh mục bản đồ ngoại tuyến trong bản cài.");
+                try { savedChoice = JsonUtility.FromJson<RegisterChoice>(savedChoiceJson); }
+                catch { savedChoice = null; }
+            }
+
+            EnterOfflineWorldWithChoice(savedChoice);
+        }
+
+        private void EnterOfflineWorldWithChoice(RegisterChoice choice)
+        {
+            var stateAsset = Resources.Load<TextAsset>("OfflineState");
+            if (stateAsset == null)
+            {
+                ShowStatus("Thiếu dữ liệu trạng thái ngoại tuyến trong bản cài.");
                 return;
             }
-            mapCatalog = JsonUtility.FromJson<MapCatalog>(catalogAsset.text);
             offlineHuntCatalog = OfflineHuntCatalogData.Load();
-            if (offlineHuntCatalog == null || offlineHuntCatalog.monsters == null || offlineHuntCatalog.monsters.Length == 0)
-            {
-                ShowStatus("Thiếu dữ liệu quái và vật phẩm ngoại tuyến trong bản cài.");
-                return;
-            }
+            var mapCatAsset = Resources.Load<TextAsset>("MapCatalog");
+            if (mapCatAsset != null) mapCatalog = JsonUtility.FromJson<MapCatalog>(mapCatAsset.text);
+            var charCatAsset = Resources.Load<TextAsset>("CharacterCatalog");
+            if (charCatAsset != null) currentCatalog = JsonUtility.FromJson<GameCatalog>(charCatAsset.text);
+
             LoadOfflineProgress();
-            var town = FindOfflineTown(offlineProgress.currentTownId) ?? FirstTownInAtlas(false);
-            if (mapCatalog?.maps == null || mapCatalog.maps.Length == 0 || town == null)
+            if (choice != null && !string.IsNullOrEmpty(choice.mon))
             {
-                ShowStatus("Danh mục bản đồ ngoại tuyến không hợp lệ.");
+                offlineProgress.monClass = choice.mon;
+            }
+
+            try
+            {
+                hub = J.Parse(stateAsset.text);
+            }
+            catch (Exception ex)
+            {
+                Debug.LogException(ex);
+                ShowStatus("Không thể tải trạng thái ngoại tuyến: " + ex.Message);
                 return;
             }
-            offlinePreview = true;
-            offlinePreviewState = new GameState
+
+            if (choice != null)
             {
-                registered = true,
-                town = town,
-                realm = new RealmInfo { index = offlineProgress.realmIndex, name = OfflineRealmName(offlineProgress.realmIndex) },
-                player = new PlayerInfo { userId = "offline-preview", name = "Đạo hữu", fullName = "Đạo hữu · Ngoại tuyến", ascended = offlineProgress.realmIndex >= 11 },
-                worldMonsters = Array.Empty<WorldMonster>()
-            };
-            offlineProgress.currentTownId = town.id;
+                ApplyOfflineCharacterChoice(choice);
+            }
+
+            latestState = NetworkGameClient.ToGameState(hub);
+            if (latestState == null)
+            {
+                try { latestState = JsonUtility.FromJson<GameState>(stateAsset.text); }
+                catch { }
+            }
+            if (latestState != null && choice != null && latestState.player != null)
+            {
+                latestState.player.name = choice.name;
+                latestState.player.fullName = choice.name + " · Ngoại tuyến";
+                latestState.player.gender = choice.gender;
+                latestState.player.mon = choice.mon;
+                latestState.player.he = choice.he;
+                latestState.player.look = choice.look;
+                latestState.player.lookWorn = choice.look;
+            }
+
+            offlinePreview = true;
+            offlineCreationPreview = false;
+            offlinePreviewState = latestState;
+            offlineProgress.currentTownId = hub["town"]["id"].Str("thanh_van");
             SaveOfflineProgress();
-            latestState = offlinePreviewState;
-            atlasRealmInitialized = true;
-            atlasImmortalRealm = offlinePreviewState.player.ascended;
-            atlasSelectedTown = town;
-            atlasSelectedDungeon = null;
-            atlasSelectionKind = "town";
-            atlasInfoExpanded = false;
-            SetRealmMusic(offlinePreviewState);
-            SetAtlasOrientation(true);
-            ShowMap(offlinePreviewState);
-            ShowStatus($"Chơi thử ngoại tuyến · {offlineHuntCatalog.sourceMapName} · {offlineProgress.kills} trận thắng · túi đồ lưu trên máy.");
+
+            SetAtlasOrientation(false);
+            if (latestState != null) SetRealmMusic(latestState);
+            SafeShowWorld();
+            ShowStatus(choice != null ? $"Chào mừng {choice.name} bước vào Tu Tiên Giới (Ngoại tuyến)!" : "Đã vào thế giới tu tiên ngoại tuyến.");
+        }
+
+        private void ApplyOfflineCharacterChoice(RegisterChoice choice)
+        {
+            if (choice == null || hub.IsNull || !hub["player"].IsObject) return;
+            hub["player"]["name"] = choice.name;
+            hub["player"]["fullName"] = choice.name + " · Ngoại tuyến";
+            if (!string.IsNullOrEmpty(choice.gender))
+            {
+                hub["player"]["gender"] = choice.gender;
+            }
+            if (!string.IsNullOrEmpty(choice.mon))
+            {
+                hub["player"]["mon"] = choice.mon;
+                var monName = FindMonName(choice.mon);
+                if (!string.IsNullOrEmpty(monName)) hub["player"]["monName"] = monName;
+            }
+            if (!string.IsNullOrEmpty(choice.he))
+            {
+                hub["player"]["he"] = choice.he;
+                var heName = FindHeName(choice.he);
+                if (!string.IsNullOrEmpty(heName)) hub["player"]["heName"] = heName;
+            }
+            if (!string.IsNullOrEmpty(choice.look))
+            {
+                hub["player"]["look"] = choice.look;
+                hub["player"]["lookWorn"] = choice.look;
+            }
+            if (choice.talents != null && choice.talents.Length > 0)
+            {
+                var list = new List<object>();
+                foreach (var t in choice.talents) list.Add(t);
+                hub["player"]["talents"] = new J(list);
+            }
+            hub["player"]["worldPosition"] = J.Null;
+        }
+
+        private string FindMonName(string id)
+        {
+            foreach (var m in currentCatalog?.mon ?? Array.Empty<GameClass>())
+                if (m != null && m.id == id) return m.name;
+            return id;
+        }
+
+        private string FindHeName(string id)
+        {
+            foreach (var h in currentCatalog?.he ?? Array.Empty<GameElement>())
+                if (h != null && h.id == id) return h.name;
+            return id;
+        }
+
+        private void ExitOfflineWorld()
+        {
+            offlinePreview = false;
+            offlinePreviewState = null;
+            worldReturnTile = null;
+            cityTownId = null;
+            if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
+            SetAtlasOrientation(false);
+            ShowLogin();
         }
 
         private void ReturnFromWorldAtlas(GameState state)
@@ -688,9 +783,9 @@ namespace IOSVN.TuTien.Core
                 return;
             }
             offlineCreationPreview = true;
-            SetAtlasOrientation(true);
-            ShowCharacterCreationForm(resetSelection: true);
-            ShowStatus("Bản thử ngoại tuyến: lựa chọn chỉ lưu trên thiết bị.");
+            SetAtlasOrientation(false);
+            ShowCreator();
+            ShowStatus("Tạo nhân vật ngoại tuyến: tùy chỉnh diện mạo, môn phái và tiên thiên khí vận.");
         }
 
         private void ShowCharacterCreationForm(bool resetSelection)
@@ -796,7 +891,7 @@ namespace IOSVN.TuTien.Core
             {
                 PlayerPrefs.SetString("tutien_offline_character_demo", JsonUtility.ToJson(choice));
                 PlayerPrefs.Save();
-                ShowStatus($"Đã lưu bản demo ngoại tuyến cho {choice.name}. Dữ liệu này chưa đồng bộ lên server.");
+                EnterOfflineWorldWithChoice(choice);
                 return;
             }
             ShowStatus("Đang tạo nhân vật trên máy chủ...");
@@ -2074,7 +2169,15 @@ namespace IOSVN.TuTien.Core
         {
             if (offlineBattleRoot != null || offlineActionRunning) return;
             activeRoamingMonster = selectedRoamingMonster != null && selectedRoamingMonster.point == point ? selectedRoamingMonster : null;
-            activeOfflineMonster = FindOfflineMonster(point?.monsterId);
+            var monster = FindOfflineMonster(point?.monsterId);
+            var loc = point?.town?.name ?? offlineHuntCatalog?.sourceMapName;
+            StartOfflineBattleWithMonster(monster, loc);
+        }
+
+        private void StartOfflineBattleWithMonster(OfflineMonsterData monster, string locationName)
+        {
+            if (offlineBattleRoot != null || offlineActionRunning) return;
+            activeOfflineMonster = monster;
             if (activeOfflineMonster == null)
             {
                 ShowStatus("Bãi này chưa có sprite hoặc dữ liệu quái trong gói offline.");
@@ -2089,6 +2192,7 @@ namespace IOSVN.TuTien.Core
             offlineSkillReadyAt.Clear();
             offlineEnemyStunnedUntil = 0f;
             PrepareOfflineBattleSkills();
+            if (worldView != null) worldView.gameObject.SetActive(false);
             if (explorationMapRoot != null) explorationMapRoot.SetActive(false);
             if (offlineInventoryRoot != null) { Destroy(offlineInventoryRoot); offlineInventoryRoot = null; }
             ClearContent();
@@ -2105,14 +2209,14 @@ namespace IOSVN.TuTien.Core
             var header = PanelObject("BossBattleHud", offlineBattleRoot.transform, new Vector2(.225f, .835f), new Vector2(.775f, .98f), Vector2.zero, Vector2.zero, new Color32(15, 20, 24, 235));
             ChildText(header.transform, "EnemyName", 26, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .52f), new Vector2(.95f, .96f)).text = activeOfflineMonster.name;
             offlineMonsterHealthFill = MakeBattleHealthBar(header.transform, new Vector2(.05f, .14f), new Vector2(.95f, .47f), new Color32(206, 72, 63, 255));
-            ChildText(offlineBattleRoot.transform, "BattleLocation", 20, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .89f), new Vector2(.215f, .975f)).text = "PVE  ·  " + (point.town?.name ?? offlineHuntCatalog.sourceMapName);
+            ChildText(offlineBattleRoot.transform, "BattleLocation", 20, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .89f), new Vector2(.215f, .975f)).text = "PVE  ·  " + (locationName ?? offlineHuntCatalog?.sourceMapName ?? "Đông Hoang");
             var playerHud = PanelObject("PlayerBattleHud", offlineBattleRoot.transform, new Vector2(.015f, .225f), new Vector2(.345f, .365f), Vector2.zero, Vector2.zero, new Color32(15, 24, 28, 237));
             offlinePlayerVitals = ChildText(playerHud.transform, "PlayerVitals", 20, Cream, TextAnchor.MiddleLeft, new Vector2(.04f, .69f), new Vector2(.96f, .98f));
             offlinePlayerHealthFill = MakeBattleHealthBar(playerHud.transform, new Vector2(.04f, .40f), new Vector2(.96f, .65f), new Color32(73, 190, 111, 255));
             offlinePlayerManaFill = MakeBattleHealthBar(playerHud.transform, new Vector2(.04f, .10f), new Vector2(.96f, .35f), new Color32(66, 152, 220, 255));
 
             var cultivatorFrames = PixelCreatureArt.Frames("player_cultivator");
-            offlinePlayerFighter = MakeBattleFighter("PixelCultivator", cultivatorFrames != null ? cultivatorFrames[0] : CreateCultivatorSprite(offlinePreviewState.player.appearanceColors), new Vector2(.28f, .48f), new Vector2(114, 172));
+            offlinePlayerFighter = MakeBattleFighter("PixelCultivator", cultivatorFrames != null ? cultivatorFrames[0] : CreateCultivatorSprite(offlinePreviewState != null && offlinePreviewState.player != null ? offlinePreviewState.player.appearanceColors : null), new Vector2(.28f, .48f), new Vector2(114, 172));
             offlinePlayerFighter.GetComponent<Image>().rectTransform.localScale = new Vector3(-1f, 1f, 1f);
             if (cultivatorFrames != null) offlinePlayerFighter.gameObject.AddComponent<PixelCreatureAnimator>().SetMonster("player_cultivator");
             var weaponSprite = PixelWeaponArt.ForClass(offlineProgress.monClass);
@@ -2446,7 +2550,12 @@ namespace IOSVN.TuTien.Core
             offlineSkillCooldownLabels.Clear(); offlineSkillCircleButtons.Clear(); offlineItemCountLabels.Clear();
             offlineBattleMoveInput = Vector2.zero;
             SaveOfflineProgress();
-            RenderExplorationMap(offlinePreviewState);
+            if (hub.IsObject && hub["player"].IsObject)
+            {
+                hub["player"]["hp"] = offlineProgress.hp;
+                hub["player"]["stones"] = offlineProgress.stones;
+            }
+            SafeShowWorld();
             ShowStatus($"Ngoại tuyến · {offlineProgress.kills} trận thắng · {OfflineInventoryCount()} vật phẩm trong túi.");
         }
 
@@ -3168,6 +3277,26 @@ namespace IOSVN.TuTien.Core
 
         private void EnterDungeon(string dungeonId)
         {
+            if (offlinePreview)
+            {
+                OfflineMonsterData boss = null;
+                if (offlineHuntCatalog?.monsters != null)
+                {
+                    foreach (var m in offlineHuntCatalog.monsters)
+                    {
+                        if (m != null && m.worldBoss) { boss = m; break; }
+                    }
+                    if (boss == null && offlineHuntCatalog.monsters.Length > 0)
+                        boss = offlineHuntCatalog.monsters[offlineHuntCatalog.monsters.Length - 1];
+                }
+                if (boss != null)
+                {
+                    StartOfflineBattleWithMonster(boss, "Cổ Động Bí Cảnh");
+                    return;
+                }
+                ShowStatus("Bí cảnh ngoại tuyến chưa có dữ liệu quái.");
+                return;
+            }
             ShowStatus("Đang mở bí cảnh PvE...");
             client.EnterDungeon(dungeonId, (result, error) =>
             {
@@ -3401,6 +3530,11 @@ namespace IOSVN.TuTien.Core
 
         private void Hunt(string uid)
         {
+            if (offlinePreview)
+            {
+                StartOfflineBattleFromWorld(uid);
+                return;
+            }
             ShowStatus("Gửi yêu cầu trận đấu lên server...");
             client.StartWorldHunt(uid, (started, error) =>
             {
@@ -3412,6 +3546,49 @@ namespace IOSVN.TuTien.Core
                     ShowBattle(battle);
                 });
             });
+        }
+
+        private void StartOfflineBattleFromWorld(string uid)
+        {
+            OfflineMonsterData monster = null;
+            var locName = hub.IsObject && hub["town"].IsObject ? hub["town"]["name"].Str() : "Thanh Vân Trấn";
+            if (hub.IsObject && hub["worldMonsters"].IsList)
+            {
+                foreach (var m in hub["worldMonsters"].Items)
+                {
+                    if (m["uid"].Str() == uid)
+                    {
+                        var mid = m["monsterId"].Str();
+                        monster = FindOfflineMonster(mid);
+                        if (monster == null)
+                        {
+                            monster = new OfflineMonsterData
+                            {
+                                id = mid,
+                                name = m["name"].Str("Yêu Thú"),
+                                hp = (int)Math.Min(int.MaxValue, m["hp"].Num(1000)),
+                                atk = (int)m["atk"].Num(50),
+                                def = (int)m["def"].Num(30),
+                                spd = (int)m["spd"].Num(10),
+                                realm = m["realm"].Int(0),
+                                worldBoss = m["isWorldBoss"].Bool(),
+                                drops = Array.Empty<OfflineDropData>()
+                            };
+                        }
+                        break;
+                    }
+                }
+            }
+            if (monster == null && offlineHuntCatalog?.monsters != null && offlineHuntCatalog.monsters.Length > 0)
+                monster = offlineHuntCatalog.monsters[0];
+            if (monster != null)
+            {
+                StartOfflineBattleWithMonster(monster, locName);
+            }
+            else
+            {
+                ShowStatus("Chưa tìm thấy dữ liệu yêu thú ngoại tuyến.");
+            }
         }
 
         private void ShowBattle(BattleView battle)

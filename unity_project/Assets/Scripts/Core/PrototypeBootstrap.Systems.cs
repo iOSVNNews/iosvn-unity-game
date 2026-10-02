@@ -407,8 +407,8 @@ namespace IOSVN.TuTien.Core
             PillButton(Anchored("Ascend", actions, new Vector2(.5f, .5f), new Vector2(1, 1), new Vector2(6, 6), new Vector2(0, 0)), "Phi thăng", "ui:flight", false, () =>
                 Confirm("Phi thăng", "Phi thăng lên Tiên Giới cần đủ cảnh giới và Thiên Đạo Nguyên Ấn. Tiếp tục?", "Phi thăng", () => Act("/ascend", Body(), _ => OpenCharacterScreen())));
             PillButton(Anchored("Account", actions, new Vector2(0, 0), new Vector2(.5f, .5f), new Vector2(0, 0), new Vector2(-6, -6)), "Tài khoản", "ui:ho_so", false, () => { if (latestState != null) ShowAccountLinks(latestState); });
-            PillButton(Anchored("Logout", actions, new Vector2(.5f, 0), new Vector2(1, .5f), new Vector2(6, 0), new Vector2(0, -6)), "Đăng xuất", "arrowLeft", false, () =>
-                Confirm("Đăng xuất", "Thoát khỏi tài khoản trên thiết bị này?", "Đăng xuất", () => client.Logout(_ => ShowLogin())));
+            PillButton(Anchored("Logout", actions, new Vector2(.5f, 0), new Vector2(1, .5f), new Vector2(6, 0), new Vector2(0, -6)), offlinePreview ? "Thoát ra" : "Đăng xuất", "arrowLeft", false, () =>
+                Confirm(offlinePreview ? "Rời thế giới" : "Đăng xuất", offlinePreview ? "Quay lại màn hình đăng nhập?" : "Thoát khỏi tài khoản trên thiết bị này?", offlinePreview ? "Thoát ra" : "Đăng xuất", () => { if (offlinePreview) ExitOfflineWorld(); else client.Logout(_ => ShowLogin()); }));
             var info = ScrollColumn(right, 6f, 14);
             var realm = hub["realm"];
             SectionLabel(info, "Cảnh giới");

@@ -122,6 +122,15 @@ namespace IOSVN.TuTien.Core
                 var open = data.NearestOpen(new Vector2Int(Mathf.RoundToInt(t.x), Mathf.RoundToInt(t.y)), 40);
                 if (!data.IsBlocked(open.x, open.y)) return open;
             }
+            if (offlinePreview && PlayerPrefs.HasKey("tt_offline_world_x"))
+            {
+                var savedMap = PlayerPrefs.GetString("tt_offline_world_mapId", "");
+                if (savedMap == data.id)
+                {
+                    var cell = new Vector2Int(PlayerPrefs.GetInt("tt_offline_world_x"), PlayerPrefs.GetInt("tt_offline_world_y"));
+                    if (data.InBounds(cell.x, cell.y) && !data.IsBlocked(cell.x, cell.y)) return cell;
+                }
+            }
             var pos = player["worldPosition"];
             if (pos.IsObject && pos["mapId"].Str() == data.id && PlayerPrefs.GetInt("tt_world_layout", 1) == WorldLayoutRev)
             {
@@ -519,6 +528,19 @@ namespace IOSVN.TuTien.Core
         private void EnterTownThen(string townId, Action then)
         {
             var tile = worldView != null ? worldView.TileOf(worldView.Player.Pos) : new Vector2Int(-1, -1);
+            if (offlinePreview)
+            {
+                offlineProgress.currentTownId = townId;
+                SaveOfflineProgress();
+                if (hub.IsObject && hub["town"].IsObject)
+                {
+                    hub["town"]["id"] = townId;
+                    var townMeta = worldData?.Town(townId);
+                    if (townMeta != null) hub["town"]["name"] = townMeta.name;
+                }
+                then?.Invoke();
+                return;
+            }
             ShowBusy(true);
             client.Post("/world/enter-town", Body("townId", townId, "mapId", worldMapId, "x", tile.x, "y", tile.y), (result, error) =>
             {
@@ -547,7 +569,7 @@ namespace IOSVN.TuTien.Core
 
         private void SaveWorldTile()
         {
-            if (worldView?.Player == null || offlinePreview) return;
+            if (worldView?.Player == null) return;
             var tile = worldView.TileOf(worldView.Player.Pos);
             // in the air the saved tile is the ground below (or beside) the rider, so a later login lands somewhere walkable
             if (worldData != null && worldData.IsBlocked(tile.x, tile.y))
@@ -557,6 +579,14 @@ namespace IOSVN.TuTien.Core
             }
             if (tile == lastSavedTile) return;
             lastSavedTile = tile;
+            if (offlinePreview)
+            {
+                PlayerPrefs.SetInt("tt_offline_world_x", tile.x);
+                PlayerPrefs.SetInt("tt_offline_world_y", tile.y);
+                PlayerPrefs.SetString("tt_offline_world_mapId", worldMapId);
+                PlayerPrefs.Save();
+                return;
+            }
             client.SaveWorldPosition(worldMapId, tile.x, tile.y, (ok, error) =>
             {
                 if (ok) PlayerPrefs.SetInt("tt_world_layout", WorldLayoutRev);
@@ -566,8 +596,9 @@ namespace IOSVN.TuTien.Core
 
         private void TickWorld()
         {
-            if (worldView == null || offlinePreview) return;
+            if (worldView == null) return;
             UpdateWayfinders();
+            if (offlinePreview) return;
             if (Time.time >= nextMonsterRefresh)
             {
                 nextMonsterRefresh = Time.time + 20f;
@@ -613,6 +644,16 @@ namespace IOSVN.TuTien.Core
             PillButton(places, "Địa điểm", "ui:location", false, OpenPlacesModal);
             var placesFill = places.GetComponent<Image>();
             if (placesFill != null) placesFill.color = new Color32(16, 18, 22, 244);
+            if (offlinePreview)
+            {
+                var exitBtn = Anchored("OfflineExit", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(294, -196), new Vector2(484, -124));
+                PillButton(exitBtn, "Thoát ra", "arrowLeft", false, () =>
+                {
+                    Confirm("Rời thế giới", "Quay lại màn hình đăng nhập?", "Thoát ra", ExitOfflineWorld);
+                });
+                var exitFill = exitBtn.GetComponent<Image>();
+                if (exitFill != null) exitFill.color = new Color32(16, 18, 22, 244);
+            }
             BuildMenuColumn(root);
             // location banner (top-left)
             var loc = Anchored("Location", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -112), new Vector2(720, -20));

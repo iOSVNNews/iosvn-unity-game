@@ -97,6 +97,11 @@ namespace IOSVN.TuTien.Core
         /// <summary>POSTs an action, refreshes the cached player view, shows the server toast and opens fights.</summary>
         private void Act(string route, Dictionary<string, object> body, Action<J> after = null)
         {
+            if (offlinePreview)
+            {
+                Toast("Tính năng mạng này cần kết nối máy chủ online.", true);
+                return;
+            }
             if (actionPending) return;
             actionPending = true;
             ShowBusy(true);
@@ -132,6 +137,11 @@ namespace IOSVN.TuTien.Core
         /// <summary>Reloads the player view, then runs <paramref name="then"/> (defaults to the hub).</summary>
         private void RefreshHub(Action then = null)
         {
+            if (offlinePreview)
+            {
+                if (then != null) then(); else ShowHub();
+                return;
+            }
             ShowBusy(true);
             client.LoadStateBoth((typed, raw, error) =>
             {
@@ -146,13 +156,12 @@ namespace IOSVN.TuTien.Core
         /// <summary>Where every screen returns to: the city when the player is inside one, otherwise the province map.</summary>
         private void ShowHub()
         {
-            if (offlinePreview) { if (latestState != null) ShowHome(latestState); return; }
-            if (!hub.IsObject) { LoadState(); return; }
             if (!string.IsNullOrEmpty(cityTownId))
             {
                 try { ShowCity(cityTownId); return; }
                 catch (Exception ex) { Debug.LogException(ex); cityTownId = null; }
             }
+            if (!offlinePreview && !hub.IsObject) { LoadState(); return; }
             SafeShowWorld();
         }
 
