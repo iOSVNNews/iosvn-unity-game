@@ -526,8 +526,9 @@ namespace IOSVN.TuTien.Core
 
             var cover = new GameObject("KeyboardSideGapFill", typeof(RectTransform), typeof(Image));
             keyboardBackdrop = cover.GetComponent<RectTransform>();
-            keyboardBackdrop.SetParent(canvas.transform, false);
-            keyboardBackdrop.SetAsLastSibling();
+            var background = canvas.transform.Find("Background");
+            keyboardBackdrop.SetParent(background != null ? background : canvas.transform, false);
+            keyboardBackdrop.SetAsFirstSibling();
             keyboardBackdrop.anchorMin = new Vector2(0f, 0f);
             keyboardBackdrop.anchorMax = new Vector2(1f, 0f);
             keyboardBackdrop.pivot = new Vector2(0.5f, 0f);
@@ -547,18 +548,14 @@ namespace IOSVN.TuTien.Core
                 basePos = rect.anchoredPosition;
                 initialized = true;
             }
-            if (TouchScreenKeyboard.visible)
-            {
-                TouchScreenKeyboard.hideInput = true;
-            }
             var isKeyboard = TouchScreenKeyboard.visible;
 
             if (keyboardBackdrop != null)
             {
                 if (isKeyboard)
                 {
-                    var canvas = GetComponentInParent<Canvas>();
-                    var canvasHeight = canvas != null ? ((RectTransform)canvas.transform).rect.height : 1080f;
+                    var backdropParent = keyboardBackdrop.parent as RectTransform;
+                    var canvasHeight = backdropParent != null ? backdropParent.rect.height : 1080f;
                     var coverHeight = canvasHeight * 0.55f;
                     if (TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
                     {
@@ -567,7 +564,7 @@ namespace IOSVN.TuTien.Core
                     }
                     keyboardBackdrop.sizeDelta = new Vector2(0f, coverHeight + 3f);
                     if (!keyboardBackdrop.gameObject.activeSelf) keyboardBackdrop.gameObject.SetActive(true);
-                    keyboardBackdrop.SetAsLastSibling();
+                    keyboardBackdrop.SetAsFirstSibling();
                 }
                 else if (keyboardBackdrop.gameObject.activeSelf)
                 {

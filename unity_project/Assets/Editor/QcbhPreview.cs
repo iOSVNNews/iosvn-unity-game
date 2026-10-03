@@ -50,6 +50,21 @@ namespace IOSVN.TuTien.Editor
             }, "qcbh-creator-nu.png", 1280, 590);
             Render(c => { Prepare(c); Step("world", () => Call(c, "ShowWorld")); }, "qcbh-world.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-routes", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-routes.png", 1280, 590);
+            Render(c => { Prepare(c); Step("home-profile", () => Call(c, "ShowHome", NetworkGameClient.ToGameState(J.Parse(stateText)))); }, "qcbh-home-profile.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "offlinePreview", true);
+                Step("world-atlas", () => Call(c, "ShowMap", NetworkGameClient.ToGameState(J.Parse(stateText))));
+            }, "qcbh-world-atlas.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "offlinePreview", true);
+                Set(c, "atlasImmortalRealm", true);
+                Set(c, "atlasRealmInitialized", true);
+                Step("world-atlas-tien", () => Call(c, "ShowMap", NetworkGameClient.ToGameState(J.Parse(stateText))));
+            }, "qcbh-world-atlas-tien.png", 1280, 590);
             Render(c => { Prepare(c); Step("teleport", () => Call(c, "OpenTeleportScreen", true)); }, "qcbh-teleport.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(4.6f); }); }, "qcbh-world-zoom.png", 1280, 590);
             // the whole province from high up: how far the cities lie from each other

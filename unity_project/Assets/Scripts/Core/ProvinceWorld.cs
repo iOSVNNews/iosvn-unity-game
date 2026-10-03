@@ -59,10 +59,13 @@ namespace IOSVN.TuTien.Core
         public RectTransform FxLayer;
         public RectTransform LabelLayer;
         public RawImage Painting;
+        public RawImage ProvincePainting;
         public Image NightTint;
-        public float Zoom = 3.2f;
+        // Keep the high-resolution province painting close to native detail at first load;
+        // players can pinch or use the menu zoom controls for close combat views.
+        public float Zoom = 1.5f;
         public float MinZoom = .85f;
-        public float MaxZoom = 5.5f;
+        public float MaxZoom = 3f;
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
@@ -82,7 +85,7 @@ namespace IOSVN.TuTien.Core
         private float lastManualInput = -10f;
         private float lastPinchDistance;
         private readonly List<(RectTransform rect, float speed)> clouds = new List<(RectTransform, float)>();
-        private readonly List<(RectTransform rect, Vector2 local)> labels = new List<(RectTransform, Vector2)>();
+        private readonly List<(RectTransform rect, Vector2 local, float minZoom)> labels = new List<(RectTransform, Vector2, float)>();
         private Image tapRing;
         private Image pressureTint;
         private float pressure;
@@ -101,10 +104,11 @@ namespace IOSVN.TuTien.Core
         private Vector2 lastTrailPos;
         private readonly List<(Image image, float born, float life)> trail = new List<(Image, float, float)>();
         private readonly List<(WorldActor actor, Vector2 basePos)> tagScratch = new List<(WorldActor, Vector2)>();
-        private readonly List<Vector2> tagResolved = new List<Vector2>();
+        private readonly List<(Vector2 center, Vector2 size)> tagResolved = new List<(Vector2, Vector2)>();
         private static Sprite swordSprite;
 
-        public static ProvinceWorld Build(Transform parent, WorldMapData data, Texture2D painting)
+        public static ProvinceWorld Build(Transform parent, WorldMapData data, Texture2D painting,
+            Texture2D provincePainting = null, WorldRegionMeta provinceRegion = null)
         {
             var root = new GameObject("ProvinceWorld", typeof(RectTransform), typeof(Image), typeof(RectMask2D)).GetComponent<RectTransform>();
             root.SetParent(parent, false);
@@ -139,6 +143,24 @@ namespace IOSVN.TuTien.Core
             }
             paint.raycastTarget = false;
             world.Painting = paint;
+            if (provincePainting != null && provinceRegion != null
+                && provinceRegion.w > 0 && provinceRegion.h > 0)
+            {
+                // The realm painting is the seamless overview used by the minimap. In the active
+                // province, replace its low-resolution crop with the original detailed province art.
+                var detail = new GameObject("ProvinceDetailPainting", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
+                detail.transform.SetParent(world.MapRect, false);
+                var detailRect = detail.rectTransform;
+                detailRect.anchorMin = detailRect.anchorMax = Vector2.zero;
+                detailRect.pivot = Vector2.zero;
+                detailRect.sizeDelta = new Vector2(provinceRegion.w * T, provinceRegion.h * T);
+                detailRect.anchoredPosition = new Vector2(
+                    provinceRegion.x * T,
+                    (data.h - provinceRegion.y - provinceRegion.h) * T);
+                detail.texture = provincePainting;
+                detail.raycastTarget = false;
+                world.ProvincePainting = detail;
+            }
             world.ActorLayer = Child("Actors", world.MapRect);
             Stretch(world.ActorLayer);
             world.FxLayer = Child("Fx", world.MapRect);
@@ -822,10 +844,10 @@ namespace IOSVN.TuTien.Core
 
         // ------------------------------------------------------------------ labels & fx
 
-        public RectTransform AddLabel(RectTransform label, Vector2 tile, Vector2 offsetPx)
+        public RectTransform AddLabel(RectTransform label, Vector2 tile, Vector2 offsetPx, float minZoom = 0f)
         {
             label.SetParent(LabelLayer, false);
-            labels.Add((label, TileToLocal(tile) + offsetPx));
+            labels.Add((label, TileToLocal(tile) + offsetPx, minZoom));
             return label;
         }
 
@@ -990,32 +1012,50 @@ namespace IOSVN.TuTien.Core
             Actors.Sort((a, b) => a.Pos.y.CompareTo(b.Pos.y));
             for (var i = 0; i < Actors.Count; i++) Actors[i].Rect.SetSiblingIndex(i);
 
-            // name tags follow their actor; tags that would overlap are stacked upwards
+            // Keep the overview readable. Full actor names are useful at close range; at realm scale
+            // the miniature actors remain visible while their labels would merge into a text cloud.
             tagScratch.Clear();
             tagResolved.Clear();
             foreach (var actor in Actors)
             {
                 if (actor.Tag == null) continue;
-                actor.Tag.gameObject.SetActive(!actor.Hidden);
-                if (actor.Hidden) continue;
+                var showAtOverview = actor.Kind == "player";
+                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= 2.2f);
+                actor.Tag.gameObject.SetActive(tagVisible);
+                if (!tagVisible) continue;
                 var local = TileToLocal(actor.Pos);
                 tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y - T * .45f + actor.TagHeight + actor.Lift))));
             }
             tagScratch.Sort((a, b) => a.basePos.y.CompareTo(b.basePos.y));
             for (var i = 0; i < tagScratch.Count; i++)
             {
+                var actor = tagScratch[i].actor;
+                var tagRect = actor.Tag;
+                var pillRect = tagRect.childCount > 0 ? tagRect.GetChild(0) as RectTransform : null;
+                var tagSize = pillRect != null ? pillRect.sizeDelta : new Vector2(130f, 32f);
+                var tagOffset = pillRect != null ? pillRect.anchoredPosition : Vector2.zero;
                 var cur = tagScratch[i].basePos;
                 for (var j = 0; j < i; j++)
                 {
                     var prev = tagResolved[j];
-                    if (Mathf.Abs(cur.x - prev.x) < 130f && Mathf.Abs(cur.y - prev.y) < 32f) cur.y = prev.y + 34f;
+                    var center = cur + tagOffset;
+                    if (Mathf.Abs(center.x - prev.center.x) < (tagSize.x + prev.size.x) * .5f + 8f
+                        && Mathf.Abs(center.y - prev.center.y) < (tagSize.y + prev.size.y) * .5f + 4f)
+                    {
+                        cur.y = prev.center.y + (tagSize.y + prev.size.y) * .5f + 4f - tagOffset.y;
+                    }
                 }
-                tagResolved.Add(cur);
-                tagScratch[i].actor.Tag.anchoredPosition = cur;
+                tagResolved.Add((cur + tagOffset, tagSize));
+                tagRect.anchoredPosition = cur;
             }
 
-            foreach (var (rect, local) in labels)
-                if (rect != null) rect.anchoredPosition = LocalToViewport(local);
+            foreach (var (rect, local, minZoom) in labels)
+            {
+                if (rect == null) continue;
+                var visible = Zoom >= minZoom;
+                if (rect.gameObject.activeSelf != visible) rect.gameObject.SetActive(visible);
+                if (visible) rect.anchoredPosition = LocalToViewport(local);
+            }
         }
 
         private void HandlePinch()

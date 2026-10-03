@@ -1085,13 +1085,29 @@ namespace IOSVN.TuTien.Core
 
             var profile = PanelObject("HomeProfileCard", content.transform, new Vector2(.02f, .185f), new Vector2(.315f, .835f), Vector2.zero, Vector2.zero, new Color32(23, 29, 36, 255));
             PanelObject("HomePortraitFrame", profile.transform, new Vector2(.25f, .40f), new Vector2(.75f, .94f), Vector2.zero, Vector2.zero, new Color32(71, 57, 40, 255));
-            var portrait = new GameObject("HomePortrait", typeof(RectTransform), typeof(Image));
+            var portrait = new GameObject("HomePortrait", typeof(RectTransform));
             portrait.transform.SetParent(profile.transform, false);
             Place(portrait.GetComponent<RectTransform>(), new Vector2(.275f, .425f), new Vector2(.725f, .915f));
-            var portraitImage = portrait.GetComponent<Image>();
-            portraitImage.sprite = CreateCultivatorSprite(state.player?.appearanceColors);
-            portraitImage.preserveAspect = true;
-            portraitImage.raycastTarget = false;
+            Texture2D composedPortrait = null;
+            try { if (AvatarComposer.Available) composedPortrait = AvatarComposer.Compose(LookOf(hub["player"])); }
+            catch (Exception ex) { Debug.LogWarning("Home portrait fallback: " + ex.Message); }
+            if (composedPortrait != null)
+            {
+                var portraitImage = portrait.AddComponent<RawImage>();
+                portraitImage.texture = composedPortrait;
+                portraitImage.uvRect = new Rect(.28f, .69f, .44f, .2625f);
+                portraitImage.raycastTarget = false;
+            }
+            else
+            {
+                var portraitImage = portrait.AddComponent<Image>();
+                var portraitFrames = HeroFramesFor(hub["player"]);
+                portraitImage.sprite = portraitFrames != null && portraitFrames.Length > HeroSprites.WalkFrames
+                    ? portraitFrames[HeroSprites.WalkFrames + 1]
+                    : CreateCultivatorSprite(state.player?.appearanceColors);
+                portraitImage.preserveAspect = true;
+                portraitImage.raycastTarget = false;
+            }
             ChildText(profile.transform, "ProfileName", 20, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .32f), new Vector2(.95f, .41f)).text =
                 string.IsNullOrWhiteSpace(state.player?.name) ? "Đạo hữu" : state.player.name;
             ChildText(profile.transform, "ProfileSect", 15, Muted, TextAnchor.MiddleCenter, new Vector2(.05f, .25f), new Vector2(.95f, .33f)).text =
@@ -1123,20 +1139,8 @@ namespace IOSVN.TuTien.Core
         private void ShowMap(GameState state)
         {
             latestState = state;
-            if (mapCatalog == null)
-            {
-                ShowStatus("Đang tải bản đồ, thành trấn và bí cảnh...");
-                client.LoadMapCatalog((catalog, error) =>
-                {
-                    if (catalog == null) { ShowStatus(error); return; }
-                    mapCatalog = catalog;
-                    ShowMap(state);
-                });
-                return;
-            }
-            SetAtlasOrientation(true);
             atlasFromExploration = false;
-            RenderExplorationMap(state);
+            OpenWorldAtlas(state);
         }
 
         private void OpenWorldAtlas(GameState state)
@@ -1188,6 +1192,7 @@ namespace IOSVN.TuTien.Core
                 atlasSelectionKind = "town";
             }
             atlasFromExploration = false;
+            SetAtlasOrientation(true);
             RenderWorldAtlas(state);
         }
 
@@ -2723,7 +2728,7 @@ namespace IOSVN.TuTien.Core
                 {
                     var current = state.town?.id == town.id;
                     AddAtlasMarker("Town_" + town.id, point, "T", current ? Gold : Color.white,
-                        current ? 42 : 34, () => SelectAtlasTown(state, town, "town", null), town.name,
+                        current ? 36 : 28, () => SelectAtlasTown(state, town, "town", null), town.name,
                         current || (atlasSelectedTown?.id == town.id && atlasSelectionKind == "town"));
                 }
                 if (atlasShowDungeons)
@@ -2734,7 +2739,7 @@ namespace IOSVN.TuTien.Core
                         if (dungeon.townId != town.id) continue;
                         var caveAngle = caveIndex * Mathf.PI * 2f / 5f - Mathf.PI * .5f;
                         var offset = new Vector2(Mathf.Cos(caveAngle) * .046f, Mathf.Sin(caveAngle) * .044f);
-                        AddAtlasMarker("Cave_" + dungeon.id, ClampAtlasPosition(point + offset), "D", Color.white, 32,
+                        AddAtlasMarker("Cave_" + dungeon.id, ClampAtlasPosition(point + offset), "D", Color.white, 25,
                             () => SelectAtlasTown(state, town, "dungeon", dungeon), dungeon.name,
                             atlasSelectedDungeon?.id == dungeon.id && atlasSelectionKind == "dungeon");
                         caveIndex++;
@@ -2759,12 +2764,22 @@ namespace IOSVN.TuTien.Core
                         var town = regionTowns[townIndex];
                         var point = AtlasMonsterFieldPosition(map, field, fieldCount);
                         var fieldNumber = field + 1;
-                        AddAtlasMarker("MonsterField_" + map.id + "_" + field, point, "Y", Color.white, 34,
+                        AddAtlasMarker("MonsterField_" + map.id + "_" + field, point, "Y", Color.white, 28,
                             () => SelectAtlasMonsterField(state, town, localField, localFieldCount, fieldNumber), "Bãi quái " + fieldNumber,
                             atlasSelectionKind == "monsters" && atlasSelectedTown?.mapId == map.id && atlasSelectedMonsterFieldLabel == fieldNumber);
                     }
                 }
             }
+
+            // Keep province names readable above the dense town, cave and hunting-ground icons.
+            // Their backgrounds are translucent and non-interactive, so the map points remain tappable.
+            var regionLabels = new List<Transform>();
+            for (var i = 0; i < atlasLayer.childCount; i++)
+            {
+                var child = atlasLayer.GetChild(i);
+                if (child.name.StartsWith("Region_", StringComparison.Ordinal)) regionLabels.Add(child);
+            }
+            foreach (var label in regionLabels) label.SetAsLastSibling();
 
             if (atlasInfoExpanded && atlasSelectedTown != null)
             {
@@ -2923,14 +2938,23 @@ namespace IOSVN.TuTien.Core
 
             var point = AtlasRegionAnchor(map);
             point.y += point.y < .50f ? .105f : -.105f;
-            var width = map.ascensionRequired ? .205f : .245f;
-            const float halfHeight = .032f;
-            var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, halfHeight), point + new Vector2(width * .5f, halfHeight), Vector2.zero, Vector2.zero, new Color32(22, 25, 31, 218));
-            tag.AddComponent<PixelMapMarkerMotion>();
+            const float width = .225f;
+            const float halfHeight = .03f;
+            var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, halfHeight), point + new Vector2(width * .5f, halfHeight), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 238));
             tag.GetComponent<Image>().raycastTarget = false;
-            var label = ChildText(tag.transform, "ProvinceName", 13, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
-            label.text = $"{AtlasRealmNumber(map):00} · {map.provinceName ?? map.name}\n{townCount} thành · {fieldCount} bãi quái · {caveCount} cổ động";
-            label.raycastTarget = false;
+            var title = ChildText(tag.transform, "ProvinceName", 18, Gold, TextAnchor.MiddleCenter,
+                new Vector2(0, .48f), Vector2.one);
+            title.resizeTextForBestFit = true;
+            title.resizeTextMinSize = 14;
+            title.resizeTextMaxSize = 18;
+            title.horizontalOverflow = HorizontalWrapMode.Overflow;
+            title.text = $"{AtlasRealmNumber(map):00} · {map.provinceName ?? map.name}";
+            PixelUiSkin.ApplyTextTreatment(title);
+            var details = ChildText(tag.transform, "ProvinceDetails", 14, Cream, TextAnchor.MiddleCenter,
+                Vector2.zero, new Vector2(1, .52f));
+            details.horizontalOverflow = HorizontalWrapMode.Overflow;
+            details.text = $"{townCount} thành · {fieldCount} bãi quái · {caveCount} cổ động";
+            PixelUiSkin.ApplyTextTreatment(details);
         }
 
         private void AddAtlasLandmark(string name, Vector2 point)
@@ -3157,7 +3181,9 @@ namespace IOSVN.TuTien.Core
             var x = maxX == minX ? .5f : Mathf.InverseLerp(minX, maxX, town.x);
             var y = maxY == minY ? .5f : Mathf.InverseLerp(minY, maxY, town.y);
             var anchor = AtlasRegionAnchor(map);
-            return ClampAtlasPosition(anchor + new Vector2((x - .5f) * .105f, (y - .5f) * .09f));
+            // Spread the real town order across most of the province cell. The earlier narrow
+            // offsets stacked every town, cave and hunting ground into one small marker cluster.
+            return ClampAtlasPosition(anchor + new Vector2((x - .5f) * .22f, (y - .5f) * .18f));
         }
 
         private static Vector2 ClampAtlasPosition(Vector2 point) => new Vector2(Mathf.Clamp(point.x, .035f, .965f), Mathf.Clamp(point.y, .075f, .90f));

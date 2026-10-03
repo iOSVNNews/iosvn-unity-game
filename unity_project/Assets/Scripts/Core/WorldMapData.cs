@@ -261,14 +261,14 @@ namespace IOSVN.TuTien.Core
             data.Road[index] = true;
         }
 
-        /// <summary>Loads the painting (PNG bytes shipped as a TextAsset) as a point-filtered texture.</summary>
+        /// <summary>Loads detailed and realm-scale painted maps from PNG bytes in Resources.</summary>
         public static Texture2D LoadPainting(string mapId)
         {
             var bytes = Resources.Load<TextAsset>("World/" + mapId + "_map");
             if (bytes == null) return null;
             var texture = new Texture2D(2, 2, TextureFormat.RGB24, false) { name = "Painting_" + mapId };
             if (!texture.LoadImage(bytes.bytes, true)) { UnityEngine.Object.Destroy(texture); return null; }
-            texture.filterMode = mapId.StartsWith("world_", StringComparison.Ordinal) ? FilterMode.Bilinear : FilterMode.Point;
+            texture.filterMode = FilterMode.Bilinear;
             texture.wrapMode = TextureWrapMode.Clamp;
             Resources.UnloadAsset(bytes);
             return texture;

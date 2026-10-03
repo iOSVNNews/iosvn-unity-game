@@ -68,6 +68,10 @@ namespace IOSVN.TuTien.Core
             var data = WorldMapData.LoadWorldForProvince(mapId);
             activePaintingId = data?.id;
             var painting = data == null ? null : GetPainting(data.id);
+            WorldRegionMeta activeRegion = null;
+            foreach (var region in data?.regions ?? Array.Empty<WorldRegionMeta>())
+                if (region != null && region.id == mapId) { activeRegion = region; break; }
+            var provincePainting = activeRegion == null ? null : GetPainting(mapId);
             if (data == null || painting == null)
             {
                 if (latestState != null) { ShowHome(latestState); }
@@ -84,7 +88,7 @@ namespace IOSVN.TuTien.Core
             worldMapId = mapId;
             worldMonsterActors.Clear();
             if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
-            worldView = ProvinceWorld.Build(backgroundRoot, data, painting);
+            worldView = ProvinceWorld.Build(backgroundRoot, data, painting, provincePainting, activeRegion);
             worldView.transform.SetAsFirstSibling();
             var player = hub["player"];
             var spawn = ResolveWorldSpawn(data, player, town["id"].Str());
@@ -224,20 +228,23 @@ namespace IOSVN.TuTien.Core
                 switch (poi.kind)
                 {
                     case "city":
-                        // The city is painted into the map and named in the location HUD. A vertical
-                        // banner covered its gate and became an unreadable strip at phone scale.
+                        var town = data.Town(poi.townId);
+                        var cityName = Clean(town?.name ?? poi.label);
+                        var cityTag = PlaceTag((town?.big == true ? "Đô thành · " : "Thành trấn · ") + cityName,
+                            "location", 18, new Color32(255, 239, 192, 255));
+                        worldView.AddLabel(cityTag, new Vector2(poi.x, poi.y - 5.2f), Vector2.zero, 1f);
                         break;
                     case "dungeon":
-                        worldView.AddLabel(PlaceTag("Cổ động · " + poi.label, "co_dong", 21, new Color32(226, 206, 255, 255)), new Vector2(poi.x, poi.y - 3.6f), Vector2.zero);
+                        worldView.AddLabel(PlaceTag("Cổ động · " + poi.label, "co_dong", 21, new Color32(226, 206, 255, 255)), new Vector2(poi.x, poi.y - 3.6f), Vector2.zero, 2.25f);
                         break;
                     case "landmark":
-                        if (!string.IsNullOrEmpty(poi.label)) worldView.AddLabel(InkUi.Tag(worldView.LabelLayer, poi.label, 17), new Vector2(poi.x, poi.y - 3.2f), Vector2.zero);
+                        if (!string.IsNullOrEmpty(poi.label)) worldView.AddLabel(InkUi.Tag(worldView.LabelLayer, poi.label, 17), new Vector2(poi.x, poi.y - 3.2f), Vector2.zero, 2.5f);
                         break;
                     case "province_gate":
-                        worldView.AddLabel(PlaceTag("Cổng châu", "teleport", 17, new Color32(170, 226, 255, 255)), new Vector2(poi.x, poi.y - 3.5f), Vector2.zero);
+                        worldView.AddLabel(PlaceTag("Cổng châu", "teleport", 17, new Color32(170, 226, 255, 255)), new Vector2(poi.x, poi.y - 3.5f), Vector2.zero, 1f);
                         break;
                     case "ascension_gate":
-                        worldView.AddLabel(PlaceTag("CỔNG PHI THĂNG", "teleport", 24, new Color32(255, 232, 164, 255)), new Vector2(poi.x, poi.y - 4.2f), Vector2.zero);
+                        worldView.AddLabel(PlaceTag("CỔNG PHI THĂNG", "teleport", 24, new Color32(255, 232, 164, 255)), new Vector2(poi.x, poi.y - 4.2f), Vector2.zero, .85f);
                         break;
                 }
             }
@@ -245,14 +252,14 @@ namespace IOSVN.TuTien.Core
             {
                 if (region == null) continue;
                 var label = InkUi.Tag(worldView.LabelLayer, region.name, 18, new Color32(240, 232, 210, 190));
-                worldView.AddLabel(label, new Vector2(region.x + region.w * .5f, region.y + region.h * .5f), Vector2.zero);
+                worldView.AddLabel(label, new Vector2(region.x + region.w * .5f, region.y + region.h * .5f), Vector2.zero, .85f);
             }
             foreach (var zone in data.zones)
             {
                 if (zone == null) continue;
                 var zoneTown = data.Town(zone.townId);
                 var tag = PlaceTag("Bãi yêu thú" + (zoneTown != null ? " · " + Clean(zoneTown.name) : ""), "swords", 21, new Color32(255, 204, 180, 255));
-                worldView.AddLabel(tag, new Vector2(zone.x + zone.w * .5f, zone.y - .4f), Vector2.zero);
+                worldView.AddLabel(tag, new Vector2(zone.x + zone.w * .5f, zone.y - .4f), Vector2.zero, 1f);
             }
         }
 
@@ -906,8 +913,20 @@ namespace IOSVN.TuTien.Core
             brush.sprite = InkUi.Brush;
             brush.type = Image.Type.Sliced;
             brush.raycastTarget = false;
-            hudLocation = AnchoredText(loc, "Name", "", ModernUi.Display, 34, HudCream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(40, 18), new Vector2(-30, -6));
-            hudPhase = AnchoredText(loc, "Phase", "", ModernUi.Regular, 20, new Color32(214, 206, 190, 255), TextAnchor.LowerLeft, Vector2.zero, Vector2.one, new Vector2(42, 6), new Vector2(-30, -50));
+            hudLocation = AnchoredText(loc, "Name", "", ModernUi.Display, 30, HudCream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(40, 18), new Vector2(-30, -6));
+            hudLocation.horizontalOverflow = HorizontalWrapMode.Overflow;
+            hudLocation.verticalOverflow = VerticalWrapMode.Truncate;
+            hudLocation.resizeTextForBestFit = true;
+            hudLocation.resizeTextMinSize = 18;
+            hudLocation.resizeTextMaxSize = 30;
+            PixelUiSkin.ApplyTextTreatment(hudLocation);
+            hudPhase = AnchoredText(loc, "Phase", "", ModernUi.Regular, 18, new Color32(236, 227, 208, 255), TextAnchor.LowerLeft, Vector2.zero, Vector2.one, new Vector2(42, 6), new Vector2(-30, -50));
+            hudPhase.horizontalOverflow = HorizontalWrapMode.Overflow;
+            hudPhase.verticalOverflow = VerticalWrapMode.Truncate;
+            hudPhase.resizeTextForBestFit = true;
+            hudPhase.resizeTextMinSize = 14;
+            hudPhase.resizeTextMaxSize = 18;
+            PixelUiSkin.ApplyTextTreatment(hudPhase);
             UpdateHudLocation(worldView.TileOf(worldView.Player.Pos));
             // context action (bottom-right, above the menu)
             hudActionRect = Anchored("Action", root, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-640, 30), new Vector2(-160, 126));
@@ -1058,15 +1077,23 @@ namespace IOSVN.TuTien.Core
             // caves and hunting grounds, so the small map answers "where is it"
             foreach (var poi in data.pois)
             {
-                if (poi == null || (poi.kind != "dungeon" && poi.kind != "zone" && poi.kind != "province_gate" && poi.kind != "ascension_gate")) continue;
+                if (poi == null || (poi.kind != "dungeon" && poi.kind != "province_gate" && poi.kind != "ascension_gate")) continue;
                 var at = new Vector2((poi.x + .5f) / data.w, 1f - (poi.y + .5f) / data.h);
-                var half = poi.kind == "zone" ? 7f : poi.kind == "ascension_gate" ? 9f : poi.kind == "province_gate" ? 3f : 6f;
+                var half = poi.kind == "ascension_gate" ? 9f : poi.kind == "province_gate" ? 3f : 6f;
                 var mark = Anchored("Mark_" + poi.kind, map, at, at, new Vector2(-half, -half), new Vector2(half, half)).gameObject.AddComponent<Image>();
                 mark.sprite = InkUi.Glow;
-                mark.color = poi.kind == "zone" ? new Color32(244, 84, 64, 255)
-                    : poi.kind == "ascension_gate" ? new Color32(255, 226, 144, 255)
+                mark.color = poi.kind == "ascension_gate" ? new Color32(255, 226, 144, 255)
                     : poi.kind == "province_gate" ? new Color32(135, 221, 255, 220)
                     : new Color32(186, 132, 255, 255);
+                mark.raycastTarget = false;
+            }
+            foreach (var zone in data.zones)
+            {
+                if (zone == null) continue;
+                var at = new Vector2((zone.x + zone.w * .5f) / data.w, 1f - (zone.y + zone.h * .5f) / data.h);
+                var mark = Anchored("Mark_MonsterGround", map, at, at, new Vector2(-8, -8), new Vector2(8, 8)).gameObject.AddComponent<Image>();
+                mark.sprite = InkUi.Glow;
+                mark.color = new Color32(255, 92, 72, 255);
                 mark.raycastTarget = false;
             }
             miniPlayerDot = Anchored("Me", map, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-9, -9), new Vector2(9, 9));
