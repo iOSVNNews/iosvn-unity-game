@@ -509,12 +509,35 @@ namespace IOSVN.TuTien.Core
     internal sealed class UiAuthKeyboardShift : MonoBehaviour
     {
         private RectTransform rect;
+        private RectTransform keyboardBackdrop;
         private Vector2 basePos;
         private bool initialized;
 
         private void Awake()
         {
             rect = (RectTransform)transform;
+            CreateKeyboardBackdrop();
+        }
+
+        private void CreateKeyboardBackdrop()
+        {
+            var canvas = GetComponentInParent<Canvas>();
+            if (canvas == null || keyboardBackdrop != null) return;
+
+            var cover = new GameObject("KeyboardSideGapFill", typeof(RectTransform), typeof(Image));
+            keyboardBackdrop = cover.GetComponent<RectTransform>();
+            keyboardBackdrop.SetParent(canvas.transform, false);
+            keyboardBackdrop.SetAsLastSibling();
+            keyboardBackdrop.anchorMin = new Vector2(0f, 0f);
+            keyboardBackdrop.anchorMax = new Vector2(1f, 0f);
+            keyboardBackdrop.pivot = new Vector2(0.5f, 0f);
+            keyboardBackdrop.sizeDelta = Vector2.zero;
+            keyboardBackdrop.anchoredPosition = Vector2.zero;
+
+            var image = cover.GetComponent<Image>();
+            image.color = new Color32(28, 28, 30, 255);
+            image.raycastTarget = false;
+            cover.SetActive(false);
         }
 
         private void Update()
@@ -529,6 +552,28 @@ namespace IOSVN.TuTien.Core
                 TouchScreenKeyboard.hideInput = true;
             }
             var isKeyboard = TouchScreenKeyboard.visible;
+
+            if (keyboardBackdrop != null)
+            {
+                if (isKeyboard)
+                {
+                    var canvas = GetComponentInParent<Canvas>();
+                    var canvasHeight = canvas != null ? ((RectTransform)canvas.transform).rect.height : 1080f;
+                    var coverHeight = canvasHeight * 0.55f;
+                    if (TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
+                    {
+                        var ratio = TouchScreenKeyboard.area.height / (float)Screen.height;
+                        if (ratio > 0.1f && ratio < 0.9f) coverHeight = canvasHeight * ratio;
+                    }
+                    keyboardBackdrop.sizeDelta = new Vector2(0f, coverHeight + 3f);
+                    if (!keyboardBackdrop.gameObject.activeSelf) keyboardBackdrop.gameObject.SetActive(true);
+                    keyboardBackdrop.SetAsLastSibling();
+                }
+                else if (keyboardBackdrop.gameObject.activeSelf)
+                {
+                    keyboardBackdrop.gameObject.SetActive(false);
+                }
+            }
 
             float shift = 170f;
             if (isKeyboard && TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
@@ -547,6 +592,13 @@ namespace IOSVN.TuTien.Core
                 p.y = Mathf.MoveTowards(p.y, targetY, Time.unscaledDeltaTime * 750f);
                 rect.anchoredPosition = p;
             }
+        }
+
+        private void OnDestroy()
+        {
+            if (keyboardBackdrop == null) return;
+            if (Application.isPlaying) Destroy(keyboardBackdrop.gameObject);
+            else DestroyImmediate(keyboardBackdrop.gameObject);
         }
     }
 }

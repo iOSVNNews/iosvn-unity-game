@@ -20,6 +20,8 @@ namespace IOSVN.TuTien.Editor
             RenderForm("ShowEmailVerification", new object[] { "daohuu@iosvn.com.vn", null }, "verify.png", 1280, 590);
             RenderForm("ShowAccountForm", new object[] { false }, "login-ipad.png", 1024, 768);
             RenderForm("ShowAccountForm", new object[] { true }, "register-ipad.png", 1024, 768);
+            const BindingFlags methodFlags = BindingFlags.Instance | BindingFlags.NonPublic;
+            RenderScreen(controller => typeof(PrototypeBootstrap).GetMethod("ShowAccountForm", methodFlags).Invoke(controller, new object[] { false }), "login-keyboard.png", 1280, 590, true);
         }
 
         [MenuItem("iOSVN/Login/Render HUD previews")]
@@ -107,7 +109,7 @@ namespace IOSVN.TuTien.Editor
             RenderScreen(controller => typeof(PrototypeBootstrap).GetMethod(method, methodFlags).Invoke(controller, arguments), filename, width, height);
         }
 
-        private static void RenderScreen(System.Action<PrototypeBootstrap> show, string filename, int width, int height)
+        private static void RenderScreen(System.Action<PrototypeBootstrap> show, string filename, int width, int height, bool keyboardPreview = false)
         {
             EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
             var controller = new GameObject("LoginLayoutPreview").AddComponent<PrototypeBootstrap>();
@@ -129,6 +131,12 @@ namespace IOSVN.TuTien.Editor
             canvas.planeDistance = 100f;
             canvas.GetComponent<CanvasScaler>().SendMessage("Handle", SendMessageOptions.DontRequireReceiver);
             show(controller);
+            if (keyboardPreview)
+            {
+                var authRoot = GameObject.Find("AuthRoot")?.GetComponent<RectTransform>();
+                if (authRoot != null) authRoot.anchoredPosition += new Vector2(0f, 210f);
+                AddKeyboardPreview(canvas.transform as RectTransform);
+            }
             // Edit-mode captures do not tick the layout loop; settle nested layout groups explicitly.
             for (var pass = 0; pass < 3; pass++)
             {
@@ -154,6 +162,89 @@ namespace IOSVN.TuTien.Editor
             Object.DestroyImmediate(texture);
             Object.DestroyImmediate(target);
             Debug.Log("LOGIN_LAYOUT_RENDERED: " + filename);
+        }
+
+        private static void AddKeyboardPreview(RectTransform canvas)
+        {
+            if (canvas == null) return;
+            var panel = new GameObject("SimulatedIosKeyboard", typeof(RectTransform), typeof(Image));
+            var panelRect = panel.GetComponent<RectTransform>();
+            panelRect.SetParent(canvas, false);
+            panelRect.anchorMin = Vector2.zero;
+            panelRect.anchorMax = new Vector2(1f, 0.47f);
+            panelRect.pivot = new Vector2(0.5f, 0f);
+            panelRect.offsetMin = panelRect.offsetMax = Vector2.zero;
+            var background = panel.GetComponent<Image>();
+            background.color = new Color32(28, 28, 30, 255);
+            background.raycastTarget = false;
+
+            AddKeyboardKey(panelRect, "QWERTYUIOP", 0.018f, 0.964f, 0.79f, 0.19f, new Color32(70, 70, 73, 255));
+            AddKeyboardKey(panelRect, "ASDFGHJKL", 0.062f, 0.876f, 0.55f, 0.19f, new Color32(70, 70, 73, 255));
+            AddKeyboardKeycap(panelRect, "shift", 0.03f, 0.13f, 0.31f, 0.19f, new Color32(112, 112, 116, 255), 16);
+            AddKeyboardKey(panelRect, "ZXCVBNM", 0.175f, 0.65f, 0.31f, 0.19f, new Color32(70, 70, 73, 255));
+            AddKeyboardKeycap(panelRect, "delete", 0.84f, 0.13f, 0.31f, 0.19f, new Color32(112, 112, 116, 255), 16);
+            AddKeyboardBottomRow(panelRect);
+        }
+
+        private static void AddKeyboardKey(RectTransform parent, string labels, float start, float rowWidth, float centerY, float height, Color keyColor)
+        {
+            var gap = 0.009f;
+            var keyWidth = (rowWidth - gap * (labels.Length - 1)) / labels.Length;
+            for (var i = 0; i < labels.Length; i++)
+            {
+                AddKeyboardKeycap(parent, labels[i].ToString(), start + i * (keyWidth + gap), keyWidth, centerY, height, keyColor, 32);
+            }
+        }
+
+        private static void AddKeyboardBottomRow(RectTransform parent)
+        {
+            const float gap = 0.012f;
+            var labels = new[] { "123", "EN", "space", ".", "return" };
+            var widths = new[] { 0.13f, 0.09f, 0.39f, 0.08f, 0.16f };
+            var colors = new[]
+            {
+                new Color32(57, 57, 60, 255), new Color32(57, 57, 60, 255),
+                new Color32(70, 70, 73, 255), new Color32(57, 57, 60, 255),
+                new Color32(32, 113, 184, 255)
+            };
+            var total = gap * (labels.Length - 1);
+            foreach (var width in widths) total += width;
+            var x = (1f - total) * 0.5f;
+            for (var i = 0; i < labels.Length; i++)
+            {
+                AddKeyboardKeycap(parent, labels[i], x, widths[i], 0.12f, 0.17f, colors[i], labels[i] == "space" ? 22 : 25);
+                x += widths[i] + gap;
+            }
+        }
+
+        private static void AddKeyboardKeycap(RectTransform parent, string label, float x, float width, float centerY, float height, Color color, int fontSize)
+        {
+            var key = new GameObject("Key_" + label, typeof(RectTransform), typeof(Image));
+            var rect = key.GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = new Vector2(x, centerY - height * 0.5f);
+            rect.anchorMax = new Vector2(x + width, centerY + height * 0.5f);
+            rect.offsetMin = new Vector2(2f, 2f);
+            rect.offsetMax = new Vector2(-2f, -2f);
+            var image = key.GetComponent<Image>();
+            image.color = color;
+            image.raycastTarget = false;
+
+            var textObject = new GameObject("Label", typeof(RectTransform), typeof(Text));
+            var textRect = textObject.GetComponent<RectTransform>();
+            textRect.SetParent(rect, false);
+            textRect.anchorMin = Vector2.zero;
+            textRect.anchorMax = Vector2.one;
+            textRect.offsetMin = Vector2.zero;
+            textRect.offsetMax = Vector2.zero;
+            var text = textObject.GetComponent<Text>();
+            text.font = Font.CreateDynamicFontFromOSFont("Arial", fontSize);
+            text.fontSize = fontSize;
+            text.color = Color.white;
+            text.alignment = TextAnchor.MiddleCenter;
+            text.supportRichText = false;
+            text.raycastTarget = false;
+            text.text = label;
         }
 
     }
