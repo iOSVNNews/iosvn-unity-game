@@ -531,8 +531,10 @@ namespace IOSVN.TuTien.Core
             var curtainObj = new GameObject("KeyboardCurtain", typeof(RectTransform), typeof(Image));
             curtain = curtainObj.GetComponent<RectTransform>();
             curtain.SetParent(parent, false);
-            curtain.SetSiblingIndex(Mathf.Max(0, transform.GetSiblingIndex() - 1));
-            // Full width across the entire bottom of the screen
+            // The card lives several levels below the canvas. Its sibling index cannot be used
+            // on the canvas: index zero placed this cover behind the opaque game background.
+            curtain.SetAsLastSibling();
+            // Full canvas width, including the safe-area margins at both sides of an iOS keyboard.
             curtain.anchorMin = new Vector2(0f, 0f);
             curtain.anchorMax = new Vector2(1f, 0f);
             curtain.pivot = new Vector2(0.5f, 0f);
@@ -571,7 +573,8 @@ namespace IOSVN.TuTien.Core
                         var ratio = TouchScreenKeyboard.area.height / (float)Screen.height;
                         if (ratio > 0.1f && ratio < 0.9f) kh = canvasHeight * ratio;
                     }
-                    curtain.sizeDelta = new Vector2(0f, kh);
+                    // A little overlap hides the seam caused by iOS rounding keyboard pixels.
+                    curtain.sizeDelta = new Vector2(0f, kh + 3f);
                 }
                 else
                 {

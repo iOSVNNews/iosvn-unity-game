@@ -40,15 +40,17 @@ namespace IOSVN.TuTien.Editor
                 try { action(); log.AppendLine(name + ": ok"); }
                 catch (Exception ex) { log.AppendLine(name + ": FAIL " + (ex.InnerException ?? ex)); }
             }
-            Render(c => { Prepare(c); Set(c, "gender", "nam"); Step("creator-m", () => Call(c, "ShowCreator")); }, "qcbh-creator-nam.png", 1280, 590);
+            Render(c => { Prepare(c); Set(c, "gender", "nam"); Step("creator-m", () => Call(c, "ShowCreator", false)); }, "qcbh-creator-nam.png", 1280, 590);
             Render(c =>
             {
                 Prepare(c);
                 Set(c, "gender", "nu");
                 Set(c, "creatorLook", AvatarComposer.Default(true));
-                Step("creator-f", () => Call(c, "ShowCreator"));
+                Step("creator-f", () => Call(c, "ShowCreator", false));
             }, "qcbh-creator-nu.png", 1280, 590);
             Render(c => { Prepare(c); Step("world", () => Call(c, "ShowWorld")); }, "qcbh-world.png", 1280, 590);
+            Render(c => { Prepare(c); Step("world-routes", () => { Call(c, "ShowWorld"); Call(c, "InteractBorderPortal", (object)null); }); }, "qcbh-world-routes.png", 1280, 590);
+            Render(c => { Prepare(c); Step("teleport", () => Call(c, "OpenTeleportScreen", true)); }, "qcbh-teleport.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(4.6f); }); }, "qcbh-world-zoom.png", 1280, 590);
             // the whole province from high up: how far the cities lie from each other
             Render(c => { Prepare(c); Step("world-wide", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-wide.png", 1280, 590);

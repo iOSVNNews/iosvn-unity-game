@@ -92,6 +92,8 @@ namespace IOSVN.TuTien.Core
             var hud = HudRoot();
             BuildOverlays();
             BuildAvatarCard(hud);
+            var cityAvatar = hud.Find("Avatar") as RectTransform;
+            if (cityAvatar != null) cityAvatar.anchoredPosition += new Vector2(0f, 120f);
             var title = Anchored("CityTitle", hud, new Vector2(0, 1), new Vector2(0, 1), new Vector2(18, -140), new Vector2(760, -18));
             var titleBrush = title.gameObject.AddComponent<Image>();
             titleBrush.sprite = InkUi.Brush;
@@ -133,7 +135,6 @@ namespace IOSVN.TuTien.Core
                 ("tong_mon", "Tông Môn", "sect"),
                 ("location", "Thành Chủ", "lord"),
                 ("teleport", "Truyền Tống", "teleport"),
-                ("arrowLeft", "Rời Thành", "exit"),
             };
 
             var count = services.Length;

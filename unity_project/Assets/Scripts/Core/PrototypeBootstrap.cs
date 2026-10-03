@@ -613,6 +613,20 @@ namespace IOSVN.TuTien.Core
                 ApplyOfflineCharacterChoice(choice);
             }
 
+            // Keep the last offline destination when entering the world again.
+            foreach (var town in hub["allTowns"].Items)
+                if (town["id"].Str() == offlineProgress.currentTownId)
+                {
+                    hub.Set("town", town.Raw);
+                    break;
+                }
+            hub["player"].Set("stones", offlineProgress.stones);
+            hub["player"].Set("hp", offlineProgress.hp);
+            hub["player"].Set("maxHp", OfflinePlayerMaxHp());
+            hub["realm"].Set("index", offlineProgress.realmIndex);
+            hub["realm"].Set("name", OfflineRealmName(offlineProgress.realmIndex));
+            hub["player"].Set("ascended", offlineProgress.realmIndex >= 11);
+
             latestState = NetworkGameClient.ToGameState(hub);
             if (latestState == null)
             {
@@ -2617,7 +2631,11 @@ namespace IOSVN.TuTien.Core
             if (hub.IsObject && hub["player"].IsObject)
             {
                 hub["player"].Set("hp", offlineProgress.hp);
+                hub["player"].Set("maxHp", OfflinePlayerMaxHp());
                 hub["player"].Set("stones", offlineProgress.stones);
+                hub["player"].Set("ascended", offlineProgress.realmIndex >= 11);
+                hub["realm"].Set("index", offlineProgress.realmIndex);
+                hub["realm"].Set("name", OfflineRealmName(offlineProgress.realmIndex));
             }
             SafeShowWorld();
             ShowStatus($"Ngoại tuyến · {offlineProgress.kills} trận thắng · {OfflineInventoryCount()} vật phẩm trong túi.");

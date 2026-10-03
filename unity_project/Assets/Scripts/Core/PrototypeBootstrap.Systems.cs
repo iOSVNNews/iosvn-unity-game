@@ -624,26 +624,90 @@ namespace IOSVN.TuTien.Core
                     if (town["mapId"].Str() != map["id"].Str()) continue;
                     var t = town;
                     var current = t["id"].Str() == here;
-                    var locked = realmIndex < t["realmMin"].Int();
+                    var targetMapId = t["mapId"].Str();
+                    var immortalTarget = targetMapId.StartsWith("map_") && int.TryParse(targetMapId.Substring(4), out var targetMapNumber) && targetMapNumber >= 9;
+                    var locked = realmIndex < t["realmMin"].Int() || (immortalTarget && !hub["player"]["ascended"].Bool());
+                    var lockReason = immortalTarget && !hub["player"]["ascended"].Bool()
+                        ? "Cần Phi Thăng" : locked ? "Cần " + Clean(t["realmMinName"].Str()) : null;
                     Row(list, UiPixelIcon(current ? "location" : "teleport"), current ? AuthGoldAccent : (Color)new Color32(140, 170, 220, 255), Clean(t["name"].Str()),
-                        Clean(t["desc"].Str()), current ? "Đang ở đây" : Vn(t["teleportCost"]) + " LT", locked ? "Cần " + Clean(t["realmMinName"].Str()) : null, current, () =>
+                        Clean(t["desc"].Str()), current ? "Đang ở đây" : Vn(t["teleportCost"]) + " LT", lockReason, current, () =>
                         {
                             if (current) { Toast("Đạo hữu đang ở " + Clean(t["name"].Str()) + "."); return; }
                             Confirm("Truyền tống", $"Truyền tống tới {Clean(t["name"].Str())} với giá {Vn(t["teleportCost"])} linh thạch?", "Truyền tống",
-                                () => Act("/market/teleport", Body("toTownId", t["id"].Str()), _ =>
-                                {
-                                    cityTownId = null;
-                                    worldReturnTile = null;
-                                    if (hub.IsObject && hub["player"].IsObject) hub["player"].Remove("worldPosition");
-                                    if (latestState?.player != null) latestState.player.worldPosition = null;
-                                    PlayerPrefs.DeleteKey("tt_offline_world_x");
-                                    PlayerPrefs.DeleteKey("tt_offline_world_y");
-                                    PlayerPrefs.Save();
-                                    ShowWorld();
-                                }));
+                                () => TeleportToTown(t["id"].Str()));
                         }, 96f, locked);
                 }
             }
+        }
+
+        private void TeleportToTown(string targetTownId)
+        {
+            J target = J.Null;
+            foreach (var town in hub["allTowns"].Items)
+                if (town["id"].Str() == targetTownId) { target = town; break; }
+            if (!target.IsObject) { Toast("Không tìm thấy thành trấn đích.", true); return; }
+            if (targetTownId == hub["town"]["id"].Str()) { Toast("Đạo hữu đang ở thành này."); return; }
+
+            var targetMapId = target["mapId"].Str();
+            if (WorldMapData.Load(targetMapId) == null || Resources.Load<TextAsset>("World/" + targetMapId + "_map") == null)
+            {
+                Toast("Bản đồ đích chưa có trong bản cài.", true);
+                return;
+            }
+            var realm = offlinePreview ? offlineProgress.realmIndex : hub["realm"]["index"].Int();
+            if (realm < target["realmMin"].Int())
+            {
+                Toast("Cần đạt " + Clean(target["realmMinName"].Str()) + " để đến đây.", true);
+                return;
+            }
+            var immortal = targetMapId.StartsWith("map_") && int.TryParse(targetMapId.Substring(4), out var mapNumber) && mapNumber >= 9;
+            if (immortal && !(hub["player"]["ascended"].Bool() || (offlinePreview && realm >= 11)))
+            {
+                Toast("Cần hoàn thành Phi Thăng trước khi đến Tiên Giới.", true);
+                return;
+            }
+            if (offlinePreview)
+            {
+                var cost = Mathf.Max(0, target["teleportCost"].Int());
+                if (offlineProgress.stones < cost)
+                {
+                    Toast("Không đủ linh thạch để truyền tống.", true);
+                    return;
+                }
+                offlineProgress.stones -= cost;
+                offlineProgress.currentTownId = targetTownId;
+                hub.Set("town", target.Raw);
+                hub["player"].Set("stones", offlineProgress.stones);
+                if (offlinePreviewState != null)
+                {
+                    foreach (var town in offlinePreviewState.allTowns ?? Array.Empty<TownInfo>())
+                        if (town != null && town.id == targetTownId) { offlinePreviewState.town = town; break; }
+                    offlinePreviewState.player.stones = offlineProgress.stones;
+                }
+                SaveOfflineProgress();
+                FinishWorldTeleport();
+                ShowWorld();
+                Toast("Đã truyền tống đến " + Clean(target["name"].Str()) + ".");
+                return;
+            }
+            Act("/market/teleport", Body("toTownId", targetTownId), _ =>
+            {
+                FinishWorldTeleport();
+                ShowWorld();
+                Toast("Đã truyền tống đến " + Clean(target["name"].Str()) + ".");
+            });
+        }
+
+        private void FinishWorldTeleport()
+        {
+            cityTownId = null;
+            worldReturnTile = null;
+            hub["player"].Remove("worldPosition");
+            if (latestState?.player != null) latestState.player.worldPosition = null;
+            PlayerPrefs.DeleteKey("tt_offline_world_x");
+            PlayerPrefs.DeleteKey("tt_offline_world_y");
+            PlayerPrefs.DeleteKey("tt_offline_world_mapId");
+            PlayerPrefs.Save();
         }
 
         // ================================================================== Nhiệm Vụ Đường (bounties)

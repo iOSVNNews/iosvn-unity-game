@@ -260,14 +260,23 @@ namespace IOSVN.TuTien.Core
                 text.fontSize = fontSize;
                 text.color = tagColor;
                 text.alignment = TextAnchor.MiddleCenter;
-                text.horizontalOverflow = HorizontalWrapMode.Overflow;
+                text.horizontalOverflow = HorizontalWrapMode.Wrap;
+                text.verticalOverflow = VerticalWrapMode.Truncate;
+                text.resizeTextForBestFit = true;
+                text.resizeTextMinSize = 14;
+                text.resizeTextMaxSize = fontSize;
                 text.raycastTarget = false;
                 text.text = name;
 
-                var textWidth = Mathf.Max(64f, name.Length * (fontSize * 0.56f) + 22f);
-                var pillHeight = (kind == "boss" || kind == "monster") ? 30f : 26f;
+                var textWidth = Mathf.Clamp(name.Length * (fontSize * 0.56f) + 22f, 80f, kind == "boss" ? 240f : kind == "monster" ? 190f : 230f);
+                var pillHeight = (kind == "boss" || kind == "monster") ? 38f : 30f;
                 pill.rectTransform.sizeDelta = new Vector2(textWidth, pillHeight);
                 pill.rectTransform.anchoredPosition = new Vector2(0, 14);
+                var textRect = text.rectTransform;
+                textRect.anchorMin = Vector2.zero;
+                textRect.anchorMax = Vector2.one;
+                textRect.offsetMin = new Vector2(8f, 2f);
+                textRect.offsetMax = new Vector2(-8f, -2f);
 
                 actor.TagText = text;
                 if (kind == "boss" || kind == "monster")

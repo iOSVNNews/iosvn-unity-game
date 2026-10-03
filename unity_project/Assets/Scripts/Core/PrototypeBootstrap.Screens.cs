@@ -238,7 +238,7 @@ namespace IOSVN.TuTien.Core
             for (var i = chips.Count - 1; i >= 0; i--)
             {
                 var (iconId, value) = chips[i];
-                var width = 70f + value.Length * 15f;
+                var width = 110f + value.Length * 17f;
                 var chip = Anchored("Chip_" + iconId, top, new Vector2(1, .5f), new Vector2(1, .5f), new Vector2(x - width, -30), new Vector2(x, 30));
                 var fill = chip.gameObject.AddComponent<Image>();
                 ModernUi.Fill(fill, 30f);
@@ -248,7 +248,10 @@ namespace IOSVN.TuTien.Core
                 glyph.sprite = UiPixelIcon(iconId);
                 glyph.preserveAspect = true;
                 glyph.raycastTarget = false;
-                AnchoredText(chip, "Value", value, ModernUi.SemiBold, 24, AuthTextPrimary, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(58, 0), new Vector2(-10, 0));
+                var amount = AnchoredText(chip, "Value", value, ModernUi.SemiBold, 24, AuthTextPrimary, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(58, 0), new Vector2(-10, 0));
+                amount.resizeTextForBestFit = true;
+                amount.resizeTextMinSize = 18;
+                amount.resizeTextMaxSize = 24;
                 x -= width + 12f;
             }
         }
@@ -640,7 +643,8 @@ namespace IOSVN.TuTien.Core
 
         private void BuildOverlays()
         {
-            modalRoot = AuthStretch("Modals", content.transform);
+            // Content has inset margins; dialogs must shade the entire safe area.
+            modalRoot = Anchored("Modals", content.transform, new Vector2(-.068f, -.043f), new Vector2(1.068f, 1.043f), Vector2.zero, Vector2.zero);
             toastRoot = Anchored("Toasts", content.transform, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-560, 18), new Vector2(560, 104));
             var spinnerRect = Anchored("Busy", content.transform, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-64, -164), new Vector2(-24, -124));
             busySpinner = spinnerRect.gameObject.AddComponent<Image>();

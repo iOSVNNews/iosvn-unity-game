@@ -164,8 +164,8 @@ namespace IOSVN.TuTien.Core
             return data.NearestOpen(new Vector2Int(data.w / 2, data.h / 2), 20);
         }
 
-        /// <summary>Figures are small against the land: a city wall is several times taller than a cultivator.</summary>
-        private static readonly Vector2 HeroSize = new Vector2(HeroSprites.FrameW * .40f, HeroSprites.FrameH * .40f);
+        /// <summary>Keep the cultivator readable on an iPhone while cities still dominate the landscape.</summary>
+        private static readonly Vector2 HeroSize = new Vector2(HeroSprites.FrameW * .50f, HeroSprites.FrameH * .50f);
 
         /// <summary>The player's layered look (creator look, or one derived from the legacy appearance).</summary>
         private static LookSpec LookOf(J player)
@@ -214,9 +214,8 @@ namespace IOSVN.TuTien.Core
                 switch (poi.kind)
                 {
                     case "city":
-                        if (poi.rect == null) break;
-                        var banner = InkUi.VerticalBanner(worldView.LabelLayer, poi.label, poi.big ? 24 : 21);
-                        worldView.AddLabel(banner, new Vector2(poi.rect[0] - .2f, poi.rect[1] + 1.5f), new Vector2(0, 0));
+                        // The city is painted into the map and named in the location HUD. A vertical
+                        // banner covered its gate and became an unreadable strip at phone scale.
                         break;
                     case "dungeon":
                         worldView.AddLabel(PlaceTag("Cổ động · " + poi.label, "co_dong", 21, new Color32(226, 206, 255, 255)), new Vector2(poi.x, poi.y - 3.6f), Vector2.zero);
@@ -301,8 +300,7 @@ namespace IOSVN.TuTien.Core
                 var sprite = MonsterSprite(m["monsterId"].Str());
                 var size = boss ? new Vector2(58, 58) : new Vector2(34, 34);
                 var name = Clean(m["name"].Str());
-                var bossPrefix = m["isWorldBoss"].Bool() ? "[Thế Giới] " : "[Đại Boss] ";
-                var displayName = (boss ? bossPrefix : "") + name + " · " + Clean(m["realmName"].Str());
+                var displayName = (boss ? "Boss · " : "") + name;
                 Color tagColor = boss ? (Color)new Color32(255, 120, 96, 255) : (Color)new Color32(250, 232, 210, 255);
                 var actor = worldView.AddActor(uid, boss ? "boss" : "monster", tile, null, sprite, size, displayName, tagColor, aura: boss);
                 actor.Data = m;
@@ -709,9 +707,13 @@ namespace IOSVN.TuTien.Core
             PillButton(places, "Địa điểm", "ui:location", false, OpenPlacesModal);
             var placesFill = places.GetComponent<Image>();
             if (placesFill != null) placesFill.color = new Color32(16, 18, 22, 244);
+            var routes = Anchored("ProvinceRoutes", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(298, -196), new Vector2(568, -124));
+            PillButton(routes, "Sang bản đồ", "ui:teleport", false, () => InteractBorderPortal(null));
+            var routesFill = routes.GetComponent<Image>();
+            if (routesFill != null) routesFill.color = new Color32(26, 48, 64, 248);
             if (offlinePreview)
             {
-                var exitBtn = Anchored("OfflineExit", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(294, -196), new Vector2(484, -124));
+                var exitBtn = Anchored("OfflineExit", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(582, -196), new Vector2(772, -124));
                 PillButton(exitBtn, "Thoát ra", "arrowLeft", false, () =>
                 {
                     Confirm("Rời thế giới", "Quay lại màn hình đăng nhập?", "Thoát ra", ExitOfflineWorld);
@@ -742,8 +744,8 @@ namespace IOSVN.TuTien.Core
             hudActionLabel.resizeTextForBestFit = true; hudActionLabel.resizeTextMinSize = 18; hudActionLabel.resizeTextMaxSize = 28;
             HideHudAction();
             // zoom buttons (bottom-right corner)
-            var plus = IconButton(root, "ui:search", new Vector2(1, 0), new Vector2(-136, 140), 76f, () => worldView?.ZoomBy(1.25f));
-            var minus = IconButton(root, "arrowLeft", new Vector2(1, 0), new Vector2(-136, 60), 76f, () => worldView?.ZoomBy(1f / 1.25f));
+            var plus = IconButton(root, "ui:search", new Vector2(1, 1), new Vector2(-488, -320), 76f, () => worldView?.ZoomBy(1.25f));
+            var minus = IconButton(root, "arrowLeft", new Vector2(1, 1), new Vector2(-488, -408), 76f, () => worldView?.ZoomBy(1f / 1.25f));
             var minusLabel = AnchoredText(minus.transform, "Minus", "–", ModernUi.Bold, 46, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             minus.transform.Find("Icon")?.gameObject.SetActive(false);
             minusLabel.raycastTarget = false;
@@ -980,25 +982,29 @@ namespace IOSVN.TuTien.Core
                 ("sun", "Sự kiện", () => OpenEventsScreen()),
                 ("ban_be", "Xã giao", () => OpenSocialScreen()),
             };
-            var x = -110f;
-            var y = -300f;
+            const float cellWidth = 172f;
+            const float cellHeight = 82f;
+            const float gap = 10f;
             for (var i = 0; i < items.Length; i++)
             {
                 var item = items[i];
-                var size = 92f;
-                var rect = Anchored("Menu_" + item.label, root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(x - size / 2, y - size), new Vector2(x + size / 2, y));
+                var col = i % 2;
+                var row = i / 2;
+                var right = -24f - col * (cellWidth + gap);
+                var top = -292f - row * (cellHeight + gap);
+                var rect = Anchored("Menu_" + item.label, root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(right - cellWidth, top - cellHeight), new Vector2(right, top));
                 var disc = rect.gameObject.AddComponent<Image>();
-                disc.sprite = InkUi.Glow;
+                ModernUi.Fill(disc, 18f);
                 disc.color = new Color32(16, 18, 22, 250);
                 var rim = Anchored("Rim", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                rim.sprite = InkUi.Ring;
+                ModernUi.Ring(rim, 18f, 1.4f);
                 rim.color = new Color32(232, 196, 120, 210);
                 rim.raycastTarget = false;
-                var icon = Anchored("Icon", rect, Vector2.zero, Vector2.one, new Vector2(22, 26), new Vector2(-22, -18)).gameObject.AddComponent<Image>();
+                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(16, -25), new Vector2(66, 25)).gameObject.AddComponent<Image>();
                 icon.sprite = UiPixelIcon(item.icon);
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
-                var label = AnchoredText(rect, "Label", item.label, ModernUi.SemiBold, 18, Color.white, TextAnchor.LowerCenter, new Vector2(-.3f, 0), new Vector2(1.3f, 0), new Vector2(0, -24), new Vector2(0, 2));
+                var label = AnchoredText(rect, "Label", item.label, ModernUi.SemiBold, 20, Color.white, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(72, 0), new Vector2(-8, 0));
                 label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var button = rect.gameObject.AddComponent<Button>();
                 button.targetGraphic = disc;
@@ -1012,8 +1018,6 @@ namespace IOSVN.TuTien.Core
                     badge.color = new Color32(230, 60, 48, 255);
                     AnchoredText(badge.transform, "N", hub["inboxUnread"].Int().ToString(), ModernUi.Bold, 16, Color.white, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 }
-                y -= 118f;
-                if (i == 4) { x -= 128f; y = -300f; }
             }
         }
 
@@ -1184,14 +1188,8 @@ namespace IOSVN.TuTien.Core
                 var visible = Mathf.Abs(pos.x) < half.x - 80f && Mathf.Abs(pos.y) < half.y - 80f;
                 if (way.Chip.gameObject.activeSelf == visible) way.Chip.gameObject.SetActive(!visible);
                 if (visible) continue;
-                // pinned to the edge of a box that keeps clear of the menu column, the mini map and the avatar card
-                var boxX = half.x - 520f;
-                var boxTop = half.y - 250f;
-                var boxBottom = half.y - 300f;
-                var scale = Mathf.Min(boxX / Mathf.Max(1f, Mathf.Abs(pos.x)), (pos.y >= 0 ? boxTop : boxBottom) / Mathf.Max(1f, Mathf.Abs(pos.y)));
-                var at = pos * Mathf.Min(1f, scale);
-                at.y -= placed * 70f;
-                way.Chip.anchoredPosition = at;
+                // Keep distant targets in one legible route list below the Places buttons.
+                way.Chip.anchoredPosition = new Vector2(-half.x + 210f, half.y - 270f - placed * 70f);
                 way.Arrow.localRotation = Quaternion.Euler(0, 0, Mathf.Atan2(pos.y, pos.x) * Mathf.Rad2Deg);
                 var distance = Mathf.RoundToInt(Vector2.Distance(worldView.Player.Pos, tile));
                 if (distance != way.Shown)
@@ -1245,32 +1243,45 @@ namespace IOSVN.TuTien.Core
             }
         }
 
-        private static readonly ProvinceBorderEntry[] ProvinceBorders = new[]
-        {
-            new ProvinceBorderEntry("map_1", "Thanh Châu", "map_2", "thien_nam", "Thiên Nam Cổ Thành (U Châu)", null, null, null),
-            new ProvinceBorderEntry("map_2", "U Châu", "map_3", "lac_duong", "Lạc Dương Thành (Vân Châu)", "map_1", "thanh_van", "Thanh Vân Trấn (Thanh Châu)"),
-            new ProvinceBorderEntry("map_3", "Vân Châu", "map_4", "loan_tinh_hai", "Loạn Tinh Hải (Hải Châu)", "map_2", "thien_nam", "Thiên Nam Cổ Thành (U Châu)"),
-            new ProvinceBorderEntry("map_4", "Hải Châu", "map_5", "am_la_tong", "Âm La Quỷ Vực (Lôi Châu)", "map_3", "lac_duong", "Lạc Dương Thành (Vân Châu)"),
-            new ProvinceBorderEntry("map_5", "Lôi Châu", "map_6", "chu_tuoc_quoc", "Chu Tước Tinh Đô (Viêm Châu)", "map_4", "loan_tinh_hai", "Loạn Tinh Hải (Hải Châu)"),
-            new ProvinceBorderEntry("map_6", "Viêm Châu", "map_7", "kiem_khi_truong_thanh", "Kiếm Khí Trường Thành (Cương Châu)", "map_5", "am_la_tong", "Âm La Quỷ Vực (Lôi Châu)"),
-            new ProvinceBorderEntry("map_7", "Cương Châu", "map_8", "man_hoang_thien_dia", "Man Hoang Thiên Địa (Man Châu)", "map_6", "chu_tuoc_quoc", "Chu Tước Tinh Đô (Viêm Châu)"),
-            new ProvinceBorderEntry("map_8", "Man Châu", "map_9", "tien_gioi_khoi_nguyen", "Bắc Hàn Tiên Vực (Tiên Giới)", "map_7", "kiem_khi_truong_thanh", "Kiếm Khí Trường Thành (Cương Châu)"),
-            new ProvinceBorderEntry("map_9", "Cửu Thiên Tiên Giới", "map_10", "map_10_town_1", "Thiên Ngoại Thành (Thiên Ngoại Tiên Vực)", "map_8", "man_hoang_thien_dia", "Man Hoang Thiên Địa (Man Châu)"),
-        };
-
         private ProvinceBorderEntry? CurrentProvinceBorder()
         {
             var curMap = worldData?.id ?? hub["town"]["mapId"].Str("map_1");
-            for (var i = 0; i < ProvinceBorders.Length; i++)
-                if (ProvinceBorders[i].mapId == curMap) return ProvinceBorders[i];
-            return null;
+            if (!curMap.StartsWith("map_") || !int.TryParse(curMap.Substring(4), out var index)) return null;
+            var nextMapId = "map_" + (index + 1);
+            var prevMapId = "map_" + (index - 1);
+            string name = null, nextTownId = null, nextTownName = null, prevTownId = null, prevTownName = null;
+            foreach (var map in hub["allMaps"].Items)
+                if (map["id"].Str() == curMap) name = map["provinceName"].Str(map["name"].Str());
+            foreach (var town in hub["allTowns"].Items)
+            {
+                if (town["mapId"].Str() == nextMapId && nextTownId == null) { nextTownId = town["id"].Str(); nextTownName = town["name"].Str(); }
+                if (town["mapId"].Str() == prevMapId && prevTownId == null) { prevTownId = town["id"].Str(); prevTownName = town["name"].Str(); }
+            }
+            return new ProvinceBorderEntry(curMap, name ?? worldData?.name, nextMapId, nextTownId, nextTownName, prevMapId, prevTownId, prevTownName);
+        }
+
+        private string BorderRouteHint(string townId)
+        {
+            foreach (var town in hub["allTowns"].Items)
+            {
+                if (town["id"].Str() != townId) continue;
+                var mapId = town["mapId"].Str();
+                if (mapId.StartsWith("map_") && int.TryParse(mapId.Substring(4), out var mapNumber)
+                    && mapNumber >= 9 && !hub["player"]["ascended"].Bool())
+                    return "Cần Phi Thăng tại màn Nhân vật";
+                if (hub["realm"]["index"].Int() < town["realmMin"].Int())
+                    return "Cần đạt " + Clean(town["realmMinName"].Str());
+                return "Phí truyền tống: " + Vn(town["teleportCost"]) + " linh thạch";
+            }
+            return "Chạm để chuyển sang bản đồ khác";
         }
 
         private void InteractBorderPortal(WorldPoi poi)
         {
             var border = CurrentProvinceBorder();
-            var card = Modal("CỔNG BIÊN GIỚI · THÔNG ĐẠO VƯỢT NÚI", 860f, 540f, out var close);
-            var (left, right) = Split(card, .48f);
+            var card = Modal("SANG BẢN ĐỒ", 1440f, 720f, out var close);
+            var body = Anchored("Body", card, Vector2.zero, Vector2.one, new Vector2(24, 24), new Vector2(-24, -104));
+            var (left, right) = Split(body, .33f);
             var panel = Anchored("Panel", left, Vector2.zero, Vector2.one, new Vector2(10, 10), new Vector2(-10, -10));
             GlassPanel(panel, 22f, new Color32(24, 28, 32, 230), new Color32(14, 16, 20, 230));
             var icon = InkUi.Simple(panel, "Icon", UiPixelIcon("teleport"), HudGold, Vector2.zero);
@@ -1285,18 +1296,18 @@ namespace IOSVN.TuTien.Core
                 var b = border.Value;
                 if (!string.IsNullOrEmpty(b.nextTownId))
                 {
-                    Row(col, UiPixelIcon("arrowRight"), HudGold, "VƯỢT NÚI SANG " + b.nextTownName.ToUpperInvariant(), "Tiến vào đại châu tiếp theo", "Khởi hành", null, false, () =>
+                    Row(col, UiPixelIcon("arrowRight"), HudGold, "VƯỢT NÚI SANG " + b.nextTownName.ToUpperInvariant(), BorderRouteHint(b.nextTownId), "Khởi hành", null, false, () =>
                     {
                         close();
-                        CrossBorderTravelTo(b.nextTownId, b.nextMapId);
+                        TeleportToTown(b.nextTownId);
                     }, 88f);
                 }
                 if (!string.IsNullOrEmpty(b.prevTownId))
                 {
-                    Row(col, UiPixelIcon("arrowLeft"), new Color32(180, 190, 200, 255), "TRỞ VỀ " + b.prevTownName.ToUpperInvariant(), "Quay lại đại châu trước đó", "Quay lại", null, false, () =>
+                    Row(col, UiPixelIcon("arrowLeft"), new Color32(180, 190, 200, 255), "TRỞ VỀ " + b.prevTownName.ToUpperInvariant(), BorderRouteHint(b.prevTownId), "Quay lại", null, false, () =>
                     {
                         close();
-                        CrossBorderTravelTo(b.prevTownId, b.prevMapId);
+                        TeleportToTown(b.prevTownId);
                     }, 88f);
                 }
             }
@@ -1312,34 +1323,6 @@ namespace IOSVN.TuTien.Core
             }, 88f);
         }
 
-        private void CrossBorderTravelTo(string targetTownId, string targetMapId)
-        {
-            cityTownId = null;
-            worldReturnTile = null;
-            if (hub.IsObject && hub["player"].IsObject) hub["player"].Remove("worldPosition");
-            if (latestState?.player != null) latestState.player.worldPosition = null;
-            PlayerPrefs.DeleteKey("tt_offline_world_x");
-            PlayerPrefs.DeleteKey("tt_offline_world_y");
-            PlayerPrefs.Save();
-            if (offlinePreview)
-            {
-                offlineProgress.currentTownId = targetTownId;
-                SaveOfflineProgress();
-                if (hub.IsObject && hub["town"].IsObject)
-                {
-                    hub["town"].Set("id", targetTownId);
-                    hub["town"].Set("mapId", targetMapId);
-                }
-                Toast("Đã vượt sơn mạch thành công sang bản đồ mới!");
-                ShowWorld();
-                return;
-            }
-            Act("/market/teleport", Body("toTownId", targetTownId), _ =>
-            {
-                Toast("Đã vượt sơn mạch thành công sang bản đồ mới!");
-                ShowWorld();
-            });
-        }
     }
 
     /// <summary>Drives periodic world refreshes while the HUD exists.</summary>

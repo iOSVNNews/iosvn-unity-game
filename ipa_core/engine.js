@@ -8958,6 +8958,7 @@ class Game {
             p.town = p.traveling.to;
             const target = C.TOWN_BY_ID.get(p.town);
             if (target && target.mapId) p.mapId = target.mapId;
+            p.worldPosition = null;
             p.traveling = null;
             p.notices = (p.notices || []).concat([`Đã ngự kiếm phi hành tới ${target?.name || 'thành trấn'} an toàn.`]);
             this.touch();
@@ -9096,6 +9097,7 @@ class Game {
         p.town = target.id;
         p.mapId = target.mapId;
         p.isRoaming = false;
+        p.worldPosition = null;
         ring.dur = durability - 1;
         const broken = ring.dur <= 0;
         p.teleportCooldownUntil = now + 30 * 60 * 1000;
@@ -9117,12 +9119,9 @@ class Game {
         if (target.id === p.town) fail('Đạo hữu đang ở thành trấn này rồi.');
 
         const currentTown = C.TOWN_BY_ID.get(p.town);
-        const currentMap = C.MAP_BY_ID.get(currentTown?.mapId);
         const targetMap = C.MAP_BY_ID.get(target.mapId);
-        const currentIsImmortal = Boolean(currentMap?.ascensionRequired);
         const targetIsImmortal = Boolean(targetMap?.ascensionRequired);
         if (targetIsImmortal && !p.ascended) fail('Cần hoàn thành nghi thức Phi Thăng trước khi vào Tiên Giới.');
-        if (targetIsImmortal && !currentIsImmortal) fail('Phàm giới không thể truyền tống trực tiếp lên Tiên Giới.');
         const distance = Math.hypot(
             (Number(target.x) || 0) - (Number(currentTown?.x) || 0),
             (Number(target.y) || 0) - (Number(currentTown?.y) || 0),
@@ -9135,6 +9134,7 @@ class Game {
         p.town = target.id;
         p.mapId = target.mapId;
         p.isRoaming = false;
+        p.worldPosition = null;
         p.notices = (p.notices || []).concat([`Đã truyền tống đến ${target.name}, tiêu hao ${cost.toLocaleString('vi-VN')} linh thạch.`]);
         this.touch();
         return { fromTownName: currentTown?.name || p.town, toTownName: target.name, cost, distance, stones: p.stones };
@@ -13684,6 +13684,7 @@ class Game {
         p.town = firstTown.id;
         p.mapId = firstMap.id;
         p.traveling = null;
+        p.worldPosition = null;
         const stats = this.stats(p, this.now());
         p.hp = stats.hp;
         p.injuredUntil = 0;

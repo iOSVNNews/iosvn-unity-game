@@ -42,8 +42,8 @@ namespace IOSVN.TuTien.Core
         public static LookSpec Default(bool female)
         {
             return LookSpec.Parse(female
-                ? "g=f;fa=2;ea=2;ey=0;ec=#6a4ab0;br=4;no=2;mo=2;bd=0;ha=1;hc=#1e1a1e;ti=2;tc=#f4eef6;to=4;oc=#b0c8ea;ac=#ffd36a;pa=2;pc=#e8e2ea;sh=1;sc=#e0d8e0;be=0;bc=#8a3a5a;hat=5;hac=#ffd36a;sk=#f6dcc4;wp=2;au=4;auc=#ffd6e8"
-                : "g=m;fa=0;ea=0;ey=1;ec=#32a088;br=0;no=0;mo=0;bd=0;ha=0;hc=#181618;ti=0;tc=#e8e4dc;to=1;oc=#2a585e;ac=#ffd36a;pa=0;pc=#282a30;sh=1;sc=#242428;be=1;bc=#1e2226;hat=1;hac=#ffd36a;sk=#f2d8be;wp=2;au=1;auc=#8fe0ff");
+                ? "g=f;fa=2;ea=2;ey=2;ec=#6a4ab0;br=0;no=2;mo=3;bd=0;ha=9;hc=#24202c;ti=2;tc=#f2edf2;to=5;oc=#443b64;ac=#d6b875;pa=2;pc=#30283d;sh=1;sc=#262332;be=1;bc=#392f4d;hat=5;hac=#e2c57b;sk=#f6dcc4;wp=2;au=5;auc=#b48cff"
+                : "g=m;fa=1;ea=0;ey=2;ec=#32a088;br=0;no=0;mo=3;bd=0;ha=6;hc=#181618;ti=3;tc=#e8e4dc;to=5;oc=#203f4b;ac=#d8b46a;pa=0;pc=#202a30;sh=1;sc=#20242a;be=1;bc=#262a30;hat=1;hac=#d8b46a;sk=#f2d8be;wp=2;au=5;auc=#8fe0ff");
         }
 
         // ------------------------------------------------------------------ parts
@@ -346,6 +346,7 @@ namespace IOSVN.TuTien.Core
             anim.Back = back;
             anim.Front = front;
             anim.Set(look, false, auraStrength);
+            rect.gameObject.AddComponent<AvatarIdleMotion>();
             return rect;
         }
 
@@ -422,6 +423,33 @@ namespace IOSVN.TuTien.Core
                 Front.color = new Color(1, 1, 1, pulse);
                 Front.rectTransform.localScale = new Vector3(Flip ? -1 : 1, 1, 1);
             }
+        }
+    }
+
+    /// <summary>A restrained breath and weight shift for the large portrait preview.</summary>
+    public sealed class AvatarIdleMotion : MonoBehaviour
+    {
+        private RectTransform rect;
+        private Vector2 rest;
+        private bool ready;
+
+        private void LateUpdate()
+        {
+            if (rect == null) rect = GetComponent<RectTransform>();
+            if (rect == null) return;
+            if (!ready) { rest = rect.anchoredPosition; ready = true; }
+            var t = Time.unscaledTime;
+            rect.anchoredPosition = rest + new Vector2(Mathf.Sin(t * 0.72f) * 1.2f, Mathf.Sin(t * 1.35f) * 2.4f);
+            var breath = 1f + Mathf.Sin(t * 1.35f) * .008f;
+            rect.localScale = new Vector3(breath, breath, 1f);
+        }
+
+        private void OnDisable()
+        {
+            if (rect == null || !ready) return;
+            rect.anchoredPosition = rest;
+            rect.localScale = Vector3.one;
+            ready = false;
         }
     }
 }

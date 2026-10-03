@@ -104,3 +104,26 @@ test('core loops work end to end: bag, shop, heal, sect, party, inbox, social', 
     assert.equal(battle.status, 200);
     assert.equal(battle.body.battleKind, null);
 });
+
+test('teleport changes town and clears the previous map position', async t => {
+    const { app, request } = await startServer(t);
+    const token = await registeredPlayer(request, 'portal_tester');
+    const playerId = app.auth.authenticate(token).id;
+    app.game.player(playerId).stones = 100000;
+    const moved = await request('POST', '/api/world/move', { mapId: 'map_1', x: 20, y: 20 }, token);
+    assert.equal(moved.status, 200, JSON.stringify(moved.body));
+
+    const travel = await request('POST', '/api/market/teleport', { toTownId: 'trieu_quoc' }, token);
+    assert.equal(travel.status, 200, JSON.stringify(travel.body));
+    assert.equal(travel.body.state.town.id, 'trieu_quoc');
+    assert.equal(travel.body.state.player.worldPosition, null);
+
+    const movedAgain = await request('POST', '/api/world/move', { mapId: 'map_1', x: 30, y: 30 }, token);
+    assert.equal(movedAgain.status, 200);
+    app.game.travel(playerId, 'thanh_van');
+    const player = app.game.player(playerId);
+    player.traveling.arriveAt = Date.now() - 1;
+    app.game.checkTravelArrival(player);
+    assert.equal(player.town, 'thanh_van');
+    assert.equal(player.worldPosition, null);
+});
