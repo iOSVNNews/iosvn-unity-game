@@ -92,6 +92,7 @@ namespace IOSVN.TuTien.Core
         private Vector2 statusMax = new Vector2(0.98f, 0.19f);
         private GameCatalog currentCatalog;
         private MapCatalog mapCatalog;
+        private bool mapCatalogLoading;
         private GameState latestState;
         private InputField nameInput;
         private InputField emailInput;
@@ -453,10 +454,10 @@ namespace IOSVN.TuTien.Core
                 FocusAuthInput(emailInput);
                 return;
             }
-            if (password.Length < 10 || password.Length > 128)
+            if (password.Length < 6 || password.Length > 128)
             {
                 FlagAuthInput(passwordInput);
-                AuthFeedback("Mật khẩu cần có từ 10 đến 128 ký tự.", true);
+                AuthFeedback("Mật khẩu cần có từ 6 đến 128 ký tự.", true);
                 FocusAuthInput(passwordInput);
                 return;
             }
@@ -1141,6 +1142,34 @@ namespace IOSVN.TuTien.Core
         private void OpenWorldAtlas(GameState state)
         {
             state = state ?? latestState ?? NetworkGameClient.ToGameState(hub);
+            if (mapCatalog == null || mapCatalog.maps == null || mapCatalog.towns == null)
+            {
+                if (offlinePreview)
+                {
+                    var asset = Resources.Load<TextAsset>("MapCatalog");
+                    if (asset != null) mapCatalog = JsonUtility.FromJson<MapCatalog>(asset.text);
+                }
+                if (mapCatalog == null || mapCatalog.maps == null || mapCatalog.towns == null)
+                {
+                    if (mapCatalogLoading) return;
+                    if (client == null) { Toast("Chưa tải được danh mục bản đồ.", true); return; }
+                    mapCatalogLoading = true;
+                    ShowStatus("Đang tải bản đồ tổng thể...");
+                    var requestedState = state;
+                    client.LoadMapCatalog((catalog, error) =>
+                    {
+                        mapCatalogLoading = false;
+                        if (catalog == null || catalog.maps == null || catalog.towns == null)
+                        {
+                            Toast(string.IsNullOrEmpty(error) ? "Không tải được bản đồ tổng thể." : error, true);
+                            return;
+                        }
+                        mapCatalog = catalog;
+                        OpenWorldAtlas(requestedState);
+                    });
+                    return;
+                }
+            }
             StopExplorationMovement(savePosition: true);
             if (!atlasRealmInitialized)
             {
@@ -1920,6 +1949,11 @@ namespace IOSVN.TuTien.Core
             }
             var targetMap = FindMap(town.mapId);
             if (targetMap == null) { ShowStatus("Thiếu dữ liệu bản đồ của thành trấn."); return; }
+            if (IsImmortalRealm(latestState) != targetMap.ascensionRequired)
+            {
+                ShowStatus("Chỉ có thể đổi giữa Phàm Giới và Tiên Giới tại Cổng Phi Thăng riêng.");
+                return;
+            }
             if (targetMap.ascensionRequired && offlineProgress.realmIndex < 11)
             {
                 ShowStatus("Cần hoàn thành Phi Thăng ở cảnh giới 11 trước khi vào Tiên Giới.");
@@ -2671,7 +2705,9 @@ namespace IOSVN.TuTien.Core
             art.transform.SetParent(atlasLayer, false);
             Place(art.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
             var atlas = art.GetComponent<RawImage>();
-            atlas.texture = Resources.Load<Texture2D>(atlasImmortalRealm ? "Maps/TienGioi_Atlas_v4" : "Maps/PhamGioi_Atlas_v4");
+            var atlasWorld = WorldMapData.LoadWorld(atlasImmortalRealm ? "world_tien" : "world_pham");
+            activePaintingId = atlasWorld?.id;
+            atlas.texture = atlasWorld == null ? null : GetPainting(atlasWorld.id);
             atlas.color = atlas.texture == null ? new Color32(154, 126, 82, 255) : Color.white;
             atlas.raycastTarget = false;
 
@@ -2887,8 +2923,8 @@ namespace IOSVN.TuTien.Core
 
             var point = AtlasRegionAnchor(map);
             point.y += point.y < .50f ? .105f : -.105f;
-            const float width = .17f;
-            const float halfHeight = .031f;
+            var width = map.ascensionRequired ? .205f : .245f;
+            const float halfHeight = .032f;
             var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, halfHeight), point + new Vector2(width * .5f, halfHeight), Vector2.zero, Vector2.zero, new Color32(22, 25, 31, 218));
             tag.AddComponent<PixelMapMarkerMotion>();
             tag.GetComponent<Image>().raycastTarget = false;
@@ -3090,20 +3126,12 @@ namespace IOSVN.TuTien.Core
 
         private Vector2 AtlasRegionAnchor(MapInfo map)
         {
-            var mortal = new[]
-            {
-                new Vector2(.20f, .20f), new Vector2(.40f, .20f), new Vector2(.60f, .22f), new Vector2(.81f, .24f),
-                new Vector2(.81f, .72f), new Vector2(.61f, .79f), new Vector2(.37f, .79f), new Vector2(.50f, .50f)
-            };
-            var immortal = new[]
-            {
-                new Vector2(.18f, .18f), new Vector2(.39f, .18f), new Vector2(.61f, .18f), new Vector2(.82f, .18f),
-                new Vector2(.82f, .50f), new Vector2(.82f, .82f), new Vector2(.61f, .82f), new Vector2(.39f, .82f),
-                new Vector2(.18f, .82f), new Vector2(.18f, .51f), new Vector2(.50f, .50f)
-            };
-            var index = AtlasMapOrdinal(map) - (map != null && map.ascensionRequired ? 9 : 1);
-            if (map != null && map.ascensionRequired) return immortal[Mathf.Clamp(index, 0, immortal.Length - 1)];
-            return mortal[Mathf.Clamp(index, 0, mortal.Length - 1)];
+            var immortal = map != null && map.ascensionRequired;
+            var columns = immortal ? 4 : 3;
+            var index = AtlasMapOrdinal(map) - (immortal ? 9 : 1);
+            var column = Mathf.Clamp(index % columns, 0, columns - 1);
+            var row = Mathf.Clamp(index / columns, 0, 2);
+            return new Vector2((column + .5f) / columns, 1f - (row + .5f) / 3f);
         }
 
         private static int AtlasMapOrdinal(MapInfo map)
@@ -3279,7 +3307,7 @@ namespace IOSVN.TuTien.Core
             var targetMap = FindMap(town.mapId);
             if (targetMap != null && IsImmortalRealm(latestState) != targetMap.ascensionRequired)
             {
-                ShowStatus("Không thể đi thẳng giữa Phàm Giới và Tiên Giới. Hãy hoàn thành điều kiện Phi Thăng.");
+                ShowStatus("Chỉ có thể đổi giữa Phàm Giới và Tiên Giới tại Cổng Phi Thăng riêng.");
                 return;
             }
             if ((latestState?.realm?.index ?? 0) < town.realmMin)

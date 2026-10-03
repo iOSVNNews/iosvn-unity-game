@@ -49,7 +49,7 @@ namespace IOSVN.TuTien.Editor
                 Step("creator-f", () => Call(c, "ShowCreator", false));
             }, "qcbh-creator-nu.png", 1280, 590);
             Render(c => { Prepare(c); Step("world", () => Call(c, "ShowWorld")); }, "qcbh-world.png", 1280, 590);
-            Render(c => { Prepare(c); Step("world-routes", () => { Call(c, "ShowWorld"); Call(c, "InteractBorderPortal", (object)null); }); }, "qcbh-world-routes.png", 1280, 590);
+            Render(c => { Prepare(c); Step("world-routes", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-routes.png", 1280, 590);
             Render(c => { Prepare(c); Step("teleport", () => Call(c, "OpenTeleportScreen", true)); }, "qcbh-teleport.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(4.6f); }); }, "qcbh-world-zoom.png", 1280, 590);
             // the whole province from high up: how far the cities lie from each other

@@ -4,19 +4,21 @@ using UnityEngine;
 
 namespace IOSVN.TuTien.Core
 {
-    [Serializable] public sealed class WorldTownMeta { public string id; public string name; public int x; public int y; public int w; public int h; public bool big; public int[] gate; public int[] spawn; }
-    [Serializable] public sealed class WorldPoi { public string kind; public string townId; public string dungeonId; public string label; public int x; public int y; public int[] rect; public bool big; }
-    [Serializable] public sealed class WorldZone { public string townId; public string label; public int x; public int y; public int w; public int h; }
+    [Serializable] public sealed class WorldTownMeta { public string id; public string name; public int x; public int y; public int w; public int h; public bool big; public int[] gate; public int[] spawn; public string regionId; }
+    [Serializable] public sealed class WorldPoi { public string kind; public string townId; public string dungeonId; public string label; public int x; public int y; public int[] rect; public bool big; public string regionId; public string gateId; public string targetMapId; }
+    [Serializable] public sealed class WorldZone { public string townId; public string label; public int x; public int y; public int w; public int h; public string regionId; }
+    [Serializable] public sealed class WorldRegionMeta { public string id; public string name; public int x; public int y; public int w; public int h; public int realmMin; public string realmMinName; }
 
     /// <summary>
-    /// A painted province: logical grid (collision, water, roads), cities, points of interest and
-    /// monster grounds, generated offline by tools/world_gen and shipped in Resources/World.
+    /// Province source data or one merged realm world: logical grid (collision, water, roads),
+    /// cities, points of interest and monster grounds shipped in Resources/World.
     /// Tile coordinates have (0,0) at the top-left of the painting.
     /// </summary>
     [Serializable]
     public sealed class WorldMapData
     {
         public string id;
+        [NonSerialized] public string worldId;
         public string name;
         public string biome;
         public int w;
@@ -29,11 +31,12 @@ namespace IOSVN.TuTien.Core
         public WorldTownMeta[] towns;
         public WorldPoi[] pois;
         public WorldZone[] zones;
+        public WorldRegionMeta[] regions;
 
         [NonSerialized] public bool[] Blocked;
         [NonSerialized] public bool[] Water;
         [NonSerialized] public bool[] Road;
-        /// <summary>The mountain wall between provinces: closed to everything, flight included.</summary>
+        /// <summary>Uncrossable world-edge terrain for flying travel; province joins are opened in the merged world.</summary>
         [NonSerialized] public bool[] Border;
         [NonSerialized] private float[] pathCost;
         [NonSerialized] private int[] pathCame;
@@ -60,8 +63,202 @@ namespace IOSVN.TuTien.Core
             data.towns = data.towns ?? Array.Empty<WorldTownMeta>();
             data.pois = data.pois ?? Array.Empty<WorldPoi>();
             data.zones = data.zones ?? Array.Empty<WorldZone>();
+            data.regions = data.regions ?? Array.Empty<WorldRegionMeta>();
             Cache[mapId] = data;
             return data;
+        }
+
+        /// <summary>Builds one continuous walkable world from the province data belonging to a realm.</summary>
+        public static WorldMapData LoadWorldForProvince(string provinceId)
+        {
+            if (string.IsNullOrEmpty(provinceId) || !provinceId.StartsWith("map_", StringComparison.Ordinal)
+                || !int.TryParse(provinceId.Substring(4), out var provinceNumber)) return null;
+            return LoadWorld(provinceNumber >= 9 ? "world_tien" : "world_pham");
+        }
+
+        public static WorldMapData LoadWorld(string worldId)
+        {
+            var immortal = worldId == "world_tien";
+            if (!immortal && worldId != "world_pham") return null;
+            if (Cache.TryGetValue(worldId, out var cached)) return cached;
+
+            const int provinceWidth = 256;
+            const int provinceHeight = 160;
+            var columns = immortal ? 4 : 3;
+            var rows = 3;
+            var firstProvince = immortal ? 9 : 1;
+            var provinceCount = immortal ? 11 : 8;
+            var regions = new List<WorldRegionMeta>(provinceCount);
+            var towns = new List<WorldTownMeta>();
+            var pois = new List<WorldPoi>();
+            var zones = new List<WorldZone>();
+            var data = new WorldMapData
+            {
+                id = worldId,
+                worldId = worldId,
+                name = immortal ? "Tiên Giới" : "Phàm Giới",
+                biome = immortal ? "tiên cảnh" : "phàm giới",
+                w = columns * provinceWidth,
+                h = rows * provinceHeight,
+                tile = 16,
+            };
+            var total = data.w * data.h;
+            data.Blocked = new bool[total];
+            data.Water = new bool[total];
+            data.Road = new bool[total];
+            data.Border = new bool[total];
+
+            for (var index = 0; index < provinceCount; index++)
+            {
+                var source = Load("map_" + (firstProvince + index));
+                if (source == null || source.w != provinceWidth || source.h != provinceHeight) return null;
+                var column = index % columns;
+                var row = index / columns;
+                var offsetX = column * provinceWidth;
+                var offsetY = row * provinceHeight;
+                regions.Add(new WorldRegionMeta { id = source.id, name = source.name, x = offsetX, y = offsetY, w = source.w, h = source.h });
+
+                for (var y = 0; y < source.h; y++)
+                {
+                    var target = (offsetY + y) * data.w + offsetX;
+                    var origin = y * source.w;
+                    Array.Copy(source.Blocked, origin, data.Blocked, target, source.w);
+                    Array.Copy(source.Water, origin, data.Water, target, source.w);
+                    Array.Copy(source.Road, origin, data.Road, target, source.w);
+                    Array.Copy(source.Border, origin, data.Border, target, source.w);
+                }
+
+                foreach (var town in source.towns)
+                {
+                    if (town == null) continue;
+                    towns.Add(new WorldTownMeta
+                    {
+                        id = town.id, name = town.name, x = town.x + offsetX, y = town.y + offsetY,
+                        w = town.w, h = town.h, big = town.big,
+                        gate = Offset(town.gate, offsetX, offsetY), spawn = Offset(town.spawn, offsetX, offsetY), regionId = source.id
+                    });
+                }
+                foreach (var poi in source.pois)
+                {
+                    if (poi == null || poi.kind == "portal") continue;
+                    pois.Add(new WorldPoi
+                    {
+                        kind = poi.kind, townId = poi.townId, dungeonId = poi.dungeonId, label = poi.label,
+                        x = poi.x + offsetX, y = poi.y + offsetY, rect = Offset(poi.rect, offsetX, offsetY), big = poi.big,
+                        regionId = source.id
+                    });
+                }
+                foreach (var zone in source.zones)
+                {
+                    if (zone == null) continue;
+                    zones.Add(new WorldZone
+                    {
+                        townId = zone.townId, label = zone.label, x = zone.x + offsetX, y = zone.y + offsetY,
+                        w = zone.w, h = zone.h, regionId = source.id
+                    });
+                }
+            }
+
+            // Generate paired free gates only between adjacent provinces in this realm.
+            // Their IDs and coordinates match WORLD_PROVINCE_GATES in the game server.
+            for (var index = 0; index < provinceCount; index++)
+            {
+                var column = index % columns;
+                if (column + 1 < columns && index + 1 < provinceCount)
+                    AddProvinceGate(pois, regions[index], regions[index + 1], true);
+                if (index + columns < provinceCount)
+                    AddProvinceGate(pois, regions[index], regions[index + columns], false);
+            }
+
+            var ascensionMapId = immortal ? "map_9" : "map_8";
+            var ascensionPosition = immortal ? new Vector2Int(14, 80) : new Vector2Int(502, 400);
+            pois.Add(new WorldPoi
+            {
+                kind = "ascension_gate", townId = immortal ? "tien_gioi_khoi_nguyen" : "man_hoang_thien_dia",
+                label = "Cổng Phi Thăng", x = ascensionPosition.x, y = ascensionPosition.y,
+                rect = new[] { ascensionPosition.x - 3, ascensionPosition.y - 3, 7, 7 }, regionId = ascensionMapId
+            });
+
+            data.regions = regions.ToArray();
+            data.towns = towns.ToArray();
+            data.pois = pois.ToArray();
+            data.zones = zones.ToArray();
+
+            // Province edge walls separate regions by cultivation level. Walkable paths lead to
+            // nearby towns, landmarks and the paired free gates, while the new painting stays seamless.
+            foreach (var region in data.regions)
+            {
+                var center = new Vector2Int(region.x + region.w / 2, region.y + region.h / 2);
+                foreach (var town in data.towns)
+                    if (town.regionId == region.id)
+                    {
+                        if (town.gate != null && town.gate.Length >= 2) CarvePath(data, center, new Vector2Int(town.gate[0], town.gate[1]));
+                        if (town.spawn != null && town.spawn.Length >= 2) CarvePath(data, center, new Vector2Int(town.spawn[0], town.spawn[1]));
+                    }
+                foreach (var poi in data.pois)
+                    if (poi.regionId == region.id) CarvePath(data, center, new Vector2Int(poi.x, poi.y));
+                foreach (var zone in data.zones)
+                    if (zone.regionId == region.id)
+                        CarvePath(data, center, new Vector2Int(zone.x + zone.w / 2, zone.y + zone.h / 2));
+            }
+
+            Cache[worldId] = data;
+            return data;
+        }
+
+        private static int[] Offset(int[] source, int x, int y)
+        {
+            if (source == null || source.Length < 2) return source;
+            var result = (int[])source.Clone();
+            result[0] += x; result[1] += y;
+            return result;
+        }
+
+        private static void AddProvinceGate(List<WorldPoi> pois, WorldRegionMeta from, WorldRegionMeta to, bool horizontal)
+        {
+            var x = horizontal ? from.x + from.w - 5 : from.x + from.w / 2;
+            var y = horizontal ? from.y + from.h / 2 : from.y + from.h - 5;
+            AddEndpoint(from, to, x, y);
+            x = horizontal ? to.x + 4 : to.x + to.w / 2;
+            y = horizontal ? to.y + to.h / 2 : to.y + 4;
+            AddEndpoint(to, from, x, y);
+
+            void AddEndpoint(WorldRegionMeta source, WorldRegionMeta target, int gateX, int gateY)
+            {
+                pois.Add(new WorldPoi
+                {
+                    kind = "province_gate", label = "Cổng sang " + target.name,
+                    x = gateX, y = gateY, rect = new[] { gateX - 3, gateY - 3, 7, 7 },
+                    regionId = source.id, gateId = "gate_" + from.id + "_" + to.id, targetMapId = target.id
+                });
+            }
+        }
+
+        private static void CarvePath(WorldMapData data, Vector2Int from, Vector2Int to)
+        {
+            var x = from.x;
+            var y = from.y;
+            var stepX = to.x >= x ? 1 : -1;
+            while (x != to.x) { CarveBrush(data, x, y); x += stepX; }
+            var stepY = to.y >= y ? 1 : -1;
+            while (y != to.y) { CarveBrush(data, x, y); y += stepY; }
+            CarveBrush(data, x, y);
+        }
+
+        private static void CarveBrush(WorldMapData data, int x, int y)
+        {
+            for (var oy = -2; oy <= 2; oy++)
+                for (var ox = -2; ox <= 2; ox++) Open(data, x + ox, y + oy);
+        }
+
+        private static void Open(WorldMapData data, int x, int y)
+        {
+            if (!data.InBounds(x, y)) return;
+            var index = y * data.w + x;
+            data.Blocked[index] = false;
+            data.Border[index] = false;
+            data.Water[index] = false;
+            data.Road[index] = true;
         }
 
         /// <summary>Loads the painting (PNG bytes shipped as a TextAsset) as a point-filtered texture.</summary>
@@ -71,7 +268,7 @@ namespace IOSVN.TuTien.Core
             if (bytes == null) return null;
             var texture = new Texture2D(2, 2, TextureFormat.RGB24, false) { name = "Painting_" + mapId };
             if (!texture.LoadImage(bytes.bytes, true)) { UnityEngine.Object.Destroy(texture); return null; }
-            texture.filterMode = FilterMode.Point;
+            texture.filterMode = mapId.StartsWith("world_", StringComparison.Ordinal) ? FilterMode.Bilinear : FilterMode.Point;
             texture.wrapMode = TextureWrapMode.Clamp;
             Resources.UnloadAsset(bytes);
             return texture;
@@ -115,6 +312,13 @@ namespace IOSVN.TuTien.Core
         {
             foreach (var zone in zones) if (zone != null && zone.townId == townId) return zone;
             return zones.Length > 0 ? zones[0] : null;
+        }
+
+        public WorldRegionMeta RegionAt(int x, int y)
+        {
+            foreach (var region in regions)
+                if (region != null && x >= region.x && x < region.x + region.w && y >= region.y && y < region.y + region.h) return region;
+            return null;
         }
 
         /// <summary>Nearest tile open to the traveller within a radius (spiral search).</summary>

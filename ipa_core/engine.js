@@ -7915,8 +7915,12 @@ class Game {
         p.dailyEscapes = p.dailyEscapeDate === today ? (p.dailyEscapes || 0) : 2;
         if (p.dailyEscapes <= 0) fail('Hôm nay đã dùng hết lượt trốn thoát (tối đa 2 lần/ngày).');
 
-        // Move to a random different town
-        const towns = C.TOWNS.map(t => t.id).filter(id => id !== p.town);
+        // Flee within the current realm only; changing realm maps requires the paired Ascension Gate.
+        const currentWorld = C.MAP_BY_ID.get(C.TOWN_BY_ID.get(p.town)?.mapId)?.worldId;
+        const realm = this.realmOf(userId);
+        const towns = C.TOWNS.filter(town => town.id !== p.town
+            && C.MAP_BY_ID.get(town.mapId)?.worldId === currentWorld
+            && realm.index >= (C.MAP_BY_ID.get(town.mapId)?.realmMin ?? 0)).map(town => town.id);
         if (!towns.length) fail('Không có thị trấn nào để chạy trốn.');
         const newTown = towns[Math.floor(Math.random() * towns.length)];
         p.dailyEscapes -= 1;
@@ -7927,6 +7931,7 @@ class Game {
             const townDef = C.TOWNS.find(t => t.id === newTown);
             if (townDef && townDef.mapId) p.mapId = townDef.mapId;
         }
+        p.worldPosition = null;
         this.touch();
         const townDef = C.TOWNS.find(t => t.id === newTown);
         return {
@@ -8965,6 +8970,23 @@ class Game {
         }
     }
 
+    requireSameWorldDestination(p, target) {
+        const currentTown = C.TOWN_BY_ID.get(p.town || 'thanh_van');
+        const currentWorld = C.MAP_BY_ID.get(currentTown?.mapId)?.worldId;
+        const targetWorld = C.MAP_BY_ID.get(target?.mapId)?.worldId;
+        if (currentWorld && targetWorld && currentWorld !== targetWorld)
+            fail('Chỉ có thể đổi giữa Phàm Giới và Tiên Giới qua Cổng Phi Thăng riêng.');
+    }
+
+    provinceAtWorldPosition(worldId, x, y) {
+        const columns = worldId === 'world_tien' ? 4 : 3;
+        const maps = C.MAPS.filter(map => map.worldId === worldId);
+        const column = Math.floor(Number(x) / 256);
+        const row = Math.floor(Number(y) / 160);
+        if (column < 0 || column >= columns || row < 0 || row >= 3) return null;
+        return maps[row * columns + column] || null;
+    }
+
     travel(userId, toTownId) {
         const p = this.requirePlayer(userId);
         const now = this.now();
@@ -8978,6 +9000,7 @@ class Game {
         if (p.town === toTownId) fail('Đạo hữu đang ở thành trấn này rồi.');
         const target = C.TOWN_BY_ID.get(toTownId);
         if (!target) fail('Không tìm thấy thành trấn này.');
+        this.requireSameWorldDestination(p, target);
         const targetMap = C.MAP_BY_ID.get(target.mapId);
         if (targetMap && targetMap.ascensionRequired && !p.ascended) {
             fail(`Cửu Thiên Tiên Giới yêu cầu tu sĩ phải đạt cảnh giới Phi Thăng và dâng Thiên Đạo Nguyên Ấn (tối thiểu ${this.realmName(11)} trở lên) mới có thể bước vào!`);
@@ -9033,7 +9056,12 @@ class Game {
         const x = Number(choice.x);
         const y = Number(choice.y);
         if (!town || mapId !== town.mapId) fail('Bản đồ di chuyển không khớp với thành trấn hiện tại.');
-        if (!Number.isInteger(x) || x < 0 || x >= 256 || !Number.isInteger(y) || y < 0 || y >= 256) {
+        const worldId = C.MAP_BY_ID.get(mapId)?.worldId;
+        const worldColumns = worldId === 'world_tien' ? 4 : 3;
+        const worldRows = 3;
+        if (!worldId
+            || !Number.isInteger(x) || x < 0 || x >= worldColumns * 256
+            || !Number.isInteger(y) || y < 0 || y >= worldRows * 160) {
             fail('Tọa độ bản đồ không hợp lệ.');
         }
 
@@ -9042,7 +9070,7 @@ class Game {
         return { mapId, x, y };
     }
 
-    /** Walking through the gate of another city in the same province makes it the current town. */
+    /** Walking into a city in the current province makes it the current town. */
     enterTownOnFoot(userId, townId) {
         const p = this.requirePlayer(userId);
         const now = this.now();
@@ -9052,12 +9080,104 @@ class Game {
         const current = C.TOWN_BY_ID.get(p.town || 'thanh_van');
         const target = C.TOWN_BY_ID.get(String(townId || ''));
         if (!target) fail('Không tìm thấy thành trấn này.');
-        if (!current || current.mapId !== target.mapId) fail('Thành trấn này không cùng châu, hãy dùng Truyền Tống Trận.');
+        if (!current) fail('Không tìm thấy thành trấn hiện tại.');
+        const currentMap = C.MAP_BY_ID.get(current.mapId);
+        const targetMap = C.MAP_BY_ID.get(target.mapId);
+        if (!currentMap || !targetMap || currentMap.worldId !== targetMap.worldId)
+            fail('Chỉ có thể đi bộ giữa các thành cùng một thế giới.');
+        if (targetMap.worldId === 'world_tien' && !p.ascended) fail('Cần hoàn thành nghi thức Phi Thăng trước khi vào Tiên Giới.');
+        const position = p.worldPosition;
+        const positionMap = position && this.provinceAtWorldPosition(targetMap.worldId, position.x, position.y);
+        if (!positionMap || positionMap.id !== target.mapId)
+            fail(`Hãy qua cổng dịch chuyển miễn phí để vào ${targetMap.provinceName || targetMap.name}.`);
+        const realm = this.realmOf(userId);
+        if (realm.index < targetMap.realmMin) fail(`Cần đạt ${targetMap.realmMinName} để vào ${targetMap.provinceName || targetMap.name}.`);
         if (p.town === target.id) return { town: target.id, townName: target.name, changed: false };
         p.town = target.id;
         p.mapId = target.mapId;
+        if (p.worldPosition) p.worldPosition.mapId = target.mapId;
         this.touch();
         return { town: target.id, townName: target.name, changed: true };
+    }
+
+    /** Uses a paired free gate to cross a border between adjacent provinces of one realm. */
+    crossProvinceGate(userId, gateId) {
+        const p = this.requirePlayer(userId);
+        const now = this.now();
+        this.checkTravelArrival(p, now);
+        if (p.traveling) fail('Đang ngự kiếm phi hành, chưa thể qua cổng châu.');
+        if (this.activeBattle(userId)) fail('Đang trong trận chiến, chưa thể qua cổng châu.');
+        const gate = C.WORLD_PROVINCE_GATES.find(candidate => candidate.id === String(gateId || ''));
+        if (!gate) fail('Không tìm thấy cổng dịch chuyển châu này.');
+        const currentTown = C.TOWN_BY_ID.get(p.town || 'thanh_van');
+        const currentWorld = C.MAP_BY_ID.get(currentTown?.mapId)?.worldId;
+        const position = p.worldPosition;
+        if (currentWorld !== gate.worldId || !position || C.MAP_BY_ID.get(position.mapId)?.worldId !== gate.worldId)
+            fail('Cổng này không thuộc bản đồ đang đứng.');
+        const near = (end) => Math.hypot((Number(position.x) || 0) - end.x, (Number(position.y) || 0) - end.y) <= 6;
+        const source = near(gate.a) ? gate.a : near(gate.b) ? gate.b : null;
+        if (!source) fail('Hãy đi tới sát cổng dịch chuyển của châu.');
+        const target = source === gate.a ? gate.b : gate.a;
+        const targetMap = C.MAP_BY_ID.get(target.mapId);
+        const realm = this.realmOf(userId);
+        if (realm.index < (targetMap?.realmMin ?? gate.realmMin))
+            fail(`Cần đạt ${targetMap?.realmMinName || this.realmName(targetMap?.realmMin ?? gate.realmMin)} để qua cổng tới ${targetMap?.provinceName || targetMap?.name || 'châu kế tiếp'}.`);
+        const targetTown = C.TOWN_BY_ID.get(targetMap?.townIds?.[0]);
+        if (!targetMap || !targetTown) fail('Chưa tìm thấy thành trấn ở châu bên kia cổng.');
+        p.town = targetTown.id;
+        p.mapId = target.mapId;
+        p.isRoaming = false;
+        p.worldPosition = { mapId: target.mapId, x: target.x, y: target.y, updatedAt: now };
+        this.touch();
+        return {
+            gateId: gate.id,
+            mapId: target.mapId,
+            townId: targetTown.id,
+            townName: targetTown.name,
+            x: target.x,
+            y: target.y,
+            worldId: gate.worldId,
+            message: `Cổng dịch chuyển miễn phí đưa đạo hữu sang ${targetMap.provinceName || targetMap.name}.`,
+        };
+    }
+
+    /** Crosses between the two separately displayed realm maps at the paired Ascension Gate. */
+    crossAscensionGate(userId) {
+        const p = this.requirePlayer(userId);
+        const now = this.now();
+        this.checkTravelArrival(p, now);
+        if (p.traveling) fail('Đang ngự kiếm phi hành, chưa thể qua Cổng Phi Thăng.');
+        if (this.activeBattle(userId)) fail('Đang trong trận chiến, chưa thể qua Cổng Phi Thăng.');
+        const currentTown = C.TOWN_BY_ID.get(p.town || 'thanh_van');
+        const sourceWorld = C.MAP_BY_ID.get(currentTown?.mapId)?.worldId;
+        const sourceGate = C.WORLD_ASCENSION_GATES[sourceWorld];
+        if (!sourceGate) fail('Không tìm thấy Cổng Phi Thăng ở cõi này.');
+        const position = p.worldPosition;
+        if (!position || C.MAP_BY_ID.get(position.mapId)?.worldId !== sourceWorld
+            || Math.hypot((Number(position.x) || 0) - sourceGate.x, (Number(position.y) || 0) - sourceGate.y) > 7) {
+            fail('Hãy đi đến Cổng Phi Thăng được đánh dấu trên bản đồ.');
+        }
+        if (!p.ascended) fail('Cần hoàn thành nghi thức Phi Thăng trước khi mở Cổng sang Tiên Giới.');
+        const targetWorld = sourceWorld === 'world_tien' ? 'world_pham' : 'world_tien';
+        const targetGate = C.WORLD_ASCENSION_GATES[targetWorld];
+        const targetTown = C.TOWN_BY_ID.get(targetGate.townId);
+        const targetMap = C.MAP_BY_ID.get(targetGate.mapId);
+        if (!targetGate || !targetTown || !targetMap) fail('Chưa tìm thấy đầu cổng ở cõi bên kia.');
+        p.town = targetTown.id;
+        p.mapId = targetMap.id;
+        p.isRoaming = false;
+        p.worldPosition = { mapId: targetMap.id, x: targetGate.x, y: targetGate.y, updatedAt: now };
+        this.touch();
+        return {
+            fromWorldId: sourceWorld,
+            worldId: targetWorld,
+            mapId: targetMap.id,
+            townId: targetTown.id,
+            townName: targetTown.name,
+            x: targetGate.x,
+            y: targetGate.y,
+            message: `Cổng Phi Thăng đưa đạo hữu tới ${targetWorld === 'world_tien' ? 'Tiên Giới' : 'Phàm Giới'}.`,
+        };
     }
 
     /** Updates the stored appearance (layered avatar look) after creation. */
@@ -9092,6 +9212,7 @@ class Game {
         const target = C.TOWN_BY_ID.get(String(toTownId));
         if (!target) fail('Không tìm thấy thành trấn này.');
         if (target.id === p.town) fail('Đạo hữu đang ở thành trấn này rồi.');
+        this.requireSameWorldDestination(p, target);
         const targetMap = C.MAP_BY_ID.get(target.mapId);
         if (targetMap?.ascensionRequired && !p.ascended) fail('Cần hoàn thành nghi thức Phi Thăng trước khi vào Tiên Giới.');
         p.town = target.id;
@@ -9119,6 +9240,7 @@ class Game {
         if (target.id === p.town) fail('Đạo hữu đang ở thành trấn này rồi.');
 
         const currentTown = C.TOWN_BY_ID.get(p.town);
+        this.requireSameWorldDestination(p, target);
         const targetMap = C.MAP_BY_ID.get(target.mapId);
         const targetIsImmortal = Boolean(targetMap?.ascensionRequired);
         if (targetIsImmortal && !p.ascended) fail('Cần hoàn thành nghi thức Phi Thăng trước khi vào Tiên Giới.');
@@ -13674,17 +13796,17 @@ class Game {
         const item = p.items.find(it => it.kind === 'mat' && it.id === info.itemId && it.place === 'bag')
             || p.items.find(it => it.kind === 'mat' && it.id === info.itemId && it.place === 'kho');
         if (!item) fail(`Thiếu [${info.itemName} ×1]. ${info.source}`);
-        const firstMap = C.MAPS.find(map => map.ascensionRequired);
-        const firstTown = C.TOWNS.find(town => town.mapId === firstMap?.id);
-        if (!firstMap || !firstTown) fail('Chưa tìm thấy lối vào Tiên Giới. Hãy báo Thiên Đạo.');
+        const currentTown = C.TOWN_BY_ID.get(p.town || 'thanh_van');
+        if (C.MAP_BY_ID.get(currentTown?.mapId)?.worldId !== 'world_pham')
+            fail('Nghi thức Phi Thăng chỉ có thể hoàn thành tại Phàm Giới.');
         if (item.qty == null) item.qty = 1;
         this.consume(p, item, 1);
 
         p.ascended = true;
-        p.town = firstTown.id;
-        p.mapId = firstMap.id;
-        p.traveling = null;
-        p.worldPosition = null;
+        // The ritual unlocks passage. The player must still walk to the unique
+        // ascension gate in Man Châu before the displayed realm map changes.
+        p.town = currentTown.id;
+        p.mapId = currentTown.mapId;
         const stats = this.stats(p, this.now());
         p.hp = stats.hp;
         p.injuredUntil = 0;
@@ -13693,9 +13815,9 @@ class Game {
         return {
             success: true,
             ascended: true,
-            townId: firstTown.id,
-            mapId: firstMap.id,
-            message: `🌌 Thiên Đạo Nguyên Ấn đã mở cổng. Đạo hữu Phi Thăng thành công, đặt chân tới ${firstTown.name}!`,
+            townId: currentTown.id,
+            mapId: currentTown.mapId,
+            message: '🌌 Thiên Đạo Nguyên Ấn đã mở Cổng Phi Thăng. Hãy tới Cổng Phi Thăng tại Man Châu để bước sang Tiên Giới.',
         };
     }
 

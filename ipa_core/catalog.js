@@ -5716,7 +5716,7 @@ const RAW_DUNGEONS = [
     },
     ...POST_TIEN_DE_DUNGEONS
 ];
-// 9 Map Thế Giới Chuẩn Cửu Châu Phân Bổ Theo Cảnh Giới
+// Các châu là vùng nội bộ thuộc một trong hai thế giới Phàm Giới hoặc Tiên Giới.
 const MAPS = Object.freeze([
     {
         id: "map_1",
@@ -5814,6 +5814,8 @@ const MAPS = Object.freeze([
     const realmMax = Math.max(map.realmMax, ...townRealms);
     return {
         ...map,
+        worldId: map.ascensionRequired ? 'world_tien' : 'world_pham',
+        worldName: map.ascensionRequired ? 'Tiên Giới' : 'Phàm Giới',
         realmMin,
         realmMax,
         realmMinName: map.realmMinName || CULTIVATION_REALM_NAMES[realmMin] || 'Phàm Nhân',
@@ -5822,6 +5824,55 @@ const MAPS = Object.freeze([
 }));
 
 const MAP_BY_ID = new Map(MAPS.map(m => [m.id, m]));
+
+// Province gates join neighbouring regions inside each realm. Their map-space
+// coordinates mirror the row-major province layout used by the Unity world map.
+const WORLD_PROVINCE_GATES = Object.freeze((() => {
+    const gates = [];
+    const add = (worldId, from, to, direction) => {
+        const worldMaps = MAPS.filter(map => map.worldId === worldId);
+        const columns = worldId === 'world_tien' ? 4 : 3;
+        const fromIndex = worldMaps.findIndex(map => map.id === from.id);
+        const toIndex = worldMaps.findIndex(map => map.id === to.id);
+        const fromOffsetX = (fromIndex % columns) * 256;
+        const fromOffsetY = Math.floor(fromIndex / columns) * 160;
+        const toOffsetX = (toIndex % columns) * 256;
+        const toOffsetY = Math.floor(toIndex / columns) * 160;
+        const horizontal = direction === 'right';
+        gates.push(Object.freeze({
+            id: `gate_${from.id}_${to.id}`,
+            worldId,
+            a: Object.freeze({
+                mapId: from.id,
+                x: fromOffsetX + (horizontal ? 251 : 128),
+                y: fromOffsetY + (horizontal ? 80 : 155),
+            }),
+            b: Object.freeze({
+                mapId: to.id,
+                x: toOffsetX + (horizontal ? 4 : 128),
+                y: toOffsetY + (horizontal ? 80 : 4),
+            }),
+            realmMin: to.realmMin,
+        }));
+    };
+    for (const worldId of ['world_pham', 'world_tien']) {
+        const worldMaps = MAPS.filter(map => map.worldId === worldId);
+        const columns = worldId === 'world_tien' ? 4 : 3;
+        for (let index = 0; index < worldMaps.length; index++) {
+            const map = worldMaps[index];
+            const column = index % columns;
+            if (column + 1 < columns && index + 1 < worldMaps.length) add(worldId, map, worldMaps[index + 1], 'right');
+            if (index + columns < worldMaps.length) add(worldId, map, worldMaps[index + columns], 'down');
+        }
+    }
+    return gates;
+})());
+
+// One dedicated pair of gates connects the two separate realm maps.
+const WORLD_ASCENSION_GATES = Object.freeze({
+    world_pham: Object.freeze({ mapId: 'map_8', townId: 'man_hoang_thien_dia', x: 502, y: 400 }),
+    world_tien: Object.freeze({ mapId: 'map_9', townId: 'tien_gioi_khoi_nguyen', x: 14, y: 80 }),
+});
 
 // Mỗi Cổ Động có ba thủ hộ riêng biệt, theo hệ khác nhau và nằm trong trần
 // cảnh giới thật của thành/map. Những thành chỉ có một hoặc hai bậc realm sẽ
@@ -6989,6 +7040,7 @@ module.exports = {
     CRAFT_POTION_RECIPES, CRAFT_POTION_RECIPE_BY_ID,
     CRAFT_TALISMAN_RECIPES, CRAFT_TALISMAN_RECIPE_BY_ID,
     MAPS, MAP_BY_ID,
+    WORLD_PROVINCE_GATES, WORLD_ASCENSION_GATES,
     BLUEPRINTS, BLUEPRINT_BY_MAT_ID, BLUEPRINT_BY_ID,
     BREAKTHROUGH_ITEMS, BREAKTHROUGH_BY_REALM, SUBSTAGE_BREAKTHROUGH_ITEMS, SUBSTAGE_BY_REALM, DUNGEONS, DUNGEON_BY_ID, DUNGEON_BY_TOWN_ID,
     EQUIP_DUNGEONS, EQUIP_DUNGEON_BY_ID, EQUIP_DUNGEON_BY_MAP_ID,

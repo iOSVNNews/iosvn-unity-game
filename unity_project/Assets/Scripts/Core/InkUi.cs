@@ -232,6 +232,7 @@ namespace IOSVN.TuTien.Core
             label.verticalOverflow = VerticalWrapMode.Overflow;
             label.raycastTarget = false;
             label.text = text;
+            PixelUiSkin.ApplyTextTreatment(label);
             var width = label.preferredWidth + padding * 2f;
             rect.sizeDelta = new Vector2(Mathf.Max(120f, width), fontSize * 2.1f);
             return rect;

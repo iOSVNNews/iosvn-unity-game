@@ -46,7 +46,7 @@ namespace IOSVN.TuTien.Core
     public enum TravelMode { Walk, Sword, Mount }
 
     /// <summary>
-    /// The painted province map: camera that follows the player, pinch/scroll zoom, tap-to-move with
+    /// The painted realm world: camera that follows the player, pinch/scroll zoom, tap-to-move with
     /// 8-way pathfinding, roaming monsters and bosses, name tags, drifting mist and day/night tint.
     /// </summary>
     public sealed class ProvinceWorld : MonoBehaviour
@@ -66,7 +66,7 @@ namespace IOSVN.TuTien.Core
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
-        /// <summary>In the air nothing on the ground is in the way: only the wall between provinces stops the traveller.</summary>
+        /// <summary>In the air nothing on the ground is in the way; the outer world edge still bounds travel.</summary>
         public bool Flying => Travel != TravelMode.Walk;
         public WorldActor Player;
         public readonly List<WorldActor> Actors = new List<WorldActor>();
@@ -122,6 +122,21 @@ namespace IOSVN.TuTien.Core
             paint.transform.SetParent(world.MapRect, false);
             Stretch(paint.rectTransform);
             paint.texture = painting;
+            if (painting != null && painting.width > 0 && painting.height > 0)
+            {
+                var imageAspect = (float)painting.width / painting.height;
+                var mapAspect = (float)data.w / data.h;
+                if (imageAspect > mapAspect)
+                {
+                    var visibleWidth = mapAspect / imageAspect;
+                    paint.uvRect = new Rect((1f - visibleWidth) * .5f, 0f, visibleWidth, 1f);
+                }
+                else if (imageAspect < mapAspect)
+                {
+                    var visibleHeight = imageAspect / mapAspect;
+                    paint.uvRect = new Rect(0f, (1f - visibleHeight) * .5f, 1f, visibleHeight);
+                }
+            }
             paint.raycastTarget = false;
             world.Painting = paint;
             world.ActorLayer = Child("Actors", world.MapRect);
@@ -267,6 +282,7 @@ namespace IOSVN.TuTien.Core
                 text.resizeTextMaxSize = fontSize;
                 text.raycastTarget = false;
                 text.text = name;
+                PixelUiSkin.ApplyTextTreatment(text);
 
                 var textWidth = Mathf.Clamp(name.Length * (fontSize * 0.56f) + 22f, 80f, kind == "boss" ? 240f : kind == "monster" ? 190f : 230f);
                 var pillHeight = (kind == "boss" || kind == "monster") ? 38f : 30f;

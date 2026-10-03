@@ -89,7 +89,7 @@ namespace IOSVN.TuTien.Core
 
             if (createAccount)
             {
-                passwordInput = AuthField(card, "password", "Mật khẩu", "Từ 10 ký tự trở lên", "lock", AuthFormX, first + row, AuthFormWidth, true);
+                passwordInput = AuthField(card, "password", "Mật khẩu", "Từ 6 ký tự trở lên", "lock", AuthFormX, first + row, AuthFormWidth, true);
                 passwordConfirmationInput = AuthField(card, "passwordConfirmation", "Nhập lại mật khẩu", "Nhập lại mật khẩu vừa đặt", "lock", AuthFormX, first + row * 2f, AuthFormWidth, true);
                 passwordConfirmationInput.characterLimit = 128;
                 AuthControl(passwordConfirmationInput);
@@ -505,47 +505,16 @@ namespace IOSVN.TuTien.Core
         }
     }
 
-    /// <summary>Smoothly moves the auth card up and creates a full-width bottom curtain when the mobile on-screen keyboard is visible.</summary>
+    /// <summary>Smoothly moves the auth card up when the mobile on-screen keyboard is visible.</summary>
     internal sealed class UiAuthKeyboardShift : MonoBehaviour
     {
         private RectTransform rect;
         private Vector2 basePos;
         private bool initialized;
-        private RectTransform curtain;
 
         private void Awake()
         {
             rect = (RectTransform)transform;
-        }
-
-        private void Start()
-        {
-            CreateCurtain();
-        }
-
-        private void CreateCurtain()
-        {
-            if (curtain != null) return;
-            var canvas = GetComponentInParent<Canvas>();
-            var parent = canvas != null ? canvas.transform : transform.parent;
-            var curtainObj = new GameObject("KeyboardCurtain", typeof(RectTransform), typeof(Image));
-            curtain = curtainObj.GetComponent<RectTransform>();
-            curtain.SetParent(parent, false);
-            // The card lives several levels below the canvas. Its sibling index cannot be used
-            // on the canvas: index zero placed this cover behind the opaque game background.
-            curtain.SetAsLastSibling();
-            // Full canvas width, including the safe-area margins at both sides of an iOS keyboard.
-            curtain.anchorMin = new Vector2(0f, 0f);
-            curtain.anchorMax = new Vector2(1f, 0f);
-            curtain.pivot = new Vector2(0.5f, 0f);
-            curtain.sizeDelta = new Vector2(0f, 0f);
-            curtain.anchoredPosition = Vector2.zero;
-
-            var img = curtainObj.GetComponent<Image>();
-            // Apple standard iOS dark keyboard background color (#1C1C1E)
-            img.color = new Color32(28, 28, 30, 255);
-            img.raycastTarget = false;
-            curtainObj.SetActive(false);
         }
 
         private void Update()
@@ -560,40 +529,24 @@ namespace IOSVN.TuTien.Core
                 TouchScreenKeyboard.hideInput = true;
             }
             var isKeyboard = TouchScreenKeyboard.visible;
-            if (curtain != null)
+
+            float shift = 170f;
+            if (isKeyboard && TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
             {
-                if (isKeyboard)
+                var ratio = TouchScreenKeyboard.area.height / (float)Screen.height;
+                if (ratio > 0.1f && ratio < 0.85f)
                 {
-                    if (!curtain.gameObject.activeSelf) curtain.gameObject.SetActive(true);
-                    var canvas = GetComponentInParent<Canvas>();
-                    var canvasHeight = canvas != null ? ((RectTransform)canvas.transform).rect.height : 1080f;
-                    float kh = canvasHeight * 0.55f;
-                    if (TouchScreenKeyboard.area.height > 0 && Screen.height > 0)
-                    {
-                        var ratio = TouchScreenKeyboard.area.height / (float)Screen.height;
-                        if (ratio > 0.1f && ratio < 0.9f) kh = canvasHeight * ratio;
-                    }
-                    // A little overlap hides the seam caused by iOS rounding keyboard pixels.
-                    curtain.sizeDelta = new Vector2(0f, kh + 3f);
-                }
-                else
-                {
-                    if (curtain.gameObject.activeSelf) curtain.gameObject.SetActive(false);
+                    shift = Mathf.Clamp(1080f * ratio * 0.42f, 150f, 220f);
                 }
             }
 
-            var targetY = isKeyboard ? basePos.y + 160f : basePos.y;
+            var targetY = isKeyboard ? basePos.y + shift : basePos.y;
             var p = rect.anchoredPosition;
             if (Mathf.Abs(p.y - targetY) > 0.5f)
             {
                 p.y = Mathf.MoveTowards(p.y, targetY, Time.unscaledDeltaTime * 750f);
                 rect.anchoredPosition = p;
             }
-        }
-
-        private void OnDestroy()
-        {
-            if (curtain != null) Destroy(curtain.gameObject);
         }
     }
 }

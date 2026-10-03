@@ -131,12 +131,23 @@ function createGameplayRoutes({ game, C, GameError, requireTownRealm, withBattle
 
         // ------------------------------------------------------------- town services
         'POST /api/world/enter-town': ({ user, body }) => {
-            requireTownRealm(user.id, body.townId);
-            const r = game.enterTownOnFoot(user.id, text(body.townId));
+            const player = game.player(user.id);
+            const currentTown = C.TOWN_BY_ID.get(player?.town || '');
+            const targetTown = C.TOWN_BY_ID.get(text(body.townId));
+            if (currentTown && targetTown && currentTown.mapId === targetTown.mapId) requireTownRealm(user.id, body.townId);
             if (body.mapId !== undefined && Number.isInteger(Number(body.x)) && Number.isInteger(Number(body.y))) {
-                try { game.moveWorldPosition(user.id, { mapId: body.mapId, x: Number(body.x), y: Number(body.y) }); } catch (_) { /* position is best-effort */ }
+                game.moveWorldPosition(user.id, { mapId: text(body.mapId), x: Number(body.x), y: Number(body.y) });
             }
+            const r = game.enterTownOnFoot(user.id, text(body.townId));
             return done(user.id, r, r.changed ? `Đã vào ${r.townName}.` : null);
+        },
+        'POST /api/world/province-gate': ({ user, body }) => {
+            const r = game.crossProvinceGate(user.id, text(body.gateId));
+            return done(user.id, r, r.message);
+        },
+        'POST /api/world/ascension-gate': ({ user }) => {
+            const r = game.crossAscensionGate(user.id);
+            return done(user.id, r, r.message);
         },
         'POST /api/player/look': ({ user, body }) => { const r = game.setLook(user.id, body.look); return done(user.id, r, 'Đã đổi diện mạo.'); },
         'POST /api/town/heal': ({ user }) => {

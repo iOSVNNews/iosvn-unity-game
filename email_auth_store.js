@@ -293,7 +293,7 @@ function normalizeUsername(username) {
 
 function validatePassword(password) {
     const value = String(password || '');
-    if (value.length < 10 || value.length > 128) throw authError('Mật khẩu cần có từ 10 đến 128 ký tự.');
+    if (value.length < 6 || value.length > 128) throw authError('Mật khẩu cần có từ 6 đến 128 ký tự.');
 }
 
 function hashToken(token) { return crypto.createHash('sha256').update(token).digest('hex'); }
