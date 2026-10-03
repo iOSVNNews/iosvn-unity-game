@@ -20,18 +20,20 @@ def replace_build_setting(block: str, key: str, value: str) -> str:
     settings_start = block.find("buildSettings = {")
     if settings_start < 0:
         raise SystemExit("Xcode build configuration has no buildSettings dictionary.")
-    settings_end = re.search(r"(?m)^\t{3}\};", block[settings_start:])
+    settings_end = re.search(r"(?m)(^\t{3}\};|\t{3}\};)", block[settings_start:])
     if settings_end is None:
         raise SystemExit("Could not find the end of Xcode buildSettings dictionary.")
     end = settings_start + settings_end.start()
     settings = block[settings_start:end]
-    setting = re.compile(rf"(?m)^(\t+)({re.escape(key)})\s*=\s*[^;]*;")
+    setting = re.compile(rf"(?m)^(\t*)({re.escape(key)})\s*=\s*[^;]*;")
     replacement = f"\t\t\t\t{key} = {value};"
     if setting.search(settings):
         settings = setting.sub(replacement, settings, count=1)
     else:
-        settings += f"\n{replacement}"
-    return block[:settings_start] + settings + block[end:]
+        if not settings.endswith("\n"):
+            settings += "\n"
+        settings += f"{replacement}\n"
+    return block[:settings_start] + settings + "\t\t\t};" + block[settings_start + settings_end.end():]
 
 
 def configure(project_file: Path, bundle_id: str) -> None:
