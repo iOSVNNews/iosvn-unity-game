@@ -704,22 +704,18 @@ namespace IOSVN.TuTien.Core
             BuildTravelButton(root);
             BuildWayfinders(root);
             var places = Anchored("Places", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(34, -196), new Vector2(284, -124));
-            PillButton(places, "Địa điểm", "ui:location", false, OpenPlacesModal);
-            var placesFill = places.GetComponent<Image>();
-            if (placesFill != null) placesFill.color = new Color32(16, 18, 22, 244);
+            WuxiaHudButton(places, "Địa điểm", "ui:location", OpenPlacesModal);
+
             var routes = Anchored("ProvinceRoutes", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(298, -196), new Vector2(568, -124));
-            PillButton(routes, "Sang bản đồ", "ui:teleport", false, () => InteractBorderPortal(null));
-            var routesFill = routes.GetComponent<Image>();
-            if (routesFill != null) routesFill.color = new Color32(26, 48, 64, 248);
+            WuxiaHudButton(routes, "Sang bản đồ", "ui:teleport", () => InteractBorderPortal(null));
+
             if (offlinePreview)
             {
                 var exitBtn = Anchored("OfflineExit", root, new Vector2(0, 1), new Vector2(0, 1), new Vector2(582, -196), new Vector2(772, -124));
-                PillButton(exitBtn, "Thoát ra", "arrowLeft", false, () =>
+                WuxiaHudButton(exitBtn, "Thoát ra", "arrowLeft", () =>
                 {
                     Confirm("Rời thế giới", "Quay lại màn hình đăng nhập?", "Thoát ra", ExitOfflineWorld);
                 });
-                var exitFill = exitBtn.GetComponent<Image>();
-                if (exitFill != null) exitFill.color = new Color32(16, 18, 22, 244);
             }
             BuildMenuColumn(root);
             // location banner (top-left)
@@ -734,27 +730,46 @@ namespace IOSVN.TuTien.Core
             // context action (bottom-right, above the menu)
             hudActionRect = Anchored("Action", root, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-640, 30), new Vector2(-160, 126));
             var actionFill = hudActionRect.gameObject.AddComponent<Image>();
-            ModernUi.Fill(actionFill, 30f);
-            UiGradient.Apply(actionFill, AuthGoldTop, AuthGoldBottom);
+            actionFill.color = Gold;
+            PixelUiSkin.ApplyFrame(hudActionRect.gameObject);
             var actionButton = hudActionRect.gameObject.AddComponent<Button>();
             actionButton.targetGraphic = actionFill;
+            var actionColors = actionButton.colors;
+            actionColors.normalColor = Color.white;
+            actionColors.highlightedColor = new Color(1f, .96f, .82f);
+            actionColors.pressedColor = new Color(.76f, .83f, .79f);
+            actionButton.colors = actionColors;
             actionButton.onClick.AddListener(() => hudActionCallback?.Invoke());
             hudActionRect.gameObject.AddComponent<UiPressScale>();
-            hudActionLabel = AnchoredText(hudActionRect, "Text", "", ModernUi.SemiBold, 28, AuthInkOnGold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(16, 0), new Vector2(-16, 0));
-            hudActionLabel.resizeTextForBestFit = true; hudActionLabel.resizeTextMinSize = 18; hudActionLabel.resizeTextMaxSize = 28;
+            hudActionLabel = AnchoredText(hudActionRect, "Text", "", ModernUi.Bold, 26, Ink, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(16, 0), new Vector2(-16, 0));
+            hudActionLabel.fontStyle = FontStyle.Bold;
+            hudActionLabel.resizeTextForBestFit = true; hudActionLabel.resizeTextMinSize = 18; hudActionLabel.resizeTextMaxSize = 26;
+            hudActionLabel.raycastTarget = false;
+            PixelUiSkin.ApplyTextTreatment(hudActionLabel);
             HideHudAction();
-            // zoom buttons (bottom-right corner)
-            var plus = IconButton(root, "ui:search", new Vector2(1, 1), new Vector2(-488, -320), 76f, () => worldView?.ZoomBy(1.25f));
-            var minus = IconButton(root, "arrowLeft", new Vector2(1, 1), new Vector2(-488, -408), 76f, () => worldView?.ZoomBy(1f / 1.25f));
-            var minusLabel = AnchoredText(minus.transform, "Minus", "–", ModernUi.Bold, 46, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            minus.transform.Find("Icon")?.gameObject.SetActive(false);
-            minusLabel.raycastTarget = false;
-            // solid discs: the default glass button vanishes on the bright painting
-            foreach (var zoom in new[] { minus, plus })
+            // zoom buttons (bottom-right of the minimap)
+            Button ZoomBtn(string name, string symbol, Vector2 pos, Action click)
             {
-                var fill = zoom.GetComponent<Image>();
-                if (fill != null) fill.color = new Color32(16, 18, 22, 244);
+                var zRect = Anchored(name, root, new Vector2(1, 1), new Vector2(1, 1), pos, pos + new Vector2(58, 54));
+                var zFill = zRect.gameObject.AddComponent<Image>();
+                zFill.color = Panel;
+                PixelUiSkin.ApplyFrame(zRect.gameObject);
+                var zText = AnchoredText(zRect, "Symbol", symbol, ModernUi.Bold, 36, Gold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                zText.raycastTarget = false;
+                PixelUiSkin.ApplyTextTreatment(zText);
+                var zBtn = zRect.gameObject.AddComponent<Button>();
+                zBtn.targetGraphic = zFill;
+                var zColors = zBtn.colors;
+                zColors.normalColor = Color.white;
+                zColors.highlightedColor = new Color(1f, .96f, .82f);
+                zColors.pressedColor = new Color(.76f, .83f, .79f);
+                zBtn.colors = zColors;
+                zBtn.onClick.AddListener(() => click());
+                zRect.gameObject.AddComponent<UiPressScale>();
+                return zBtn;
             }
+            ZoomBtn("ZoomIn", "+", new Vector2(-478, -320), () => worldView?.ZoomBy(1.25f));
+            ZoomBtn("ZoomOut", "−", new Vector2(-478, -386), () => worldView?.ZoomBy(1f / 1.25f));
         }
 
         private void ShowHudAction(string label, Action click)
@@ -861,13 +876,8 @@ namespace IOSVN.TuTien.Core
         {
             var frame = Anchored("MiniMap", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-400, -272), new Vector2(-20, -20));
             var bg = frame.gameObject.AddComponent<Image>();
-            ModernUi.Fill(bg, 18f);
-            bg.color = HudInk;
-
-            var border = Anchored("Border", frame, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            ModernUi.Ring(border, 18f, 1.8f);
-            border.color = HudGold;
-            border.raycastTarget = false;
+            bg.color = Panel;
+            PixelUiSkin.ApplyFrame(frame.gameObject);
 
             var map = Anchored("Map", frame, Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -8));
             var raw = map.gameObject.AddComponent<RawImage>();
@@ -902,17 +912,21 @@ namespace IOSVN.TuTien.Core
             var button = frame.gameObject.AddComponent<Button>();
             button.targetGraphic = bg;
             button.onClick.AddListener(() => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
+            frame.gameObject.AddComponent<UiPressScale>();
 
             // North badge
-            var northBadge = Anchored("North", frame, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-26, -18), new Vector2(26, 6));
+            var northBadge = Anchored("North", frame, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-28, -20), new Vector2(28, 8));
             var nimg = northBadge.gameObject.AddComponent<Image>();
-            ModernUi.Fill(nimg, 10f);
-            nimg.color = new Color32(18, 20, 24, 220);
+            nimg.color = Panel;
+            PixelUiSkin.ApplyFrame(northBadge.gameObject);
             nimg.raycastTarget = false;
-            var nText = AnchoredText(northBadge, "N", "BẮC", ModernUi.Bold, 13, HudGold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var nText = AnchoredText(northBadge, "N", "BẮC", ModernUi.Bold, 12, Gold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             nText.raycastTarget = false;
+            PixelUiSkin.ApplyTextTreatment(nText);
 
-            AnchoredText(frame, "Hint", "Thiên hạ · " + Clean(data.name), ModernUi.SemiBold, 17, HudCream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(10, 10), new Vector2(-16, 0));
+            var hint = AnchoredText(frame, "Hint", "Thiên hạ · " + Clean(data.name), ModernUi.SemiBold, 17, HudCream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(10, 10), new Vector2(-16, 0));
+            hint.raycastTarget = false;
+            PixelUiSkin.ApplyTextTreatment(hint);
         }
 
         private void BuildVirtualDpad(RectTransform root)
@@ -967,6 +981,41 @@ namespace IOSVN.TuTien.Core
             miniPlayerDot.anchorMin = miniPlayerDot.anchorMax = new Vector2(u, v);
         }
 
+        private Button WuxiaHudButton(RectTransform rect, string label, string iconId, Action click, Color? bgColor = null, Color? textColor = null)
+        {
+            var fill = rect.gameObject.AddComponent<Image>();
+            fill.color = bgColor ?? Panel;
+            PixelUiSkin.ApplyFrame(rect.gameObject);
+
+            var hasIcon = !string.IsNullOrEmpty(iconId);
+            if (hasIcon)
+            {
+                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(16, -20), new Vector2(56, 20)).gameObject.AddComponent<Image>();
+                icon.sprite = iconId.StartsWith("ui:") ? UiPixelIcon(iconId.Substring(3)) : ModernUi.Icon(iconId);
+                icon.preserveAspect = true;
+                icon.color = Color.white;
+                icon.raycastTarget = false;
+            }
+
+            var text = AnchoredText(rect, "Text", Clean(label), ModernUi.SemiBold, 22, textColor ?? Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(hasIcon ? 54 : 10, 0), new Vector2(-10, 0));
+            text.resizeTextForBestFit = true;
+            text.resizeTextMinSize = 14;
+            text.resizeTextMaxSize = 22;
+            text.raycastTarget = false;
+            PixelUiSkin.ApplyTextTreatment(text);
+
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = fill;
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, .96f, .82f);
+            colors.pressedColor = new Color(.76f, .83f, .79f);
+            button.colors = colors;
+            if (click != null) button.onClick.AddListener(() => click());
+            rect.gameObject.AddComponent<UiPressScale>();
+            return button;
+        }
+
         private void BuildMenuColumn(RectTransform root)
         {
             var items = new (string icon, string label, Action click)[]
@@ -993,30 +1042,37 @@ namespace IOSVN.TuTien.Core
                 var right = -24f - col * (cellWidth + gap);
                 var top = -292f - row * (cellHeight + gap);
                 var rect = Anchored("Menu_" + item.label, root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(right - cellWidth, top - cellHeight), new Vector2(right, top));
-                var disc = rect.gameObject.AddComponent<Image>();
-                ModernUi.Fill(disc, 18f);
-                disc.color = new Color32(16, 18, 22, 250);
-                var rim = Anchored("Rim", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                ModernUi.Ring(rim, 18f, 1.4f);
-                rim.color = new Color32(232, 196, 120, 210);
-                rim.raycastTarget = false;
-                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(16, -25), new Vector2(66, 25)).gameObject.AddComponent<Image>();
+                var fill = rect.gameObject.AddComponent<Image>();
+                fill.color = Panel;
+                PixelUiSkin.ApplyFrame(rect.gameObject);
+
+                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(14, -24), new Vector2(62, 24)).gameObject.AddComponent<Image>();
                 icon.sprite = UiPixelIcon(item.icon);
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
-                var label = AnchoredText(rect, "Label", item.label, ModernUi.SemiBold, 20, Color.white, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(72, 0), new Vector2(-8, 0));
-                label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+
+                var label = AnchoredText(rect, "Label", item.label, ModernUi.SemiBold, 21, Cream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(68, 0), new Vector2(-8, 0));
+                label.raycastTarget = false;
+                PixelUiSkin.ApplyTextTreatment(label);
+
                 var button = rect.gameObject.AddComponent<Button>();
-                button.targetGraphic = disc;
+                button.targetGraphic = fill;
+                var colors = button.colors;
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(1f, .96f, .82f);
+                colors.pressedColor = new Color(.76f, .83f, .79f);
+                button.colors = colors;
                 var click = item.click;
                 button.onClick.AddListener(() => click());
                 rect.gameObject.AddComponent<UiPressScale>();
+
                 if (item.icon == "mail" && hub["inboxUnread"].Int() > 0)
                 {
                     var badge = Anchored("Badge", rect, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-30, -30), new Vector2(4, 4)).gameObject.AddComponent<Image>();
                     badge.sprite = InkUi.Glow;
                     badge.color = new Color32(230, 60, 48, 255);
-                    AnchoredText(badge.transform, "N", hub["inboxUnread"].Int().ToString(), ModernUi.Bold, 16, Color.white, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                    var bText = AnchoredText(badge.transform, "N", hub["inboxUnread"].Int().ToString(), ModernUi.Bold, 16, Color.white, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                    bText.raycastTarget = false;
                 }
             }
         }
@@ -1142,27 +1198,33 @@ namespace IOSVN.TuTien.Core
             void Add(WorldPoi poi, string title, Color accent)
             {
                 if (poi == null) return;
-                var chip = Anchored("Way_" + poi.kind, root, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-150, -30), new Vector2(150, 30));
+                var chip = Anchored("Way_" + poi.kind, root, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-155, -28), new Vector2(155, 28));
                 var fill = chip.gameObject.AddComponent<Image>();
-                ModernUi.Fill(fill, 28f);
-                fill.color = new Color32(16, 18, 22, 240);
-                var edge = Anchored("Edge", chip, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                ModernUi.Ring(edge, 28f, 1.6f);
-                edge.color = accent;
-                edge.raycastTarget = false;
-                var icon = Anchored("Icon", chip, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(14, -19), new Vector2(52, 19)).gameObject.AddComponent<Image>();
+                fill.color = Panel;
+                PixelUiSkin.ApplyFrame(chip.gameObject);
+
+                var icon = Anchored("Icon", chip, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(14, -18), new Vector2(50, 18)).gameObject.AddComponent<Image>();
                 icon.sprite = UiPixelIcon(PlaceIcon(poi));
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
-                var label = AnchoredText(chip, "Text", title, ModernUi.SemiBold, 20, HudCream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(60, 0), new Vector2(-50, 0));
+
+                var label = AnchoredText(chip, "Text", title, ModernUi.SemiBold, 20, HudCream, TextAnchor.MiddleLeft, Vector2.zero, Vector2.one, new Vector2(58, 0), new Vector2(-46, 0));
                 label.raycastTarget = false;
-                var arrow = Anchored("Arrow", chip, new Vector2(1, .5f), new Vector2(1, .5f), new Vector2(-46, -16), new Vector2(-14, 16));
+                PixelUiSkin.ApplyTextTreatment(label);
+
+                var arrow = Anchored("Arrow", chip, new Vector2(1, .5f), new Vector2(1, .5f), new Vector2(-42, -15), new Vector2(-12, 15));
                 var arrowImage = arrow.gameObject.AddComponent<Image>();
                 arrowImage.sprite = ModernUi.Icon("arrowRight");
-                arrowImage.color = accent;
+                arrowImage.color = Gold;
                 arrowImage.raycastTarget = false;
+
                 var button = chip.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
+                var colors = button.colors;
+                colors.normalColor = Color.white;
+                colors.highlightedColor = new Color(1f, .96f, .82f);
+                colors.pressedColor = new Color(.76f, .83f, .79f);
+                button.colors = colors;
                 var target = poi;
                 button.onClick.AddListener(() => GoToPlace(target));
                 chip.gameObject.AddComponent<UiPressScale>();

@@ -585,34 +585,31 @@ namespace IOSVN.TuTien.Core
         private Button PillButton(RectTransform rect, string label, string iconId, bool primary, Action click, bool enabled = true)
         {
             var fill = rect.gameObject.AddComponent<Image>();
-            ModernUi.Fill(fill, 20f);
-            if (primary) UiGradient.Apply(fill, AuthGoldTop, AuthGoldBottom);
-            else fill.color = new Color32(255, 255, 255, 16);
-            if (!primary)
-            {
-                var edge = Anchored("Edge", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                ModernUi.Ring(edge, 20f, 1.3f);
-                edge.color = new Color32(240, 228, 204, 60);
-                edge.raycastTarget = false;
-            }
-            var textColor = primary ? AuthInkOnGold : AuthTextPrimary;
+            fill.color = primary ? Gold : Panel;
+            PixelUiSkin.ApplyFrame(rect.gameObject);
+
+            var textColor = primary ? Ink : Cream;
             var hasIcon = !string.IsNullOrEmpty(iconId);
             if (hasIcon)
             {
-                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(18, -18), new Vector2(54, 18)).gameObject.AddComponent<Image>();
+                var icon = Anchored("Icon", rect, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(16, -18), new Vector2(52, 18)).gameObject.AddComponent<Image>();
                 icon.sprite = iconId.StartsWith("ui:") ? UiPixelIcon(iconId.Substring(3)) : ModernUi.Icon(iconId);
                 icon.preserveAspect = true;
                 icon.color = iconId.StartsWith("ui:") ? Color.white : textColor;
                 icon.raycastTarget = false;
             }
-            var text = AnchoredText(rect, "Text", Clean(label), ModernUi.SemiBold, 25, textColor, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(hasIcon ? 56 : 12, 0), new Vector2(-12, 0));
+            var text = AnchoredText(rect, "Text", Clean(label), ModernUi.SemiBold, 24, textColor, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(hasIcon ? 54 : 12, 0), new Vector2(-12, 0));
             text.resizeTextForBestFit = true;
-            text.resizeTextMinSize = 16;
-            text.resizeTextMaxSize = 25;
+            text.resizeTextMinSize = 14;
+            text.resizeTextMaxSize = 24;
+            text.raycastTarget = false;
+            PixelUiSkin.ApplyTextTreatment(text);
             var button = rect.gameObject.AddComponent<Button>();
             button.targetGraphic = fill;
             var colors = button.colors;
-            colors.pressedColor = new Color(.85f, .82f, .78f);
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, .96f, .82f);
+            colors.pressedColor = new Color(.76f, .83f, .79f);
             colors.disabledColor = new Color(.6f, .6f, .6f, .5f);
             button.colors = colors;
             button.interactable = enabled;
@@ -625,15 +622,20 @@ namespace IOSVN.TuTien.Core
         {
             var rect = Anchored("IconButton", parent, anchor, anchor, offset + new Vector2(0, -size / 2), offset + new Vector2(size, size / 2));
             var fill = rect.gameObject.AddComponent<Image>();
-            ModernUi.Fill(fill, size * .3f);
-            fill.color = new Color32(255, 255, 255, 18);
-            var icon = Anchored("Icon", rect, Vector2.zero, Vector2.one, new Vector2(size * .26f, size * .26f), new Vector2(-size * .26f, -size * .26f)).gameObject.AddComponent<Image>();
+            fill.color = Panel;
+            PixelUiSkin.ApplyFrame(rect.gameObject);
+            var icon = Anchored("Icon", rect, Vector2.zero, Vector2.one, new Vector2(size * .20f, size * .20f), new Vector2(-size * .20f, -size * .20f)).gameObject.AddComponent<Image>();
             icon.sprite = iconId.StartsWith("ui:") ? UiPixelIcon(iconId.Substring(3)) : ModernUi.Icon(iconId);
             icon.preserveAspect = true;
-            icon.color = iconId.StartsWith("ui:") ? Color.white : AuthTextPrimary;
+            icon.color = iconId.StartsWith("ui:") ? Color.white : Gold;
             icon.raycastTarget = false;
             var button = rect.gameObject.AddComponent<Button>();
             button.targetGraphic = fill;
+            var colors = button.colors;
+            colors.normalColor = Color.white;
+            colors.highlightedColor = new Color(1f, .96f, .82f);
+            colors.pressedColor = new Color(.76f, .83f, .79f);
+            button.colors = colors;
             if (click != null) button.onClick.AddListener(() => click());
             rect.gameObject.AddComponent<UiPressScale>();
             return button;

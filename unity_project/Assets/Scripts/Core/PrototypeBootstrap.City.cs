@@ -107,8 +107,6 @@ namespace IOSVN.TuTien.Core
                 ModernUi.Regular, 21, new Color32(220, 212, 196, 255), TextAnchor.LowerLeft, Vector2.zero, Vector2.one, new Vector2(48, 16), new Vector2(-30, 0));
             var leave = Anchored("Leave", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-330, -118), new Vector2(-24, -24));
             PillButton(leave, "Rời thành", "arrowLeft", false, LeaveCity);
-            var leaveImage = leave.GetComponent<Image>();
-            if (leaveImage != null) leaveImage.color = new Color32(20, 22, 24, 220);
 
             // Clear bottom quick dock for all essential city services
             BuildCityQuickDock(hud);
@@ -118,12 +116,8 @@ namespace IOSVN.TuTien.Core
         {
             var dock = Anchored("CityQuickDock", hud, new Vector2(0f, 0f), new Vector2(1f, 0f), new Vector2(24f, 16f), new Vector2(-24f, 114f));
             var bg = dock.gameObject.AddComponent<Image>();
-            ModernUi.Fill(bg, 22f);
-            bg.color = new Color32(10, 16, 22, 245);
-            var border = Anchored("Border", dock, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            ModernUi.Ring(border, 22f, 1.4f);
-            border.color = new Color32(225, 185, 104, 110);
-            border.raycastTarget = false;
+            bg.color = Panel;
+            PixelUiSkin.ApplyFrame(dock.gameObject);
 
             var services = new (string icon, string label, string id)[]
             {
@@ -145,13 +139,9 @@ namespace IOSVN.TuTien.Core
                 var maxX = (float)(i + 1) / count;
                 var btnRect = Anchored("Dock_" + s.id, dock, new Vector2(minX, 0f), new Vector2(maxX, 1f), new Vector2(4f, 6f), new Vector2(-4f, -6f));
                 var btnFill = btnRect.gameObject.AddComponent<Image>();
-                ModernUi.Fill(btnFill, 14f);
                 var isExit = s.id == "exit";
-                btnFill.color = isExit ? new Color32(52, 24, 24, 235) : new Color32(22, 32, 42, 235);
-                var btnEdge = Anchored("Edge", btnRect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                ModernUi.Ring(btnEdge, 14f, 1.2f);
-                btnEdge.color = isExit ? new Color32(230, 95, 80, 180) : new Color32(215, 175, 95, 130);
-                btnEdge.raycastTarget = false;
+                btnFill.color = isExit ? new Color32(52, 24, 24, 255) : Panel;
+                PixelUiSkin.ApplyFrame(btnRect.gameObject);
 
                 var iconRect = Anchored("Icon", btnRect, new Vector2(0f, .42f), new Vector2(1f, 1f), new Vector2(0f, 0f), new Vector2(0f, -4f));
                 var icon = iconRect.gameObject.AddComponent<Image>();
@@ -160,14 +150,19 @@ namespace IOSVN.TuTien.Core
                 icon.raycastTarget = false;
 
                 var label = AnchoredText(btnRect, "Label", s.label, ModernUi.SemiBold, 19,
-                    isExit ? new Color32(255, 180, 170, 255) : new Color32(245, 232, 210, 255),
+                    isExit ? new Color32(255, 180, 170, 255) : Cream,
                     TextAnchor.MiddleCenter, new Vector2(0f, 0f), new Vector2(1f, .48f), new Vector2(2f, 2f), new Vector2(-2f, 0f));
                 label.supportRichText = false;
                 label.raycastTarget = false;
+                PixelUiSkin.ApplyTextTreatment(label);
 
                 var button = btnRect.gameObject.AddComponent<Button>();
-                button.transition = Selectable.Transition.None;
                 button.targetGraphic = btnFill;
+                var btnColors = button.colors;
+                btnColors.normalColor = Color.white;
+                btnColors.highlightedColor = new Color(1f, .96f, .82f);
+                btnColors.pressedColor = new Color(.76f, .83f, .79f);
+                button.colors = btnColors;
                 var targetId = s.id;
                 button.onClick.AddListener(() => OpenCityService(targetId));
                 btnRect.gameObject.AddComponent<UiPressScale>();
