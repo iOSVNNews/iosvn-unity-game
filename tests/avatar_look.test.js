@@ -55,3 +55,25 @@ test('creator look with aura and accent colours is stored, sanitised and editabl
     const bad = await request('POST', '/api/player/look', { look: 'g=m;au=99' }, token);
     assert.ok(bad.status < 500);
 });
+
+test('illustrated presets and expanded outfit options survive server storage', async t => {
+    const request = await startServer(t);
+    const signup = await request('POST', '/api/auth/account/register', { identity: 'look_preset_tester', password });
+    assert.equal(signup.status, 201, JSON.stringify(signup.body));
+    const token = signup.body.accessToken;
+    const created = await request('POST', '/api/register', { gender: 'nam', mon: 'kiem', he: 'kim', name: 'Thanh Phong',
+        appearance: 'thanh_ngoc', talents: ['dao_the', 'kiem_tam', 'tu_linh'],
+        look: 'g=m;preset=9;to=5;tot=5;wp=10;au=5;auc=#8fe0ff' }, token);
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const state = await request('GET', '/api/state', null, token);
+    const look = state.body.player?.look || state.body.state?.player?.look || JSON.stringify(state.body).match(/"look":"([^"]+)"/)?.[1];
+    assert.ok(look, 'state exposes the stored look');
+    assert.match(look, /preset=9/);
+    assert.match(look, /tot=5/);
+    assert.match(look, /wp=10/);
+
+    const changed = await request('POST', '/api/player/look', { look: 'g=m;preset=0;tot=1;wp=4;au=1;auc=#bfe8ff' }, token);
+    assert.ok(changed.status < 300, JSON.stringify(changed.body));
+    const after = await request('GET', '/api/state', null, token);
+    assert.match(JSON.stringify(after.body), /preset=0[^\"]*tot=1[^\"]*wp=4/);
+});

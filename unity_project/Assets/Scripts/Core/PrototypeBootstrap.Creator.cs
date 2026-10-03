@@ -13,7 +13,8 @@ namespace IOSVN.TuTien.Core
     public sealed partial class PrototypeBootstrap
     {
         private LookSpec creatorLook;
-        private string creatorCategory = "ha";
+        private string creatorCategory = "preset";
+        private int creatorPresetIndex;
         private RawImage creatorPreview;
         private Text creatorStyleLabel;
         private RectTransform creatorSwatches;
@@ -23,6 +24,7 @@ namespace IOSVN.TuTien.Core
 
         private static readonly (string key, string label, string colorKey, string colorLabel)[] CreatorCategories =
         {
+            ("preset", "Mẫu nhân vật", null, null),
             ("fa", "Khuôn mặt", "sk", "Màu da"), ("ey", "Mắt", "ec", "Màu mắt"), ("br", "Lông mày", "hc", "Màu tóc"),
             ("no", "Mũi", "sk", "Màu da"), ("mo", "Miệng", null, null), ("ea", "Tai", "sk", "Màu da"),
             ("bd", "Râu", "hc", "Màu tóc"), ("ha", "Kiểu tóc", "hc", "Màu tóc"), ("hat", "Mũ / Quan", "hac", "Màu mũ"),
@@ -43,18 +45,48 @@ namespace IOSVN.TuTien.Core
             { "ha", new[] { "Búi tó kiếm tiên", "Nửa búi thư sinh", "Rẽ ngôi xõa dài", "Đuôi ngựa cao", "Đầu trọc", "Búi đạo sĩ", "Cuồng phát ma tu", "Tết bím", "Mái lệch", "Ngắn bù xù" } },
             { "ti", new[] { "Trường bào giao lĩnh", "Kình trang võ phục", "Nhu quần", "Đạo bào" } },
             { "to", new[] { "Không", "Đại sưởng", "Bối tử", "Phi phong", "Sa y", "Giáp trụ" } },
-            { "tot", new[] { "Hoa văn mây" } },
+            { "tot", new[] { "Không viền", "Vân mây", "Liên hoa", "Lôi văn", "Cổ triện", "Kim tuyến" } },
             { "pa", new[] { "Quần vải", "Xà cạp", "Váy xếp ly", "Quần ống rộng" } },
             { "sh", new[] { "Ủng vải", "Vân lý", "Dép cỏ" } },
             { "be", new[] { "Đai lụa", "Ngọc đái", "Dây thừng hồ lô" } },
             { "hat", new[] { "Không", "Kim quan", "Đấu lạp", "Liên hoa quan", "Mạt ngạch", "Ngọc quan bộ dao" } },
-            { "wp", new[] { "Không", "Kiếm sau lưng", "Phi kiếm", "Kiếm bên hông" } },
+            { "wp", new[] { "Không", "Kiếm sau lưng", "Phi kiếm", "Kiếm bên hông", "Kiếm trong tay", "Trọng chùy", "Trượng tiên", "Thiết phủ", "Bút trận", "Hộ thủ quyền", "Lò đỉnh hộ thân" } },
             { "au", AvatarComposer.AuraNames },
         };
+
+        private static readonly string[] MalePresetNames =
+        {
+            "Thanh Phong Kiếm Tiên", "Thanh Vân Đạo Quân", "Xích Viêm Chiến Tôn", "Hạc Phát Dược Sư", "Ngọc Diện Thư Sinh",
+            "Băng Lôi Võ Tướng", "Huyền Ảnh Ma Tu", "Trúc Ảnh Đan Sư", "Kim Giáp Hộ Pháp", "Cổ Kiếm Du Hiệp"
+        };
+        private static readonly string[] FemalePresetNames =
+        {
+            "Ngọc Liên Tiên Tử", "Hồng Liên Chiến Cơ", "Thanh Sương Linh Sư", "Tử Y Ma Nữ", "Kim Phượng Đạo Cô",
+            "Lạc Hà Cầm Tu", "Trúc Vũ Du Tiên", "Huyền Nguyệt Linh Nữ", "Tinh Hà Kiếm Cơ", "Bạch Lộ Đan Tâm"
+        };
+        private static readonly string[] PresetHairColors = { "#1e1a1e", "#3a2a24", "#d8d8e0", "#702b38", "#285b56", "#dfc9a9", "#38264b", "#765237", "#263862", "#232128" };
+        private static readonly string[] PresetSkinColors = { "#f6dcc4", "#f0d2b4", "#e8c0a0", "#f4d7c4", "#e0e8f0", "#d8a880", "#c8d8c0", "#f0e0cc" };
+        private static readonly string[] PresetEyeColors = { "#2a2a2a", "#5a3a20", "#3a8f7a", "#30a0d0", "#6a4ab0", "#c03030", "#d8a030", "#a0a0a8" };
+        private static readonly (string tc, string oc, string pc, string sc, string bc, string hac, string ac, string auc, string wc)[] PresetPalettes =
+        {
+            ("#e8e2d4", "#2f5f63", "#20242a", "#2a2a30", "#1e2226", "#ffd36a", "#ffd36a", "#8fe0ff", "#64b5f0"),
+            ("#282428", "#20242a", "#1a1c20", "#181a1c", "#7a2a3a", "#c8a050", "#c8a050", "#ff5050", "#ff6a5c"),
+            ("#f4eef6", "#b0c8ea", "#e8e2ea", "#e0d8e0", "#8a3a5a", "#ffd36a", "#d8b46a", "#bfe8ff", "#b69cff"),
+            ("#f2ece6", "#a03030", "#2a2022", "#221a1c", "#c8a050", "#ffd36a", "#ffd36a", "#ff8a3a", "#f0a24e"),
+            ("#e8f0f4", "#3060a0", "#202838", "#1a2030", "#2f5f63", "#ffd36a", "#ffd36a", "#9cff9c", "#7fd08a"),
+            ("#f0e8f4", "#5a4a8a", "#302a3a", "#282230", "#4a3a6a", "#e0d8f0", "#e0d8f0", "#b48cff", "#b69cff"),
+            ("#e8e4dc", "#46543e", "#20242a", "#2a2a30", "#644730", "#c8a050", "#ffd36a", "#ffd36a", "#f0a24e"),
+            ("#d8d8dc", "#50545c", "#25252b", "#202024", "#78683f", "#e2c57b", "#e2c57b", "#ffd36a", "#64b5f0"),
+            ("#f4eef6", "#553f6f", "#282232", "#201c28", "#9b657e", "#e8d6f0", "#e8d6f0", "#ffd6e8", "#b69cff"),
+            ("#e8e4dc", "#203f4b", "#20242a", "#1e2226", "#5a382c", "#c8a050", "#ffd36a", "#8fe0ff", "#64b5f0"),
+        };
+        private static readonly int[] MalePresetPalettes = { 0, 4, 3, 7, 2, 4, 5, 6, 7, 1 };
+        private static readonly int[] FemalePresetPalettes = { 0, 3, 4, 5, 7, 8, 6, 5, 7, 0 };
 
         private static readonly string[] HairNamesFemale = { "Song búi tiên nữ", "Búi cao xõa dài", "Rẽ ngôi xõa", "Đuôi ngựa cao", "Nửa búi", "Bím lệch", "Hai bím", "Búi cung trang", "Tóc ngắn", "Vương miện tết" };
 
         private RectTransform creatorAvatar;
+        private RectTransform creatorIllustration;
         private RectTransform creatorZoom;
         private bool? creatorZoomChoice;          // set by tapping the figure; cleared when another category is picked
         // categories that change the head: the preview moves in on the face while one of them is open
@@ -72,9 +104,11 @@ namespace IOSVN.TuTien.Core
             {
                 creatorLook = LookOf(hub["player"]);
                 gender = creatorLook.Get("g", hub["player"]["gender"].Str() == "nu" ? "f" : "m") == "f" ? "nu" : "nam";
+                creatorPresetIndex = creatorLook.Int("preset", -1);
+                creatorCategory = creatorPresetIndex >= 0 ? "preset" : "ha";
                 creatorZoomChoice = false;
             }
-            else if (creatorLook == null) { creatorLook = AvatarComposer.Default(gender == "nu"); creatorZoomChoice = false; }   // first shown as the whole figure
+            else if (creatorLook == null) { creatorPresetIndex = 0; creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex); creatorCategory = "preset"; creatorZoomChoice = false; }   // first shown as the whole figure
             var root = Anchored("Creator", content.transform, new Vector2(-.05f, -.03f), new Vector2(1.05f, 1.03f), Vector2.zero, Vector2.zero);
             // scroll: two rollers and parchment
             var paper = Anchored("Paper", root, Vector2.zero, Vector2.one, new Vector2(70, 18), new Vector2(-70, -18));
@@ -127,6 +161,7 @@ namespace IOSVN.TuTien.Core
             toggle.targetGraphic = touch;
             toggle.onClick.AddListener(() => { creatorZoomChoice = !CreatorZoomed(); ApplyCreatorZoom(); });
             creatorZoom = Anchored("Zoom", view, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            creatorIllustration = AvatarComposer.BuildIllustration(creatorZoom, creatorLook, .9f);
             creatorAvatar = AvatarComposer.Build(creatorZoom, creatorLook, .9f);
             creatorPreview = creatorAvatar.Find("Figure").GetComponent<RawImage>();
             // name input
@@ -266,6 +301,9 @@ namespace IOSVN.TuTien.Core
         {
             if (creatorPreview == null) return;
             AvatarComposer.Refresh(creatorAvatar, creatorLook, .9f);
+            AvatarComposer.RefreshIllustration(creatorIllustration, creatorLook, .9f);
+            if (creatorIllustration != null) creatorIllustration.gameObject.SetActive(creatorCategory == "preset");
+            if (creatorAvatar != null) creatorAvatar.gameObject.SetActive(creatorCategory != "preset");
             ApplyCreatorZoom();
             // category chips (3 columns)
             for (var i = creatorChips.childCount - 1; i >= 0; i--) Destroy(creatorChips.GetChild(i).gameObject);
@@ -276,11 +314,22 @@ namespace IOSVN.TuTien.Core
                 var row = i / 3;
                 var rows = (CreatorCategories.Length + 2) / 3;
                 CreatorChip(creatorChips, c.label, new Vector2(col / 3f, 1f - (row + 1f) / rows), new Vector2((col + 1) / 3f, 1f - row / (float)rows),
-                    c.key == creatorCategory, () => { creatorCategory = c.key; creatorZoomChoice = null; RefreshCreator(); });
+                    c.key == creatorCategory, () =>
+                    {
+                        creatorCategory = c.key;
+                        if (c.key == "preset" && creatorLook.Int("preset", -1) < 0)
+                        {
+                            creatorPresetIndex = Mathf.Clamp(creatorPresetIndex, 0, MalePresetNames.Length - 1);
+                            creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex);
+                        }
+                        creatorZoomChoice = null;
+                        RefreshCreator();
+                    });
             }
             var key = creatorCategory;
             var names = key == "ha" && creatorLook.Get("g") == "f" ? HairNamesFemale : StyleNames.TryGetValue(key, out var n) ? n : new[] { "Kiểu 1" };
-            var index = Mathf.Clamp(creatorLook.Int(key), 0, names.Length - 1);
+            var index = key == "preset" ? Mathf.Clamp(creatorPresetIndex, 0, MalePresetNames.Length - 1) : Mathf.Clamp(creatorLook.Int(key), 0, names.Length - 1);
+            if (key == "preset") names = creatorLook.Get("g") == "f" ? FemalePresetNames : MalePresetNames;
             creatorStyleLabel.text = names[index] + $"   ({index + 1}/{names.Length})";
             // swatches
             for (var i = creatorSwatches.childCount - 1; i >= 0; i--) Destroy(creatorSwatches.GetChild(i).gameObject);
@@ -308,7 +357,7 @@ namespace IOSVN.TuTien.Core
                     var button = rect.gameObject.AddComponent<Button>();
                     button.targetGraphic = fill;
                     var ck = colorKey;
-                    button.onClick.AddListener(() => { creatorLook.Set(ck, hex); RefreshCreator(); });
+                    button.onClick.AddListener(() => { creatorLook.Set(ck, hex); creatorLook.Set("preset", -1); RefreshCreator(); });
                 }
             }
             // talents
@@ -356,9 +405,17 @@ namespace IOSVN.TuTien.Core
 
         private void StepCreatorStyle(int delta)
         {
+            if (creatorCategory == "preset")
+            {
+                creatorPresetIndex = (creatorPresetIndex + delta + MalePresetNames.Length) % MalePresetNames.Length;
+                creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex);
+                RefreshCreator();
+                return;
+            }
             var key = creatorCategory;
             var count = AvatarComposer.Counts.TryGetValue(key, out var c) ? c : 1;
             creatorLook.Set(key, (creatorLook.Int(key) + delta + count) % count);
+            creatorLook.Set("preset", -1);
             RefreshCreator();
         }
 
@@ -366,13 +423,49 @@ namespace IOSVN.TuTien.Core
         {
             gender = value == "nu" ? "nu" : "nam";
             var saved = nameInput != null ? nameInput.text : "";
-            creatorLook = AvatarComposer.Default(gender == "nu");
+            creatorPresetIndex = 0;
+            creatorCategory = "preset";
+            creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex);
             ShowCreator();
             if (nameInput != null) nameInput.text = saved;
         }
 
+        private static LookSpec BuildCreatorPreset(bool female, int preset)
+        {
+            var i = (preset % MalePresetNames.Length + MalePresetNames.Length) % MalePresetNames.Length;
+            var look = AvatarComposer.Default(female);
+            look.Set("g", female ? "f" : "m");
+            look.Set("preset", i);
+            look.Set("fa", (i * 3 + (female ? 1 : 0)) % AvatarComposer.Counts["fa"]);
+            look.Set("ea", (i + (female ? 1 : 0)) % AvatarComposer.Counts["ea"]);
+            look.Set("ey", (i * 3 + 1) % AvatarComposer.Counts["ey"]);
+            look.Set("br", (i * 2 + 1) % AvatarComposer.Counts["br"]);
+            look.Set("no", (i + 2) % AvatarComposer.Counts["no"]);
+            look.Set("mo", (i * 2 + 3) % AvatarComposer.Counts["mo"]);
+            look.Set("bd", female ? 0 : (i * 2) % AvatarComposer.Counts["bd"]);
+            look.Set("ha", (i + (female ? 0 : 3)) % AvatarComposer.Counts["ha"]);
+            look.Set("ti", i % AvatarComposer.Counts["ti"]);
+            look.Set("to", (i * 5 + 1) % AvatarComposer.Counts["to"]);
+            look.Set("tot", i % AvatarComposer.Counts["tot"]);
+            look.Set("pa", (i * 3) % AvatarComposer.Counts["pa"]);
+            look.Set("sh", i % AvatarComposer.Counts["sh"]);
+            look.Set("be", (i + 1) % AvatarComposer.Counts["be"]);
+            look.Set("hat", i % AvatarComposer.Counts["hat"]);
+            look.Set("wp", (i * 7 + (female ? 2 : 4)) % AvatarComposer.Counts["wp"]);
+            look.Set("au", 1 + i % (AvatarComposer.Counts["au"] - 1));
+            var palette = PresetPalettes[(female ? FemalePresetPalettes : MalePresetPalettes)[i]];
+            look.Set("hc", PresetHairColors[i]);
+            look.Set("sk", PresetSkinColors[(i * 3 + (female ? 0 : 1)) % PresetSkinColors.Length]);
+            look.Set("ec", PresetEyeColors[(i * 3 + 2) % PresetEyeColors.Length]);
+            look.Set("tc", palette.tc); look.Set("oc", palette.oc); look.Set("pc", palette.pc); look.Set("sc", palette.sc);
+            look.Set("bc", palette.bc); look.Set("hac", palette.hac); look.Set("ac", palette.ac); look.Set("auc", palette.auc); look.Set("wc", palette.wc);
+            return look;
+        }
+
         private void RandomizeLook()
         {
+            creatorCategory = "ha";
+            creatorLook.Set("preset", -1);
             var rng = new System.Random();
             foreach (var pair in AvatarComposer.Counts)
             {

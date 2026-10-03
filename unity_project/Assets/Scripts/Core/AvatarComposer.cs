@@ -22,11 +22,12 @@ namespace IOSVN.TuTien.Core
         private static readonly Dictionary<string, Color32[]> PartCache = new Dictionary<string, Color32[]>();
         private static readonly Dictionary<string, Texture2D> LookCache = new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Sprite[]> AuraCache = new Dictionary<string, Sprite[]>();
+        private static readonly Dictionary<string, Sprite> IllustrationCache = new Dictionary<string, Sprite>();
 
         public static readonly Dictionary<string, int> Counts = new Dictionary<string, int>
         {
             { "fa", 4 }, { "ea", 3 }, { "ey", 8 }, { "br", 5 }, { "no", 4 }, { "mo", 5 }, { "bd", 5 }, { "ha", 10 },
-            { "ti", 4 }, { "to", 6 }, { "pa", 4 }, { "sh", 3 }, { "be", 3 }, { "hat", 6 }, { "wp", 4 }, { "au", 6 },
+            { "ti", 4 }, { "to", 6 }, { "tot", 6 }, { "pa", 4 }, { "sh", 3 }, { "be", 3 }, { "hat", 6 }, { "wp", 11 }, { "au", 6 },
         };
 
         public static readonly string[] HairColors = { "#1e1a1e", "#3a2a24", "#5a3a28", "#8a5a34", "#c8a070", "#d8d8e0", "#a03030", "#304070", "#205050", "#e8e0c8" };
@@ -86,7 +87,13 @@ namespace IOSVN.TuTien.Core
             Add("sh", "sh", "sc", true);
             Add("ti", "ti", "tc", true);
             var to = look.Int("to");
-            if (to > 0) { Add("to", "to", "oc", true); Add("tot", "to", "ac", false); }
+            if (to > 0)
+            {
+                Add("to", "to", "oc", true);
+                // Older looks have no independent trim key, so keep their former matching trim.
+                var trim = look.Int("tot", to);
+                if (trim > 0) list.Add(($"tot_{g}_{trim}", "ac", false));
+            }
             Add("be", "be", "bc", true);
             Add("tis", "ti", "tc", true);
             if (to == 1 || to == 4 || to == 5) { Add("tos", "to", "oc", true); Add("tost", "to", "ac", false); }
@@ -350,6 +357,93 @@ namespace IOSVN.TuTien.Core
             return rect;
         }
 
+        /// <summary>Painted profile portrait with the player's selected, animated aura.</summary>
+        public static RectTransform BuildIllustration(RectTransform parent, LookSpec look, float auraStrength = .8f)
+        {
+            var female = look != null && look.Get("g", "m") == "f";
+            var portrait = PresetIllustration(female, look != null ? look.Int("preset", 0) : 0);
+            if (portrait == null) return Build(parent, look, auraStrength);
+
+            var rect = new GameObject("IllustratedAvatar", typeof(RectTransform)).GetComponent<RectTransform>();
+            rect.SetParent(parent, false);
+            rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+            Image Layer(string name)
+            {
+                var image = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                image.transform.SetParent(rect, false);
+                image.rectTransform.anchorMin = Vector2.zero; image.rectTransform.anchorMax = Vector2.one;
+                image.rectTransform.offsetMin = image.rectTransform.offsetMax = Vector2.zero;
+                image.raycastTarget = false;
+                image.enabled = false;
+                return image;
+            }
+            var back = Layer("AuraBack");
+            back.sprite = Illustration("PortraitIllustrationAura");
+            back.preserveAspect = true;
+            back.enabled = back.sprite != null && (look == null || look.Int("au") > 0);
+            var auraLook = look ?? Default(female);
+            var auraColor = HeroSprites.ParseColor(auraLook.Get("auc", "#8fe0ff"), new Color32(143, 224, 255, 255));
+            back.color = new Color32(auraColor.r, auraColor.g, auraColor.b, (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(auraStrength * .72f)));
+            var figure = Layer("Illustration");
+            figure.enabled = true;
+            figure.sprite = portrait;
+            figure.preserveAspect = true;
+            var anim = rect.gameObject.AddComponent<IllustrationAuraMotion>();
+            anim.Set(back, auraLook.Int("au"));
+            rect.gameObject.AddComponent<AvatarIdleMotion>();
+            return rect;
+        }
+
+        /// <summary>One of ten painterly portraits for the selected male/female creator template.</summary>
+        private static Sprite PresetIllustration(bool female, int preset)
+        {
+            var index = Mathf.Clamp(preset, 0, 9);
+            var key = "template_" + (female ? "female_" : "male_") + index;
+            if (IllustrationCache.TryGetValue(key, out var cached) && cached != null) return cached;
+            var texture = Resources.Load<Texture2D>("Characters/PortraitTemplates" + (female ? "Female" : "Male"));
+            if (texture == null) return Illustration("PortraitIllustration" + (female ? "Female" : "Male"));
+            texture.filterMode = FilterMode.Bilinear;
+            const int columns = 5, rows = 2;
+            var cellWidth = texture.width / (float)columns;
+            var cellHeight = texture.height / (float)rows;
+            var column = index % columns;
+            var rowFromTop = index / columns;
+            var rect = new Rect(column * cellWidth, texture.height - (rowFromTop + 1) * cellHeight, cellWidth, cellHeight);
+            var sprite = Sprite.Create(texture, rect, new Vector2(.5f, 0f), 100f);
+            sprite.name = key;
+            IllustrationCache[key] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Updates the displayed template and matching colored aura after a creator choice.</summary>
+        public static void RefreshIllustration(RectTransform avatar, LookSpec look, float auraStrength = .8f)
+        {
+            if (avatar == null || look == null) return;
+            var female = look.Get("g", "m") == "f";
+            var figure = avatar.Find("Illustration")?.GetComponent<Image>();
+            if (figure != null) figure.sprite = PresetIllustration(female, look.Int("preset", 0));
+            var aura = avatar.Find("AuraBack")?.GetComponent<Image>();
+            if (aura != null)
+            {
+                aura.enabled = look.Int("au") > 0 && aura.sprite != null;
+                var color = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), new Color32(143, 224, 255, 255));
+                aura.color = new Color32(color.r, color.g, color.b, (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(auraStrength * .72f)));
+            }
+            avatar.GetComponent<IllustrationAuraMotion>()?.Set(aura, look.Int("au"));
+        }
+
+        private static Sprite Illustration(string name)
+        {
+            if (IllustrationCache.TryGetValue(name, out var cached) && cached != null) return cached;
+            var texture = Resources.Load<Texture2D>("Characters/" + name);
+            if (texture == null) return null;
+            texture.filterMode = FilterMode.Bilinear;
+            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, 0f), 100f);
+            sprite.name = name;
+            IllustrationCache[name] = sprite;
+            return sprite;
+        }
+
         /// <summary>Refreshes a figure built with Build (creator preview).</summary>
         public static void Refresh(RectTransform avatar, LookSpec look, float auraStrength = .8f)
         {
@@ -450,6 +544,42 @@ namespace IOSVN.TuTien.Core
             rect.anchoredPosition = rest;
             rect.localScale = Vector3.one;
             ready = false;
+        }
+    }
+
+    /// <summary>Slowly turns and breathes the painted aura around an illustrated portrait.</summary>
+    public sealed class IllustrationAuraMotion : MonoBehaviour
+    {
+        public Image Aura;
+        private Color baseColor;
+        private int style;
+
+        public void Set(Image aura, int auraStyle)
+        {
+            Aura = aura;
+            style = auraStyle;
+            if (Aura != null) baseColor = Aura.color;
+        }
+
+        private void LateUpdate()
+        {
+            if (Aura == null || !Aura.enabled || style <= 0) return;
+            var t = Time.unscaledTime;
+            var phase = t * (style == 2 ? 1.25f : style == 3 ? .8f : .42f);
+            var scale = 1f + Mathf.Sin(phase) * .014f;
+            Aura.rectTransform.localScale = new Vector3(scale, scale, 1f);
+            Aura.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(phase * .53f) * (style == 3 ? 2.4f : 1.2f));
+            var color = baseColor;
+            color.a *= .82f + .18f * Mathf.Sin(phase * 1.4f);
+            Aura.color = color;
+        }
+
+        private void OnDisable()
+        {
+            if (Aura == null) return;
+            Aura.rectTransform.localScale = Vector3.one;
+            Aura.rectTransform.localRotation = Quaternion.identity;
+            Aura.color = baseColor;
         }
     }
 }

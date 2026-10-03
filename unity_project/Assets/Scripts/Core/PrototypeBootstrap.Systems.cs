@@ -391,7 +391,11 @@ namespace IOSVN.TuTien.Core
             GlassPanel(portraitArea, 26f, new Color32(26, 30, 34, 220), new Color32(14, 18, 20, 220));
             if (AvatarComposer.Available)
             {
-                var avatar = AvatarComposer.Build(portraitArea, LookOf(player), AvatarComposer.AuraStrength(hub["realm"]["index"].Int()));
+                var look = LookOf(player);
+                var artPortrait = look.Int("preset", -1) >= 0;
+                var avatar = artPortrait
+                    ? AvatarComposer.BuildIllustration(portraitArea, look, AvatarComposer.AuraStrength(hub["realm"]["index"].Int()))
+                    : AvatarComposer.Build(portraitArea, look, AvatarComposer.AuraStrength(hub["realm"]["index"].Int()));
                 avatar.anchorMin = new Vector2(.08f, .03f); avatar.anchorMax = new Vector2(.92f, .97f);
                 avatar.offsetMin = avatar.offsetMax = Vector2.zero;
             }
