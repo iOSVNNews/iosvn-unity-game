@@ -59,13 +59,12 @@ namespace IOSVN.TuTien.Core
         public RectTransform FxLayer;
         public RectTransform LabelLayer;
         public RawImage Painting;
-        public RawImage ProvincePainting;
         public Image NightTint;
-        // Keep the high-resolution province painting close to native detail at first load;
-        // players can pinch or use the menu zoom controls for close combat views.
-        public float Zoom = 1.5f;
-        public float MinZoom = .85f;
-        public float MaxZoom = 3f;
+        // The unified realm paintings are authored at roughly two pixels per tile.
+        // Keep the default camera close to native scale and focused on the player's region.
+        public float Zoom = .28f;
+        public float MinZoom = .16f;
+        public float MaxZoom = .42f;
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
@@ -107,8 +106,7 @@ namespace IOSVN.TuTien.Core
         private readonly List<(Vector2 center, Vector2 size)> tagResolved = new List<(Vector2, Vector2)>();
         private static Sprite swordSprite;
 
-        public static ProvinceWorld Build(Transform parent, WorldMapData data, Texture2D painting,
-            Texture2D provincePainting = null, WorldRegionMeta provinceRegion = null)
+        public static ProvinceWorld Build(Transform parent, WorldMapData data, Texture2D painting)
         {
             var root = new GameObject("ProvinceWorld", typeof(RectTransform), typeof(Image), typeof(RectMask2D)).GetComponent<RectTransform>();
             root.SetParent(parent, false);
@@ -143,24 +141,7 @@ namespace IOSVN.TuTien.Core
             }
             paint.raycastTarget = false;
             world.Painting = paint;
-            if (provincePainting != null && provinceRegion != null
-                && provinceRegion.w > 0 && provinceRegion.h > 0)
-            {
-                // The realm painting is the seamless overview used by the minimap. In the active
-                // province, replace its low-resolution crop with the original detailed province art.
-                var detail = new GameObject("ProvinceDetailPainting", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
-                detail.transform.SetParent(world.MapRect, false);
-                var detailRect = detail.rectTransform;
-                detailRect.anchorMin = detailRect.anchorMax = Vector2.zero;
-                detailRect.pivot = Vector2.zero;
-                detailRect.sizeDelta = new Vector2(provinceRegion.w * T, provinceRegion.h * T);
-                detailRect.anchoredPosition = new Vector2(
-                    provinceRegion.x * T,
-                    (data.h - provinceRegion.y - provinceRegion.h) * T);
-                detail.texture = provincePainting;
-                detail.raycastTarget = false;
-                world.ProvincePainting = detail;
-            }
+            world.BuildIllustrations();
             world.ActorLayer = Child("Actors", world.MapRect);
             Stretch(world.ActorLayer);
             world.FxLayer = Child("Fx", world.MapRect);
@@ -186,6 +167,70 @@ namespace IOSVN.TuTien.Core
             world.tapRing = InkUi.Simple(world.FxLayer, "TapRing", InkUi.Ring, new Color(1, 1, 1, 0), new Vector2(T * 1.6f, T * .9f));
             world.BuildClouds();
             return world;
+        }
+
+        private WorldSpriteLayer AddSpriteLayer(string objectName, string resourcePath, int columns, int rows, List<WorldSpriteLayer.SpriteQuad> sprites)
+        {
+            var atlas = Resources.Load<Texture2D>(resourcePath);
+            if (atlas == null || sprites == null || sprites.Count == 0) return null;
+            var layer = new GameObject(objectName, typeof(RectTransform), typeof(CanvasRenderer), typeof(WorldSpriteLayer)).GetComponent<WorldSpriteLayer>();
+            layer.transform.SetParent(MapRect, false);
+            var rect = layer.rectTransform;
+            rect.anchorMin = rect.anchorMax = Vector2.zero;
+            rect.pivot = Vector2.zero;
+            rect.sizeDelta = new Vector2(Data.w * T, Data.h * T);
+            rect.anchoredPosition = Vector2.zero;
+            layer.Configure(atlas, columns, rows, sprites);
+            return layer;
+        }
+
+        private void BuildIllustrations()
+        {
+            // Province barriers and free passes are represented by the continuous map art and gate data.
+
+            var cities = new List<WorldSpriteLayer.SpriteQuad>();
+            var celestialA = new List<WorldSpriteLayer.SpriteQuad>();
+            var celestialB = new List<WorldSpriteLayer.SpriteQuad>();
+            for (var i = 0; i < Data.towns.Length; i++)
+            {
+                var town = Data.towns[i];
+                if (town == null) continue;
+                var center = TileToLocal(new Vector2(town.x + town.w * .5f, town.y + town.h * .5f));
+                // Keep each unique painted fortress distinct and readable at the native-map zoom.
+                var size = town.big ? new Vector2(32f * T, 24f * T) : new Vector2(27f * T, 20f * T);
+                var art = new WorldSpriteLayer.SpriteQuad(center, size, i, new Color32(242, 245, 234, 242));
+                if (Data.id == "world_tien")
+                {
+                    if (i < 25) celestialA.Add(art);
+                    else celestialB.Add(new WorldSpriteLayer.SpriteQuad(center, size, i - 25, new Color32(242, 245, 234, 242)));
+                }
+                else cities.Add(art);
+            }
+            if (Data.id == "world_tien")
+            {
+                AddSpriteLayer("DistinctCelestialCitiesA", "World/Art/celestial_fortresses_a", 5, 5, celestialA);
+                AddSpriteLayer("DistinctCelestialCitiesB", "World/Art/celestial_fortresses_b", 6, 5, celestialB);
+            }
+            else AddSpriteLayer("DistinctMortalCities", "World/Art/mortal_fortresses", 5, 8, cities);
+
+            var caves = new List<WorldSpriteLayer.SpriteQuad>();
+            foreach (var poi in Data.pois)
+            {
+                if (poi == null || poi.kind != "dungeon") continue;
+                caves.Add(new WorldSpriteLayer.SpriteQuad(TileToLocal(new Vector2(poi.x, poi.y)),
+                    new Vector2(7.3f * T, 5.5f * T), StableSeed(poi.dungeonId ?? poi.label) & 15, Color.white));
+            }
+            AddSpriteLayer("AncientCaveFormations", "World/Art/ancient_caves", 4, 4, caves);
+        }
+
+        private static int StableSeed(string text)
+        {
+            unchecked
+            {
+                var hash = (int)2166136261;
+                foreach (var character in text ?? string.Empty) hash = (hash ^ character) * 16777619;
+                return hash & 0x7fffffff;
+            }
         }
 
         private static RectTransform Child(string name, Transform parent)

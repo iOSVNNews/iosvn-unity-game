@@ -44,6 +44,11 @@ namespace IOSVN.TuTien.Editor
             Render(c =>
             {
                 Prepare(c);
+                Step("opening-intro", () => { Call(c, "BeginOpeningIntro"); Call(c, "UpdateOpeningIntroVisuals", 3.4f); });
+            }, "qcbh-opening-intro.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
                 Set(c, "gender", "nu");
                 Set(c, "creatorLook", AvatarComposer.Default(true));
                 Step("creator-f", () => Call(c, "ShowCreator", false));
@@ -112,7 +117,35 @@ namespace IOSVN.TuTien.Editor
             Render(c => { Step("login", () => Call(c, "ShowAccountForm", false)); }, "qcbh-login.png", 1280, 590);
             Render(c => { Step("register-ipad", () => Call(c, "ShowAccountForm", true)); }, "qcbh-register-ipad.png", 1024, 768);
             Render(c => { Prepare(c); Step("character", () => Call(c, "OpenCharacterScreen")); }, "qcbh-character.png", 1280, 590);
-            Render(c => { Prepare(c); Step("city", () => Call(c, "ShowCity", J.Parse(stateText)["town"]["id"].Str())); }, "qcbh-city.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "offlinePreview", true);
+                Set(c, "cityNearbyPlayers", new[]
+                {
+                    new PvpOpponent { userId = "preview-player-01", name = "Vân Kiếm", realmName = "Nguyên Anh", power = 2480, points = 1120 },
+                    new PvpOpponent { userId = "preview-player-02", name = "Mộng Dao", realmName = "Kim Đan", power = 1840, points = 1040 },
+                    new PvpOpponent { userId = "preview-player-03", name = "Huyền Tâm", realmName = "Trúc Cơ", power = 930, points = 1010 },
+                });
+                Step("city", () => Call(c, "ShowCity", J.Parse(stateText)["town"]["id"].Str()));
+            }, "qcbh-city.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "offlinePreview", true);
+                Set(c, "cityNearbyPlayers", new[]
+                {
+                    new PvpOpponent { userId = "preview-player-01", name = "Vân Kiếm", realmName = "Nguyên Anh", power = 2480, points = 1120 },
+                    new PvpOpponent { userId = "preview-player-02", name = "Mộng Dao", realmName = "Kim Đan", power = 1840, points = 1040 },
+                    new PvpOpponent { userId = "preview-player-03", name = "Huyền Tâm", realmName = "Trúc Cơ", power = 930, points = 1010 },
+                });
+                Step("city-roster-expanded", () =>
+                {
+                    Call(c, "ShowCity", J.Parse(stateText)["town"]["id"].Str());
+                    Call(c, "ToggleCityPresence");
+                    Call(c, "SelectCityPresenceCategory", 1);
+                });
+            }, "qcbh-city-roster.png", 1280, 590);
             Render(c => { Prepare(c); Step("bag", () => Call(c, "OpenBagScreen")); }, "qcbh-bag.png", 1280, 590);
             Render(c =>
             {

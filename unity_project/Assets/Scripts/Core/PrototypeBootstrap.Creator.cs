@@ -24,7 +24,7 @@ namespace IOSVN.TuTien.Core
 
         private static readonly (string key, string label, string colorKey, string colorLabel)[] CreatorCategories =
         {
-            ("preset", "Mẫu nhân vật", null, null),
+            ("preset", "Mẫu", "tc", "Màu áo"),
             ("fa", "Khuôn mặt", "sk", "Màu da"), ("ey", "Mắt", "ec", "Màu mắt"), ("br", "Lông mày", "hc", "Màu tóc"),
             ("no", "Mũi", "sk", "Màu da"), ("mo", "Miệng", null, null), ("ea", "Tai", "sk", "Màu da"),
             ("bd", "Râu", "hc", "Màu tóc"), ("ha", "Kiểu tóc", "hc", "Màu tóc"), ("hat", "Mũ / Quan", "hac", "Màu mũ"),
@@ -146,7 +146,8 @@ namespace IOSVN.TuTien.Core
 
         private void BuildCreatorAvatar(RectTransform inner)
         {
-            var col = Anchored("AvatarCol", inner, new Vector2(0, .14f), new Vector2(.27f, 1), Vector2.zero, Vector2.zero);
+            // Keep the cultivator in the visual center, with the appearance and destiny panels on either side.
+            var col = Anchored("AvatarCol", inner, new Vector2(.32f, .14f), new Vector2(.68f, 1), Vector2.zero, Vector2.zero);
             var halo = Anchored("Halo", col, new Vector2(.05f, .18f), new Vector2(.95f, .98f), Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
             halo.sprite = InkUi.Cloud;
             halo.color = new Color(.62f, .66f, .66f, .55f);
@@ -164,7 +165,25 @@ namespace IOSVN.TuTien.Core
             creatorIllustration = AvatarComposer.BuildIllustration(creatorZoom, creatorLook, .9f);
             creatorAvatar = AvatarComposer.Build(creatorZoom, creatorLook, .9f);
             creatorPreview = creatorAvatar.Find("Figure").GetComponent<RawImage>();
-            // name input
+        }
+
+        private void BuildCreatorCustomizer(RectTransform inner)
+        {
+            var col = Anchored("Custom", inner, new Vector2(.015f, .14f), new Vector2(.30f, 1), new Vector2(6, 0), new Vector2(-6, 0));
+            var panel = col.gameObject.AddComponent<Image>();
+            ModernUi.Fill(panel, 24f);
+            panel.color = new Color32(255, 255, 255, 92);
+            panel.raycastTarget = false;
+            AnchoredText(col, "Title", "DIỆN MẠO", ModernUi.Display, 34, new Color32(46, 40, 38, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -50), Vector2.zero);
+            creatorChips = Anchored("Chips", col, new Vector2(0, .46f), new Vector2(1, 1), Vector2.zero, new Vector2(0, -76));
+            var stepper = Anchored("Stepper", inner, new Vector2(.34f, .21f), new Vector2(.66f, .29f), Vector2.zero, Vector2.zero);
+            var prev = Anchored("Prev", stepper, new Vector2(0, 0), new Vector2(.18f, 1), Vector2.zero, Vector2.zero);
+            PillButton(prev, "", "arrowLeft", false, () => StepCreatorStyle(-1));
+            var next = Anchored("Next", stepper, new Vector2(.82f, 0), new Vector2(1, 1), Vector2.zero, Vector2.zero);
+            PillButton(next, "", "arrowRight", false, () => StepCreatorStyle(1));
+            creatorStyleLabel = AnchoredText(stepper, "Style", "", ModernUi.SemiBold, 27, new Color32(40, 34, 32, 255), TextAnchor.MiddleCenter, new Vector2(.18f, 0), new Vector2(.82f, 1), Vector2.zero, Vector2.zero);
+            creatorSwatches = Anchored("Swatches", inner, new Vector2(.35f, .15f), new Vector2(.65f, .21f), Vector2.zero, Vector2.zero);
+
             var nameBox = Anchored("NameBox", col, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-230, 62), new Vector2(230, 62 + 38 + AuthFieldHeight));
             nameInput = AuthField(nameBox, "name", "Đạo hiệu", "Tên nhân vật (2–24 ký tự)", "user", 0f, 0f, 460f, false);
             nameInput.characterLimit = 24;
@@ -179,23 +198,13 @@ namespace IOSVN.TuTien.Core
             CreatorChip(genderRow, "Ngẫu nhiên", new Vector2(.67f, 0), new Vector2(1, 1), false, RandomizeLook);
         }
 
-        private void BuildCreatorCustomizer(RectTransform inner)
-        {
-            var col = Anchored("Custom", inner, new Vector2(.28f, .14f), new Vector2(.64f, 1), new Vector2(10, 0), new Vector2(-10, 0));
-            AnchoredText(col, "Title", "DIỆN MẠO", ModernUi.Display, 34, new Color32(46, 40, 38, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -50), Vector2.zero);
-            creatorChips = Anchored("Chips", col, new Vector2(0, .42f), new Vector2(1, 1), Vector2.zero, new Vector2(0, -56));
-            var stepper = Anchored("Stepper", col, new Vector2(0, .26f), new Vector2(1, .4f), Vector2.zero, Vector2.zero);
-            var prev = Anchored("Prev", stepper, new Vector2(0, 0), new Vector2(.18f, 1), Vector2.zero, Vector2.zero);
-            PillButton(prev, "", "arrowLeft", false, () => StepCreatorStyle(-1));
-            var next = Anchored("Next", stepper, new Vector2(.82f, 0), new Vector2(1, 1), Vector2.zero, Vector2.zero);
-            PillButton(next, "", "arrowRight", false, () => StepCreatorStyle(1));
-            creatorStyleLabel = AnchoredText(stepper, "Style", "", ModernUi.SemiBold, 30, new Color32(40, 34, 32, 255), TextAnchor.MiddleCenter, new Vector2(.18f, 0), new Vector2(.82f, 1), Vector2.zero, Vector2.zero);
-            creatorSwatches = Anchored("Swatches", col, new Vector2(0, 0), new Vector2(1, .24f), Vector2.zero, Vector2.zero);
-        }
-
         private void BuildCreatorDestiny(RectTransform inner)
         {
-            var col = Anchored("Destiny", inner, new Vector2(.65f, .14f), new Vector2(1, 1), new Vector2(10, 0), Vector2.zero);
+            var col = Anchored("Destiny", inner, new Vector2(.70f, .14f), new Vector2(.99f, 1), new Vector2(6, 0), new Vector2(-6, 0));
+            var panel = col.gameObject.AddComponent<Image>();
+            ModernUi.Fill(panel, 24f);
+            panel.color = new Color32(255, 255, 255, 92);
+            panel.raycastTarget = false;
             AnchoredText(col, "Title", "CĂN CƠ", ModernUi.Display, 34, new Color32(46, 40, 38, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -50), Vector2.zero);
             sectNames = Names(currentCatalog?.mon);
             elementNames = Names(currentCatalog?.he);

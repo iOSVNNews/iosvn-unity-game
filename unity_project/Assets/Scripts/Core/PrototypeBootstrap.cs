@@ -164,7 +164,7 @@ namespace IOSVN.TuTien.Core
         private bool atlasRealmInitialized;
         private bool atlasImmortalRealm;
         private bool atlasShowTowns = true;
-        private bool atlasShowDungeons = true;
+        private bool atlasShowDungeons;
         private bool atlasShowMonsterZones = true;
         private float atlasZoom = 1f;
         private Transform atlasLayer;
@@ -198,11 +198,13 @@ namespace IOSVN.TuTien.Core
             if (client == null) client = new GameObject("NetworkGameClient").AddComponent<NetworkGameClient>();
             if (GameAudioController.Instance == null) new GameObject("GameAudioController").AddComponent<GameAudioController>();
             BuildCanvas();
+            BeginOpeningIntro();
             StartStartupPatchCheck();
         }
 
         private void Update()
         {
+            UpdateOpeningIntro();
             if (offlinePreview && offlineBattleRoot == null) UpdateRoamingMonsters();
             if (offlineBattleRoot == null || offlinePlayerFighter == null || offlineMonsterFighter == null || offlineBattleOver) return;
             var bounds = offlineBattleRoot.GetComponent<RectTransform>().rect;
@@ -324,12 +326,11 @@ namespace IOSVN.TuTien.Core
             });
             patcher.OnMajorUpdateRequired.AddListener(info =>
             {
-                ShowMajorUpdateDialog(info);
+                ReceiveStartupMajorUpdate(info);
             });
             patcher.StartPatchCheck((success, message) =>
             {
-                if (!majorUpdateShowing)
-                    ShowLogin(success ? message : "Không cập nhật được tài nguyên: " + message);
+                CompleteStartupPatchCheck(success, message);
             });
         }
 
@@ -1076,9 +1077,9 @@ namespace IOSVN.TuTien.Core
             statusMin = new Vector2(.34f, .115f); statusMax = new Vector2(.98f, .15f);
 
             var header = PanelObject("HomeHeader", content.transform, new Vector2(.02f, .855f), new Vector2(.98f, .98f), Vector2.zero, Vector2.zero, new Color32(18, 25, 33, 248));
-            ChildText(header.transform, "GameMark", 15, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .55f), new Vector2(.27f, .94f)).text = "TU TIÊN GIỚI  ·  CỬU CHÂU";
-            ChildText(header.transform, "Welcome", 23, Cream, TextAnchor.MiddleLeft, new Vector2(.025f, .06f), new Vector2(.56f, .60f)).text = playerName ?? "Đạo hữu";
-            ChildText(header.transform, "HeaderResources", 16, Gold, TextAnchor.MiddleRight, new Vector2(.58f, .12f), new Vector2(.975f, .88f)).text =
+            ChildText(header.transform, "GameMark", 17, Gold, TextAnchor.MiddleLeft, new Vector2(.025f, .55f), new Vector2(.27f, .94f)).text = "TU TIÊN GIỚI  ·  CỬU CHÂU";
+            ChildText(header.transform, "Welcome", 26, Cream, TextAnchor.MiddleLeft, new Vector2(.025f, .06f), new Vector2(.56f, .60f)).text = playerName ?? "Đạo hữu";
+            ChildText(header.transform, "HeaderResources", 18, Gold, TextAnchor.MiddleRight, new Vector2(.58f, .12f), new Vector2(.975f, .88f)).text =
                 $"{state.realm?.name ?? "Sơ nhập"}     ·     {state.town?.name ?? "Chưa rõ thành"}     ·     {Math.Max(0, state.player?.stones ?? 0):N0} LINH THẠCH";
             ((RectTransform)header.transform.Find("HeaderResources")).anchorMax = new Vector2(.94f, .88f);
             PlacePixelIcon(header.transform, "coin", new Vector2(.945f, .22f), new Vector2(.975f, .78f));
@@ -1108,9 +1109,9 @@ namespace IOSVN.TuTien.Core
                 portraitImage.preserveAspect = true;
                 portraitImage.raycastTarget = false;
             }
-            ChildText(profile.transform, "ProfileName", 20, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .32f), new Vector2(.95f, .41f)).text =
+            ChildText(profile.transform, "ProfileName", 23, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .32f), new Vector2(.95f, .41f)).text =
                 string.IsNullOrWhiteSpace(state.player?.name) ? "Đạo hữu" : state.player.name;
-            ChildText(profile.transform, "ProfileSect", 15, Muted, TextAnchor.MiddleCenter, new Vector2(.05f, .25f), new Vector2(.95f, .33f)).text =
+            ChildText(profile.transform, "ProfileSect", 17, new Color32(204, 210, 214, 255), TextAnchor.MiddleCenter, new Vector2(.05f, .25f), new Vector2(.95f, .33f)).text =
                 $"{state.player?.monName ?? "Tán tu"}  ·  {state.player?.heName ?? "Linh căn chưa rõ"}";
             var hp = Math.Max(0L, state.player?.hp ?? 0L);
             var maxHp = Math.Max(0L, state.player?.maxHp ?? 0L);
@@ -1118,7 +1119,7 @@ namespace IOSVN.TuTien.Core
             var hpFill = PanelObject("HomeHealthFill", hpTrack.transform, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2), new Color32(79, 178, 104, 255)).GetComponent<Image>();
             hpFill.type = Image.Type.Filled; hpFill.fillMethod = Image.FillMethod.Horizontal; hpFill.fillOrigin = (int)Image.OriginHorizontal.Left;
             hpFill.fillAmount = maxHp == 0 ? 0f : Mathf.Clamp01((float)hp / maxHp);
-            ChildText(profile.transform, "ProfileVitals", 14, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .12f), new Vector2(.95f, .18f)).text =
+            ChildText(profile.transform, "ProfileVitals", 16, Cream, TextAnchor.MiddleCenter, new Vector2(.05f, .12f), new Vector2(.95f, .18f)).text =
                 maxHp == 0 ? "KHÍ HUYẾT  ·  CHƯA CÓ DỮ LIỆU" : $"KHÍ HUYẾT  ·  {hp:N0} / {maxHp:N0}";
             PlacePixelIcon(profile.transform, "heart", new Vector2(.02f, .17f), new Vector2(.075f, .24f));
             AddButtonPixelIcon(Button("DANH HIỆU", new Vector2(.07f, .035f), new Vector2(.93f, .105f), Panel, () => ShowTitles(state), profile.transform), "power");
@@ -1175,6 +1176,9 @@ namespace IOSVN.TuTien.Core
                 }
             }
             StopExplorationMovement(savePosition: true);
+            atlasZoom = 1f;
+            atlasMapGesture = null;
+            atlasZoomSlider = null;
             if (!atlasRealmInitialized)
             {
                 atlasImmortalRealm = IsImmortalRealm(state);
@@ -2704,7 +2708,9 @@ namespace IOSVN.TuTien.Core
             atlasLayer.localScale = Vector3.one * atlasZoom;
             atlasMapGesture = viewport.AddComponent<AtlasMapGesture>();
             atlasMapGesture.Initialize(viewport.GetComponent<RectTransform>(), layer.GetComponent<RectTransform>());
+            Canvas.ForceUpdateCanvases();
             atlasMapGesture.ApplyZoom(atlasZoom);
+            atlasMapGesture.ResetView();
 
             var art = new GameObject("AtlasPainting", typeof(RectTransform), typeof(RawImage));
             art.transform.SetParent(atlasLayer, false);
@@ -2712,6 +2718,9 @@ namespace IOSVN.TuTien.Core
             var atlas = art.GetComponent<RawImage>();
             var atlasWorld = WorldMapData.LoadWorld(atlasImmortalRealm ? "world_tien" : "world_pham");
             activePaintingId = atlasWorld?.id;
+            var fit = layer.AddComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fit.aspectRatio = atlasWorld == null || atlasWorld.h <= 0 ? 1.6f : atlasWorld.w / (float)atlasWorld.h;
             atlas.texture = atlasWorld == null ? null : GetPainting(atlasWorld.id);
             atlas.color = atlas.texture == null ? new Color32(154, 126, 82, 255) : Color.white;
             atlas.raycastTarget = false;
@@ -2728,7 +2737,7 @@ namespace IOSVN.TuTien.Core
                 {
                     var current = state.town?.id == town.id;
                     AddAtlasMarker("Town_" + town.id, point, "T", current ? Gold : Color.white,
-                        current ? 36 : 28, () => SelectAtlasTown(state, town, "town", null), town.name,
+                        current ? 29 : 22, () => SelectAtlasTown(state, town, "town", null), town.name,
                         current || (atlasSelectedTown?.id == town.id && atlasSelectionKind == "town"));
                 }
                 if (atlasShowDungeons)
@@ -2739,7 +2748,7 @@ namespace IOSVN.TuTien.Core
                         if (dungeon.townId != town.id) continue;
                         var caveAngle = caveIndex * Mathf.PI * 2f / 5f - Mathf.PI * .5f;
                         var offset = new Vector2(Mathf.Cos(caveAngle) * .046f, Mathf.Sin(caveAngle) * .044f);
-                        AddAtlasMarker("Cave_" + dungeon.id, ClampAtlasPosition(point + offset), "D", Color.white, 25,
+                        AddAtlasMarker("Cave_" + dungeon.id, ClampAtlasPosition(point + offset), "D", Color.white, 18,
                             () => SelectAtlasTown(state, town, "dungeon", dungeon), dungeon.name,
                             atlasSelectedDungeon?.id == dungeon.id && atlasSelectionKind == "dungeon");
                         caveIndex++;
@@ -2764,7 +2773,7 @@ namespace IOSVN.TuTien.Core
                         var town = regionTowns[townIndex];
                         var point = AtlasMonsterFieldPosition(map, field, fieldCount);
                         var fieldNumber = field + 1;
-                        AddAtlasMarker("MonsterField_" + map.id + "_" + field, point, "Y", Color.white, 28,
+                        AddAtlasMarker("MonsterField_" + map.id + "_" + field, point, "Y", Color.white, 21,
                             () => SelectAtlasMonsterField(state, town, localField, localFieldCount, fieldNumber), "Bãi quái " + fieldNumber,
                             atlasSelectionKind == "monsters" && atlasSelectedTown?.mapId == map.id && atlasSelectedMonsterFieldLabel == fieldNumber);
                     }
@@ -2827,6 +2836,14 @@ namespace IOSVN.TuTien.Core
                 () => SetAtlasRealm(state, true), top.transform);
             Button("PVP / PVE", new Vector2(0.82f, 0.08f), new Vector2(0.96f, 0.92f), Panel,
                 () => { SetAtlasOrientation(false); ShowBattleMapSet(state, atlasImmortalRealm); }, top.transform);
+            Button("VỪA KHUNG", new Vector2(0.57f, 0.045f), new Vector2(0.73f, 0.105f), Panel,
+                () =>
+                {
+                    atlasZoom = 1f;
+                    if (atlasZoomSlider != null) atlasZoomSlider.value = 1f;
+                    if (atlasMapGesture != null) atlasMapGesture.ResetView();
+                    else if (atlasLayer != null) atlasLayer.localPosition = Vector3.zero;
+                });
             Button("−", new Vector2(0.91f, 0.045f), new Vector2(0.955f, 0.105f), Panel,
                 () => { if (atlasZoomSlider != null) atlasZoomSlider.value = Mathf.Max(1f, atlasZoomSlider.value - 0.15f); });
             var zoomTrack = PanelObject("AtlasZoomTrack", content.transform, new Vector2(0.76f, 0.062f), new Vector2(0.90f, 0.082f), Vector2.zero, Vector2.zero, new Color32(38, 32, 24, 220));
@@ -2928,33 +2945,23 @@ namespace IOSVN.TuTien.Core
             var hasTowns = false;
             foreach (var town in towns) if (town.mapId == map.id) { hasTowns = true; break; }
             if (!hasTowns) return;
-            var regionTowns = new System.Collections.Generic.List<TownInfo>();
-            foreach (var town in towns) if (town.mapId == map.id && town.monsterPool != null && town.monsterPool.Length > 0) regionTowns.Add(town);
-            var fieldCount = AtlasMonsterFieldCount(regionTowns);
-            var caveCount = 0;
-            foreach (var town in towns) if (town.mapId == map.id) caveCount += CountTownDungeons(town.id);
-            var townCount = 0;
-            foreach (var town in towns) if (town.mapId == map.id) townCount++;
-
             var point = AtlasRegionAnchor(map);
             point.y += point.y < .50f ? .105f : -.105f;
-            const float width = .225f;
-            const float halfHeight = .03f;
-            var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, halfHeight), point + new Vector2(width * .5f, halfHeight), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 238));
-            tag.GetComponent<Image>().raycastTarget = false;
-            var title = ChildText(tag.transform, "ProvinceName", 18, Gold, TextAnchor.MiddleCenter,
-                new Vector2(0, .48f), Vector2.one);
+            const float width = .205f;
+            const float halfHeight = .024f;
+            var tag = PanelObject("Region_" + map.id, atlasLayer, point - new Vector2(width * .5f, halfHeight), point + new Vector2(width * .5f, halfHeight), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 225));
+            var tagImage = tag.GetComponent<Image>();
+            ModernUi.Fill(tagImage, 10f);
+            tagImage.raycastTarget = false;
+            PixelUiSkin.ApplyFrame(tag);
+            var title = ChildText(tag.transform, "ProvinceName", 16, Gold, TextAnchor.MiddleCenter,
+                new Vector2(.03f, 0f), new Vector2(.97f, 1f));
             title.resizeTextForBestFit = true;
-            title.resizeTextMinSize = 14;
-            title.resizeTextMaxSize = 18;
-            title.horizontalOverflow = HorizontalWrapMode.Overflow;
-            title.text = $"{AtlasRealmNumber(map):00} · {map.provinceName ?? map.name}";
+            title.resizeTextMinSize = 12;
+            title.resizeTextMaxSize = 16;
+            title.horizontalOverflow = HorizontalWrapMode.Wrap;
+            title.text = $"{AtlasRealmNumber(map):00}  {map.provinceName ?? map.name}";
             PixelUiSkin.ApplyTextTreatment(title);
-            var details = ChildText(tag.transform, "ProvinceDetails", 14, Cream, TextAnchor.MiddleCenter,
-                Vector2.zero, new Vector2(1, .52f));
-            details.horizontalOverflow = HorizontalWrapMode.Overflow;
-            details.text = $"{townCount} thành · {fieldCount} bãi quái · {caveCount} cổ động";
-            PixelUiSkin.ApplyTextTreatment(details);
         }
 
         private void AddAtlasLandmark(string name, Vector2 point)
@@ -2973,10 +2980,20 @@ namespace IOSVN.TuTien.Core
             var marker = PanelObject(name, atlasLayer, point, point, -offset, offset, Color.clear);
             marker.AddComponent<PixelMapMarkerMotion>();
             var image = marker.GetComponent<Image>();
-            image.sprite = AtlasPixelSprite(glyph); image.type = Image.Type.Simple; image.preserveAspect = true; image.color = color; image.raycastTarget = true;
+            var accent = glyph == "D" ? new Color32(197, 158, 241, 255)
+                : glyph == "Y" ? new Color32(244, 125, 91, 255)
+                : new Color32(239, 199, 112, 255);
+            ModernUi.Fill(image, Mathf.Max(7f, size * .42f));
+            image.color = color == Gold ? accent : new Color32(16, 22, 28, 246);
+            image.raycastTarget = true;
+            var glyphText = ChildText(marker.transform, "Glyph", Mathf.Clamp(Mathf.RoundToInt(size * .48f), 10, 15),
+                color == Gold ? new Color32(24, 28, 30, 255) : accent, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one);
+            glyphText.text = glyph;
+            glyphText.fontStyle = FontStyle.Bold;
             var button = marker.AddComponent<Button>();
+            button.targetGraphic = image;
             button.transition = Selectable.Transition.ColorTint;
-            var colors = button.colors; colors.normalColor = color; colors.highlightedColor = Color.white; colors.pressedColor = Gold; button.colors = colors;
+            var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(1f, .96f, .82f); colors.pressedColor = accent; button.colors = colors;
             button.onClick.AddListener(() => click?.Invoke());
             if (!string.IsNullOrWhiteSpace(caption))
             {
@@ -2986,7 +3003,7 @@ namespace IOSVN.TuTien.Core
                 rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f); rect.pivot = new Vector2(.5f, 1f);
                 rect.anchoredPosition = new Vector2(0f, -size * .42f); rect.sizeDelta = new Vector2(220f, 26f);
                 var label = labelObject.GetComponent<Text>();
-                label.font = BuiltinFont(); label.fontSize = 12; label.color = Cream;
+                label.font = ModernUi.SemiBold; label.fontSize = 12; label.color = Cream;
                 label.alignment = TextAnchor.MiddleCenter; label.horizontalOverflow = HorizontalWrapMode.Wrap; label.verticalOverflow = VerticalWrapMode.Truncate;
                 label.text = caption; label.raycastTarget = false;
                 var outline = labelObject.GetComponent<Outline>(); outline.effectColor = new Color(0f, 0f, 0f, .94f); outline.effectDistance = new Vector2(1.2f, -1.2f);
@@ -3674,11 +3691,11 @@ namespace IOSVN.TuTien.Core
             ShowStatus("Gửi yêu cầu trận đấu lên server...");
             client.StartWorldHunt(uid, (started, error) =>
             {
-                if (!started) { ShowStatus(error); return; }
+                if (!started) { worldActorEngagedId = null; ShowStatus(error); return; }
                 ShowStatus("Server đã mở trận đấu.");
                 client.LoadCurrentBattle((battle, battleError) =>
                 {
-                    if (battle == null) { ShowStatus(battleError); return; }
+                    if (battle == null) { worldActorEngagedId = null; ShowStatus(battleError); return; }
                     ShowBattle(battle);
                 });
             });
@@ -3868,7 +3885,7 @@ namespace IOSVN.TuTien.Core
             obj.transform.SetParent(parent ?? content.transform, false);
             Place(obj.GetComponent<RectTransform>(), min, max);
             var text = obj.GetComponent<Text>();
-            text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = alignment;
+            text.font = ModernUi.Regular; text.fontSize = size; text.color = color; text.alignment = alignment;
             text.text = value; text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
             text.raycastTarget = false;
             PixelUiSkin.ApplyTextTreatment(text);
@@ -3937,6 +3954,7 @@ namespace IOSVN.TuTien.Core
         private Button Button(string label, Vector2 min, Vector2 max, Color color, Action click, Transform parent = null)
         {
             var root = PanelObject("Button_" + label, parent ?? content.transform, min, max, Vector2.zero, Vector2.zero, color);
+            ModernUi.Fill(root.GetComponent<Image>(), 12f);
             var button = root.AddComponent<Button>();
             button.targetGraphic = root.GetComponent<Image>();
             var colors = button.colors; colors.normalColor = Color.white; colors.highlightedColor = new Color(1f, .96f, .82f); colors.pressedColor = new Color(.76f, .83f, .79f); colors.disabledColor = new Color(.55f, .55f, .55f, .75f); button.colors = colors;
@@ -3958,7 +3976,11 @@ namespace IOSVN.TuTien.Core
             var img = obj.GetComponent<Image>();
             img.color = color;
             if (color.a == 0f) img.raycastTarget = false;
-            if (PixelUiSkin.NeedsFrame(name)) PixelUiSkin.ApplyFrame(obj);
+            if (PixelUiSkin.NeedsFrame(name))
+            {
+                if (color.a > 0f) ModernUi.Fill(img, 14f);
+                PixelUiSkin.ApplyFrame(obj);
+            }
             return obj;
         }
 
@@ -3966,7 +3988,7 @@ namespace IOSVN.TuTien.Core
         {
             var obj = new GameObject(name, typeof(RectTransform), typeof(Text)); obj.transform.SetParent(parent, false);
             Place(obj.GetComponent<RectTransform>(), min, max);
-            var text = obj.GetComponent<Text>(); text.font = BuiltinFont(); text.fontSize = size; text.color = color; text.alignment = anchor;
+            var text = obj.GetComponent<Text>(); text.font = ModernUi.Regular; text.fontSize = size; text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
             text.raycastTarget = false;
             PixelUiSkin.ApplyTextTreatment(text);

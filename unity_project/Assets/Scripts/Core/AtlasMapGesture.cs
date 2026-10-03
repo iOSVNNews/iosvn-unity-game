@@ -52,9 +52,9 @@ namespace IOSVN.TuTien.Core
         private void ClampPan()
         {
             if (layer == null || viewport == null) return;
-            var excess = Mathf.Max(0f, layer.localScale.x - 1f);
-            var maxX = viewport.rect.width * excess * .5f;
-            var maxY = viewport.rect.height * excess * .5f;
+            var scaledSize = layer.rect.size * layer.localScale.x;
+            var maxX = Mathf.Max(0f, (scaledSize.x - viewport.rect.width) * .5f);
+            var maxY = Mathf.Max(0f, (scaledSize.y - viewport.rect.height) * .5f);
             var position = layer.anchoredPosition;
             layer.anchoredPosition = new Vector2(Mathf.Clamp(position.x, -maxX, maxX), Mathf.Clamp(position.y, -maxY, maxY));
         }

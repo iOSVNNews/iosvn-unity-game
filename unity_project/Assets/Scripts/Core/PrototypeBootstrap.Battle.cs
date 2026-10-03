@@ -59,7 +59,13 @@ namespace IOSVN.TuTien.Core
             Texture painting = null;
             Rect uv = new Rect(0, 0, 1, 1);
             var data = WorldMapData.Load(mapId);
-            if (data != null)
+            var battleMap = BattleMapFromJson(battle["battleMap"]);
+            if (battleMap != null)
+            {
+                var immortal = hub.IsObject && hub["player"].IsObject && hub["player"]["ascended"].Bool();
+                painting = PixelCombatPresentation.GroundFor(battleMap, immortal);
+            }
+            else if (data != null)
             {
                 painting = GetPainting(mapId);
                 var tile = worldReturnTile ?? (Vector2?)null;
@@ -72,6 +78,25 @@ namespace IOSVN.TuTien.Core
                 uv = new Rect(u, v, w, h);
             }
             actionBattle.Init(this, client, root, hud, battle, painting, uv, LookOf(player), AvatarComposer.AuraStrength(realmIdx), realmIdx);
+        }
+
+        internal static BattleMapInfo BattleMapFromJson(J source)
+        {
+            if (!source.IsObject || string.IsNullOrEmpty(source["id"].Str())) return null;
+            var palette = new List<string>();
+            foreach (var color in source["palette"].Items) palette.Add(color.Str());
+            return new BattleMapInfo
+            {
+                id = source["id"].Str(),
+                name = source["name"].Str(),
+                description = source["description"].Str(),
+                terrain = source["terrain"].Str(),
+                layout = source["layout"].Str(),
+                palette = palette.ToArray(),
+                weather = source["weather"].Str(),
+                visualThemeId = source["visualThemeId"].Str(),
+                isActive = source["isActive"].Bool(),
+            };
         }
 
         // ---- callbacks used by the battle component (keeps the partial's private helpers in reach)
@@ -142,6 +167,10 @@ namespace IOSVN.TuTien.Core
         private Vector2 monsterPos = new Vector2(-300, -60);
         private float monsterLungeUntil, monsterLungeTime = .35f;
         private readonly List<MonsterView> minions = new List<MonsterView>();
+        private readonly List<Vector2> minionPositions = new List<Vector2>();
+        private readonly List<float> minionRushStarts = new List<float>();
+        private readonly List<float> minionRushEnds = new List<float>();
+        private readonly List<RectTransform> fighterDepthOrder = new List<RectTransform>();
         private int lastMoveSeq = -1;
         private string element = "kim";
 
@@ -267,11 +296,28 @@ namespace IOSVN.TuTien.Core
             var id = m["id"].Str();
             var boss = m["packSize"].Int(1) > 1 || b["kind"].Str() == "boss" || b["kind"].Str() == "worldBoss";
             var still = owner.BattleMonsterSprite(id);
-            for (var i = 0; i < Mathf.Clamp(m["minionCount"].Int(), 0, 4); i++)
-                minions.Add(MonsterView.Create(fighterLayer, "Minion" + i, id, still, new Vector2(180, 180)));
+            var minionCount = Mathf.Clamp(m["minionCount"].Int(), 0, 4);
+            var towardPlayer = (playerPos - monsterPos).normalized;
+            var cross = new Vector2(-towardPlayer.y, towardPlayer.x);
+            for (var i = 0; i < minionCount; i++)
+            {
+                var minion = MonsterView.Create(fighterLayer, "Minion" + i, id, still, new Vector2(180, 180));
+                minions.Add(minion);
+                var progress = (i + 1f) / (minionCount + 1f);
+                var lane = (i - (minionCount - 1) * .5f) * 80f;
+                var initial = Vector2.Lerp(monsterPos, playerPos, progress) + cross * lane;
+                minionPositions.Add(initial);
+                minion.Rect.anchoredPosition = initial;
+                minionRushStarts.Add(float.PositiveInfinity);
+                minionRushEnds.Add(float.NegativeInfinity);
+            }
             var size = boss ? 500f : m["small"].Bool() ? 320f : 400f;
             monster = MonsterView.Create(fighterLayer, "Monster", id, still, new Vector2(size, size), m["element"].Str("kim"));
             hero = FighterView.Create(fighterLayer, "Player", look, 2.7f, auraStrength);
+            fighterDepthOrder.Clear();
+            foreach (var minion in minions) fighterDepthOrder.Add(minion.Rect);
+            fighterDepthOrder.Add(monster.Rect);
+            fighterDepthOrder.Add(hero.Rect);
         }
 
         private StageContext HeroStage() => new StageContext
@@ -591,7 +637,19 @@ namespace IOSVN.TuTien.Core
             monsterLungeTime = melee ? .4f : .25f;
             monsterLungeUntil = Time.time + monsterLungeTime;
             monsterLungeScale = melee ? 1f : .25f;
+            StageMinionRush();
             return SkillStage.Monster(MonsterStage(), fx, move["v"].Int(), big, battle["m"]["element"].Str("kim"));
+        }
+
+        /// <summary>When the server reports the pack's turn, its lesser beasts rush the player in a staggered wave.</summary>
+        private void StageMinionRush()
+        {
+            var now = Time.unscaledTime;
+            for (var i = 0; i < minions.Count; i++)
+            {
+                minionRushStarts[i] = now + i * .11f;
+                minionRushEnds[i] = minionRushStarts[i] + .58f;
+            }
         }
 
         private float monsterLungeScale = 1f;
@@ -873,6 +931,16 @@ namespace IOSVN.TuTien.Core
         {
             hero.Freeze(FighterAction.Cast, .9f);
             var mEl = battle["m"]["element"].Str("kim");
+            var towardHero = (playerPos - monsterPos).normalized;
+            var cross = new Vector2(-towardHero.y, towardHero.x);
+            for (var i = 0; i < minions.Count; i++)
+            {
+                var progress = (i + 1f) / (minions.Count + 1f);
+                var lane = (i - (minions.Count - 1) * .5f) * 54f;
+                minionPositions[i] = Vector2.Lerp(monsterPos, playerPos, progress) + cross * lane;
+                minions[i].Rect.anchoredPosition = minionPositions[i];
+                minions[i].FaceRight = playerPos.x > minionPositions[i].x;
+            }
             FxPlayer Hold(FxPlayer fx, int frame) { if (fx != null) { fx.Frozen = true; fx.StartFrame = frame; } return fx; }
             dimImage.color = new Color(.02f, .01f, .05f, .5f);
             foreach (var layer in BattleFx.Wheel(fxLayer, element, playerPos + new Vector2(0, hero.Height * .52f), 1.3f, 1f, backLayer)) if (layer != null) layer.Frozen = true;
@@ -921,7 +989,7 @@ namespace IOSVN.TuTien.Core
             if (Time.time < playerDashUntil) lunge -= toMonster * 150f * Mathf.Sin((playerDashUntil - Time.time) / .28f * Mathf.PI);
             hero.Rect.anchoredPosition = playerPos + lunge + shakeOffset;
             // monster keeps a fighting distance and lunges with its melee moves
-            if (!over)
+            if (!over && !previewHold)
             {
                 var target = playerPos + new Vector2(monsterPos.x < playerPos.x ? -300 : 300, 20);
                 monsterPos = Vector2.MoveTowards(monsterPos, target, 140f * dt);
@@ -931,14 +999,47 @@ namespace IOSVN.TuTien.Core
                 : Vector2.zero;
             monster.Rect.anchoredPosition = monsterPos + mLunge + shakeOffset;
             monster.FaceRight = monsterPos.x < playerPos.x;
+            var midpoint = Vector2.Lerp(monsterPos, playerPos, .46f);
+            var side = new Vector2(-toMonster.y, toMonster.x);
             for (var i = 0; i < minions.Count; i++)
             {
-                var a = Time.time * .8f + i * Mathf.PI * .5f;
-                minions[i].Rect.anchoredPosition = monsterPos + new Vector2(Mathf.Cos(a) * 230f, Mathf.Sin(a) * 60f - 50f) + shakeOffset;
-                minions[i].FaceRight = monster.FaceRight;
+                if (previewHold)
+                {
+                    minions[i].Rect.anchoredPosition = minionPositions[i] + shakeOffset;
+                    continue;
+                }
+                var phase = Time.time * (.72f + i * .035f) + i * Mathf.PI * .5f;
+                var lane = 205f + (i % 2) * 90f;
+                var patrol = midpoint + new Vector2(Mathf.Cos(phase) * lane, Mathf.Sin(phase * 1.25f) * (72f + (i % 2) * 26f) - 26f);
+                var rushDuration = Mathf.Max(.01f, minionRushEnds[i] - minionRushStarts[i]);
+                var rushProgress = Mathf.Clamp01((Time.unscaledTime - minionRushStarts[i]) / rushDuration);
+                var target = patrol;
+                if (Time.unscaledTime >= minionRushStarts[i] && Time.unscaledTime <= minionRushEnds[i])
+                {
+                    var formationLane = (i - (minions.Count - 1) * .5f) * 62f;
+                    var attackPoint = playerPos + toMonster * 42f + side * formationLane;
+                    target = Vector2.Lerp(patrol, attackPoint, Mathf.SmoothStep(0f, 1f, rushProgress));
+                }
+                target.x = Mathf.Clamp(target.x, -bounds.width * .42f, bounds.width * .42f);
+                target.y = Mathf.Clamp(target.y, -bounds.height * .34f, bounds.height * .10f);
+                minionPositions[i] = Vector2.MoveTowards(minionPositions[i], target, 310f * dt);
+                minions[i].Rect.anchoredPosition = minionPositions[i] + shakeOffset;
+                minions[i].FaceRight = target.x > minionPositions[i].x;
             }
-            // depth order: lower on screen = in front
-            if (playerPos.y < monsterPos.y) hero.Rect.SetAsLastSibling(); else monster.Rect.SetAsLastSibling();
+            // Sort the whole pack and player together: lower figures overlap the terrain and actors in front.
+            for (var i = 1; i < fighterDepthOrder.Count; i++)
+            {
+                var actor = fighterDepthOrder[i];
+                var y = actor.anchoredPosition.y;
+                var j = i - 1;
+                while (j >= 0 && fighterDepthOrder[j].anchoredPosition.y < y)
+                {
+                    fighterDepthOrder[j + 1] = fighterDepthOrder[j];
+                    j--;
+                }
+                fighterDepthOrder[j + 1] = actor;
+            }
+            for (var i = 0; i < fighterDepthOrder.Count; i++) fighterDepthOrder[i].SetSiblingIndex(i);
             // the pale trail on the enemy bar drains toward the real value
             if (monsterHpTrail != null)
                 monsterHpTrail.fillAmount = monsterHpTrail.fillAmount < monsterHp.fillAmount ? monsterHp.fillAmount : Mathf.MoveTowards(monsterHpTrail.fillAmount, monsterHp.fillAmount, dt * .35f);

@@ -70,14 +70,23 @@ namespace IOSVN.TuTien.Core
             var mapId = hub["town"]["mapId"].Str();
             Texture painting = null;
             var uv = new Rect(0, 0, 1, 1);
-            var data = WorldMapData.Load(mapId);
-            if (data != null)
+            var battleMap = BattleMapFromJson(battle["battleMap"]);
+            if (battleMap != null)
             {
-                painting = GetPainting(mapId);
-                var w = 30f / data.w;
-                var h = 16.9f / data.h;
-                var tile = worldReturnTile ?? new Vector2(data.w * .5f, data.h * .5f);
-                uv = new Rect(Mathf.Clamp(tile.x / data.w - w / 2, 0, 1 - w), Mathf.Clamp(1f - tile.y / data.h - h / 2, 0, 1 - h), w, h);
+                var immortal = hub["player"].IsObject && hub["player"]["ascended"].Bool();
+                painting = PixelCombatPresentation.GroundFor(battleMap, immortal);
+            }
+            else
+            {
+                var data = WorldMapData.Load(mapId);
+                if (data != null)
+                {
+                    painting = GetPainting(mapId);
+                    var w = 30f / data.w;
+                    var h = 16.9f / data.h;
+                    var tile = worldReturnTile ?? new Vector2(data.w * .5f, data.h * .5f);
+                    uv = new Rect(Mathf.Clamp(tile.x / data.w - w / 2, 0, 1 - w), Mathf.Clamp(1f - tile.y / data.h - h / 2, 0, 1 - h), w, h);
+                }
             }
             pvpArena.Init(this, client, root, hud, battle, painting, uv);
         }
@@ -153,19 +162,22 @@ namespace IOSVN.TuTien.Core
                 bg.uvRect = uv;
                 bg.raycastTarget = false;
             }
-            var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .34f), Vector2.zero);
+            var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .16f), Vector2.zero);
             tint.rectTransform.anchorMin = Vector2.zero; tint.rectTransform.anchorMax = Vector2.one;
             tint.rectTransform.offsetMin = tint.rectTransform.offsetMax = Vector2.zero;
-            var veil = InkUi.Simple(root, "Vignette", InkUi.Vignette, new Color(.04f, .02f, .06f, .7f), Vector2.zero);
+            var veil = InkUi.Simple(root, "Vignette", InkUi.Vignette, new Color(.04f, .02f, .06f, .42f), Vector2.zero);
             veil.rectTransform.anchorMin = Vector2.zero; veil.rectTransform.anchorMax = Vector2.one;
             veil.rectTransform.offsetMin = veil.rectTransform.offsetMax = Vector2.zero;
             dimImage = InkUi.Simple(root, "Dim", InkUi.White, new Color(.02f, .01f, .05f, 0f), Vector2.zero);
             dimImage.rectTransform.anchorMin = Vector2.zero; dimImage.rectTransform.anchorMax = Vector2.one;
             dimImage.rectTransform.offsetMin = dimImage.rectTransform.offsetMax = Vector2.zero;
             // the duelling platform
-            var stage = InkUi.Simple(root, "Stage", InkUi.Glow, new Color(0, 0, 0, .42f), new Vector2(1500, 300));
+            var arenaSize = root.rect.size;
+            var stageWidth = Mathf.Max(1500f, (arenaSize.x > 0f ? arenaSize.x : 1920f) * .94f);
+            var stageHeight = Mathf.Max(390f, (arenaSize.y > 0f ? arenaSize.y : 1080f) * .57f);
+            var stage = InkUi.Simple(root, "Stage", InkUi.Glow, new Color(0, 0, 0, .16f), new Vector2(stageWidth, stageHeight));
             stage.rectTransform.anchorMin = stage.rectTransform.anchorMax = new Vector2(.5f, .5f);
-            stage.rectTransform.anchoredPosition = new Vector2(0, -150);
+            stage.rectTransform.anchoredPosition = new Vector2(0, -(arenaSize.y > 0f ? arenaSize.y : 1080f) * .07f);
             var stageRing = InkUi.Simple(stage.rectTransform, "Ring", InkUi.Ring, new Color(.92f, .76f, .46f, .5f), Vector2.zero);
             stageRing.rectTransform.anchorMin = Vector2.zero; stageRing.rectTransform.anchorMax = Vector2.one;
             stageRing.rectTransform.offsetMin = stageRing.rectTransform.offsetMax = Vector2.zero;

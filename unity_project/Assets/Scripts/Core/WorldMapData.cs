@@ -7,7 +7,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public sealed class WorldTownMeta { public string id; public string name; public int x; public int y; public int w; public int h; public bool big; public int[] gate; public int[] spawn; public string regionId; }
     [Serializable] public sealed class WorldPoi { public string kind; public string townId; public string dungeonId; public string label; public int x; public int y; public int[] rect; public bool big; public string regionId; public string gateId; public string targetMapId; }
     [Serializable] public sealed class WorldZone { public string townId; public string label; public int x; public int y; public int w; public int h; public string regionId; }
-    [Serializable] public sealed class WorldRegionMeta { public string id; public string name; public int x; public int y; public int w; public int h; public int realmMin; public string realmMinName; }
+    [Serializable] public sealed class WorldRegionMeta { public string id; public string name; public string biome; public int x; public int y; public int w; public int h; public int realmMin; public string realmMinName; }
 
     /// <summary>
     /// Province source data or one merged realm world: logical grid (collision, water, roads),
@@ -116,7 +116,7 @@ namespace IOSVN.TuTien.Core
                 var row = index / columns;
                 var offsetX = column * provinceWidth;
                 var offsetY = row * provinceHeight;
-                regions.Add(new WorldRegionMeta { id = source.id, name = source.name, x = offsetX, y = offsetY, w = source.w, h = source.h });
+                regions.Add(new WorldRegionMeta { id = source.id, name = source.name, biome = source.biome, x = offsetX, y = offsetY, w = source.w, h = source.h });
 
                 for (var y = 0; y < source.h; y++)
                 {
@@ -264,11 +264,16 @@ namespace IOSVN.TuTien.Core
         /// <summary>Loads detailed and realm-scale painted maps from PNG bytes in Resources.</summary>
         public static Texture2D LoadPainting(string mapId)
         {
-            var bytes = Resources.Load<TextAsset>("World/" + mapId + "_map");
+            // Realm maps are now single, complete paintings. Province PNGs remain in Resources as
+            // source material, but showing them over the realm map reintroduced baked-in old towns.
+            var realmMap = mapId == "world_pham" || mapId == "world_tien";
+            var resourceName = "World/" + mapId + (realmMap ? "_map_v2" : "_map");
+            var bytes = Resources.Load<TextAsset>(resourceName);
+            if (bytes == null && realmMap) bytes = Resources.Load<TextAsset>("World/" + mapId + "_map");
             if (bytes == null) return null;
-            var texture = new Texture2D(2, 2, TextureFormat.RGB24, false) { name = "Painting_" + mapId };
+            var texture = new Texture2D(2, 2, TextureFormat.RGB24, true) { name = "Painting_" + mapId };
             if (!texture.LoadImage(bytes.bytes, true)) { UnityEngine.Object.Destroy(texture); return null; }
-            texture.filterMode = FilterMode.Bilinear;
+            texture.filterMode = FilterMode.Trilinear;
             texture.wrapMode = TextureWrapMode.Clamp;
             Resources.UnloadAsset(bytes);
             return texture;

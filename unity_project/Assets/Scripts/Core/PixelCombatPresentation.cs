@@ -48,6 +48,7 @@ namespace IOSVN.TuTien.Core
             new Vector2(.935f, .40f), new Vector2(.97f, .28f)
         };
         private static readonly Dictionary<string, Texture2D> TerrainCache = new Dictionary<string, Texture2D>();
+        private static readonly Dictionary<string, Texture2D> IllustratedGroundCache = new Dictionary<string, Texture2D>();
         private static readonly Dictionary<string, Sprite[]> FighterCache = new Dictionary<string, Sprite[]>();
         private static readonly Dictionary<string, Sprite> ItemSpriteCache = new Dictionary<string, Sprite>(StringComparer.OrdinalIgnoreCase);
         private static Dictionary<string, string> itemIdsByName;
@@ -190,13 +191,48 @@ namespace IOSVN.TuTien.Core
 
         private void BuildGround(BattleMapInfo map)
         {
-            var texture = PixelGround(map?.id, immortalRealm, map?.palette, map?.layout);
+            var texture = GroundFor(map, immortalRealm);
             var go = new GameObject("PixelBattleGround", typeof(RectTransform), typeof(RawImage));
             go.transform.SetParent(transform, false);
             Place(go.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
             var image = go.GetComponent<RawImage>();
             image.texture = texture;
             image.raycastTarget = false;
+        }
+
+        /// <summary>Procedurally paints the dedicated terrain returned for the active PvE/PvP mode.</summary>
+        internal static Texture2D GroundFor(BattleMapInfo map, bool immortal)
+        {
+            var illustrated = IllustratedGroundFor(map);
+            if (illustrated != null) return illustrated;
+            return PixelGround(map?.id, immortal, map?.palette, map?.layout);
+        }
+
+        private static Texture2D IllustratedGroundFor(BattleMapInfo map)
+        {
+            var theme = (map?.visualThemeId ?? string.Empty).ToLowerInvariant();
+            var layout = (map?.layout ?? string.Empty).ToLowerInvariant();
+            string asset = null;
+            if (theme.Contains("/small-monster") || layout.Contains("forest") || layout.Contains("trail"))
+                asset = "battle-pham-small-monster";
+            else if (theme.Contains("/elite-boss") || theme.Contains("/cave-") || layout.Contains("cave") || layout.Contains("cavern"))
+                asset = "battle-pham-boss-cave";
+            else if (theme.Contains("/duel") || layout.Contains("duel"))
+                asset = "battle-pham-duel";
+            else if (theme.Contains("/ranked") || theme.Contains("/sect") || layout.Contains("courtyard"))
+                asset = "battle-pham-sect-arena";
+            else if (theme.Contains("/world-boss") || layout.Contains("world_field") || layout.Contains("worldboss"))
+                asset = "battle-pham-world-boss";
+            else if (theme.Contains("/sat-phat") || layout.Contains("broken") || layout.Contains("shattered"))
+                asset = "battle-pham-sat-phat";
+            if (asset == null) return null;
+
+            if (!IllustratedGroundCache.TryGetValue(asset, out var texture) || texture == null)
+            {
+                texture = Resources.Load<Texture2D>("BattleMaps/" + asset);
+                if (texture != null) IllustratedGroundCache[asset] = texture;
+            }
+            return texture;
         }
 
         private void BuildHeader(string foe, long hp, long maxHp, string location, string warning)
@@ -535,6 +571,12 @@ namespace IOSVN.TuTien.Core
                     var chaseX = duelist ? (fighter.role == 0 ? -.13f : .13f) * pursuit : 0f;
                     var runX = active ? Mathf.Sin(time * (duelist ? 1.75f : 1.4f)) * (duelist ? .055f : .032f) : Mathf.Sin(time * 1.4f) * .008f;
                     var runY = active ? Mathf.Cos(time * (duelist ? 1.53f : 1.91f)) * (duelist ? .065f : .045f) : Mathf.Sin(time * 2f) * .011f;
+                    if (fighter.role >= 2 && active)
+                    {
+                        // Pack monsters weave through the clearing instead of bobbing in a fixed ring.
+                        runX += Mathf.Sin(time * .68f + fighter.phase) * .065f;
+                        runY += Mathf.Cos(time * .91f + fighter.phase) * .075f;
+                    }
                     var x = fighter.home.x + chaseX + runX + direction * dash * (duelist ? .10f : .045f);
                     var y = fighter.home.y + runY + dash * .022f;
                     fighter.rect.anchorMin = fighter.rect.anchorMax = new Vector2(Mathf.Clamp(x, 0.08f, 0.92f), Mathf.Clamp(y, 0.28f, 0.72f));
@@ -828,19 +870,18 @@ namespace IOSVN.TuTien.Core
         {
             var key = (immortal ? "tien:" : "pham:") + (mapId ?? "grassland") + ":" + (layout ?? string.Empty) + ":" + string.Join(",", mapPalette ?? Array.Empty<string>());
             if (TerrainCache.TryGetValue(key, out var cached) && cached != null) return cached;
-            const int width = 320, height = 180, tile = 8;
+            const int width = 512, height = 288, tile = 4;
             unchecked
             {
                 var seed = immortal ? 739391 : 19349663;
                 foreach (var c in key) seed = seed * 31 + c;
                 var random = new System.Random(seed & 0x7fffffff);
                 var pixels = new Color32[width * height];
-                var palette = immortal
-                    ? new[] { new Color32(39, 64, 82, 255), new Color32(46, 76, 93, 255), new Color32(53, 75, 97, 255), new Color32(48, 67, 85, 255), new Color32(58, 80, 95, 255) }
-                    : new[] { new Color32(43, 67, 49, 255), new Color32(48, 73, 52, 255), new Color32(54, 76, 55, 255), new Color32(45, 64, 49, 255), new Color32(59, 79, 56, 255) };
-                var dark = immortal ? new Color32(30, 47, 67, 255) : new Color32(30, 49, 37, 255);
-                var light = immortal ? new Color32(73, 103, 113, 255) : new Color32(76, 99, 62, 255);
-                var accent = immortal ? new Color32(160, 155, 203, 255) : new Color32(102, 86, 57, 255);
+                var primary = immortal ? new Color32(54, 81, 104, 255) : new Color32(74, 105, 65, 255);
+                var secondary = immortal ? new Color32(92, 124, 143, 255) : new Color32(119, 143, 77, 255);
+                var dark = immortal ? new Color32(42, 64, 83, 255) : new Color32(52, 78, 50, 255);
+                var light = immortal ? new Color32(139, 166, 175, 255) : new Color32(166, 177, 111, 255);
+                var accent = immortal ? new Color32(184, 171, 217, 255) : new Color32(192, 160, 91, 255);
                 if (mapPalette != null && mapPalette.Length >= 3 &&
                     ColorUtility.TryParseHtmlString(mapPalette[0], out var mapPrimary) &&
                     ColorUtility.TryParseHtmlString(mapPalette[1], out var mapSecondary) &&
@@ -849,72 +890,192 @@ namespace IOSVN.TuTien.Core
                     var primary32 = (Color32)mapPrimary;
                     var secondary32 = (Color32)mapSecondary;
                     accent = (Color32)mapAccent;
-                    dark = Color32.Lerp(primary32, new Color32(4, 7, 12, 255), 0.38f);
+                    dark = Color32.Lerp(primary32, new Color32(18, 22, 28, 255), 0.18f);
                     light = secondary32;
-                    palette = new[] { primary32, Color32.Lerp(primary32, secondary32, 0.42f), secondary32, Color32.Lerp(secondary32, primary32, 0.28f), Color32.Lerp(primary32, secondary32, 0.72f) };
+                    primary = Color32.Lerp(primary32, secondary32, .16f);
+                    secondary = Color32.Lerp(primary32, secondary32, .72f);
                 }
-                for (var y = 0; y < height; y += tile)
-                for (var x = 0; x < width; x += tile)
+
+                var layoutKey = (layout ?? string.Empty).ToLowerInvariant();
+                var caveLayout = layoutKey.Contains("cave") || layoutKey.Contains("cavern") || layoutKey.Contains("sealed") || layoutKey.Contains("grotto");
+                var arenaLayout = layoutKey.Contains("duel") || layoutKey.Contains("ring") || layoutKey.Contains("courtyard") || layoutKey.Contains("platform");
+                var forestLayout = layoutKey.Contains("forest") || layoutKey.Contains("trail") || layoutKey.Contains("grass");
+                var brokenLayout = layoutKey.Contains("broken") || layoutKey.Contains("shattered") || layoutKey.Contains("void");
+                var wideBossLayout = layoutKey.Contains("boss") || layoutKey.Contains("world_field") || layoutKey.Contains("worldboss");
+                if (caveLayout)
                 {
-                    var baseColor = palette[random.Next(palette.Length)];
-                    for (var py = y; py < Mathf.Min(y + tile, height); py++)
-                    for (var px = x; px < Mathf.Min(x + tile, width); px++)
-                    {
-                        var grain = random.Next(20);
-                        pixels[py * width + px] = grain == 0 ? light : grain == 1 || px == x || py == y ? dark : baseColor;
-                    }
-                }
-                var trail = accent;
-                for (var x = 0; x < width; x += 2)
-                {
-                    var y = height / 2 + Mathf.RoundToInt(Mathf.Sin(x * 0.035f + seed % 31) * 13f) + Mathf.RoundToInt(Mathf.Sin(x * 0.081f) * 5f);
-                    DrawRect(pixels, width, height, x, y - 3, 3, 7, dark);
-                    DrawRect(pixels, width, height, x, y - 2, 3, 4, trail);
-                }
-                var grass = immortal ? Color32.Lerp(light, new Color32(126, 216, 218, 255), 0.38f) : Color32.Lerp(light, new Color32(124, 161, 84, 255), 0.38f);
-                for (var i = 0; i < 520; i++)
-                {
-                    var x = random.Next(3, width - 3); var y = random.Next(5, height - 5);
-                    DrawRect(pixels, width, height, x, y, 1, random.Next(2, 5), random.Next(2) == 0 ? grass : dark);
-                    if (random.Next(2) == 0) DrawRect(pixels, width, height, x - 2, y + 1, 2, 1, grass);
-                    if (random.Next(2) == 0) DrawRect(pixels, width, height, x + 1, y + 2, 2, 1, grass);
-                }
-                var caveLayout = (layout ?? string.Empty).IndexOf("cave", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (layout ?? string.Empty).IndexOf("cavern", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (layout ?? string.Empty).IndexOf("sealed", StringComparison.OrdinalIgnoreCase) >= 0;
-                var arenaLayout = (layout ?? string.Empty).IndexOf("duel", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (layout ?? string.Empty).IndexOf("ring", StringComparison.OrdinalIgnoreCase) >= 0 ||
-                    (layout ?? string.Empty).IndexOf("courtyard", StringComparison.OrdinalIgnoreCase) >= 0;
-                for (var i = 0; i < (caveLayout ? 24 : arenaLayout ? 8 : 15); i++)
-                {
-                    var x = i % 3 == 0 ? random.Next(0, width / 4) : i % 3 == 1 ? random.Next(width * 3 / 4, width) : random.Next(0, width);
-                    var y = random.Next(12, height - 20); var rw = random.Next(7, 15); var rh = random.Next(5, 11);
-                    DrawRect(pixels, width, height, x + 2, y, rw - 2, rh, dark);
-                    DrawRect(pixels, width, height, x, y + 2, rw - 3, rh - 2, dark);
-                    DrawRect(pixels, width, height, x + 2, y + 2, rw - 5, rh - 4, light);
+                    primary = Color32.Lerp(primary, new Color32(119, 96, 72, 255), .4f);
+                    secondary = Color32.Lerp(secondary, new Color32(172, 132, 82, 255), .32f);
                 }
                 if (arenaLayout)
                 {
-                    for (var y = 48; y < 137; y++)
-                    for (var x = 52; x < 268; x++)
+                    primary = Color32.Lerp(primary, new Color32(107, 111, 112, 255), .32f);
+                    secondary = Color32.Lerp(secondary, new Color32(165, 151, 120, 255), .36f);
+                }
+                if (brokenLayout)
+                {
+                    primary = Color32.Lerp(primary, new Color32(92, 58, 61, 255), .25f);
+                    secondary = Color32.Lerp(secondary, new Color32(140, 83, 76, 255), .27f);
+                }
+
+                // Perlin bands create broad, painterly terrain changes instead of a tiled checkerboard.
+                var ox = (seed & 1023) * .013f;
+                var oy = ((seed >> 9) & 1023) * .013f;
+                for (var y = 0; y < height; y += tile)
+                for (var x = 0; x < width; x += tile)
+                {
+                    var noise = Mathf.PerlinNoise(x * .009f + ox, y * .011f + oy);
+                    var patch = Mathf.Clamp01(.08f + noise * .78f + Mathf.PerlinNoise(x * .025f + oy, y * .026f + ox) * .18f);
+                    var baseColor = Color32.Lerp(primary, secondary, patch);
+                    for (var py = y; py < Mathf.Min(y + tile, height); py++)
+                    for (var px = x; px < Mathf.Min(x + tile, width); px++) pixels[py * width + px] = baseColor;
+                }
+
+                var trail = Color32.Lerp(accent, light, .34f);
+                var trailShade = Color32.Lerp(dark, primary, .62f);
+                if (forestLayout)
+                {
+                    for (var x = 0; x < width; x += 2)
                     {
-                        var dx = (x - 160f) / 94f;
-                        var dy = (y - 91f) / 38f;
-                        var distance = dx * dx + dy * dy;
-                        if (distance <= 1f && distance >= 0.72f) pixels[y * width + x] = trail;
-                        else if (distance < 0.72f && ((x / 8 + y / 8) % 5 == 0)) pixels[y * width + x] = palette[1];
-                    }
-                    for (var post = 0; post < 4; post++)
-                    {
-                        var x = post % 2 == 0 ? 62 : 254;
-                        var y = post < 2 ? 48 : 127;
-                        DrawRect(pixels, width, height, x, y, 5, 15, dark);
-                        DrawRect(pixels, width, height, x + 1, y + 1, 2, 4, accent);
+                        var y = height / 2 + Mathf.RoundToInt(Mathf.Sin(x * .014f + seed % 31) * 43f) + Mathf.RoundToInt(Mathf.Sin(x * .038f) * 17f);
+                        DrawRect(pixels, width, height, x, y - 23, 3, 47, trailShade);
+                        DrawRect(pixels, width, height, x, y - 17, 2, 35, trail);
                     }
                 }
-                var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "PixelBattleGround", filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+                else if (caveLayout || brokenLayout)
+                {
+                    for (var x = 0; x < width; x += 2)
+                    {
+                        var y = height / 2 + Mathf.RoundToInt(Mathf.Sin(x * .013f + seed % 31) * 35f) + Mathf.RoundToInt(Mathf.Sin(x * .034f) * 13f);
+                        DrawRect(pixels, width, height, x, y - 18, 3, 37, trailShade);
+                        DrawRect(pixels, width, height, x, y - 13, 2, 27, trail);
+                    }
+                }
+
+                if (caveLayout)
+                {
+                    // Irregular cave walls frame the arena; the middle stays clear for combat.
+                    for (var x = 0; x < width; x += 4)
+                    {
+                        var top = 8 + Mathf.RoundToInt(Mathf.PerlinNoise(x * .023f + ox, oy) * 22f);
+                        var bottom = height - 8 - Mathf.RoundToInt(Mathf.PerlinNoise(x * .021f + oy, ox) * 24f);
+                        DrawRect(pixels, width, height, x, 0, 4, top, Color32.Lerp(dark, primary, .26f));
+                        DrawRect(pixels, width, height, x, top, 4, 3, Color32.Lerp(dark, secondary, .38f));
+                        DrawRect(pixels, width, height, x, bottom, 4, height - bottom, Color32.Lerp(dark, primary, .3f));
+                        DrawRect(pixels, width, height, x, bottom, 4, 3, Color32.Lerp(dark, secondary, .42f));
+                    }
+                    for (var i = 0; i < 18; i++)
+                    {
+                        var x = random.Next(12, width - 12);
+                        var top = i % 2 == 0;
+                        var y = top ? random.Next(16, 54) : random.Next(height - 58, height - 18);
+                        var crystalH = random.Next(7, 18);
+                        DrawRect(pixels, width, height, x - 4, y, 8, crystalH, dark);
+                        DrawRect(pixels, width, height, x - 2, y + 2, 4, crystalH - 2, accent);
+                        DrawRect(pixels, width, height, x - 1, y + 3, 2, crystalH - 5, light);
+                    }
+                }
+
+                // Arena floors use a subtle stone grid and a large central duelling ring.
+                if (arenaLayout)
+                {
+                    var grid = Color32.Lerp(dark, secondary, .42f);
+                    for (var y = 18; y < height - 18; y += 32) DrawRect(pixels, width, height, 0, y, width, 1, grid);
+                    for (var x = 18; x < width - 18; x += 32) DrawRect(pixels, width, height, x, 0, 1, height, grid);
+                    DrawEllipse(pixels, width, height, width / 2, height / 2 + 1, 148, 72, trailShade, ringOnly: true, thickness: 12);
+                    DrawEllipse(pixels, width, height, width / 2, height / 2 + 1, 125, 56, trail, ringOnly: true, thickness: 4);
+                    DrawEllipse(pixels, width, height, width / 2, height / 2 + 1, 108, 43, Color32.Lerp(primary, secondary, .54f), ringOnly: false);
+                    for (var post = 0; post < 4; post++)
+                    {
+                        var x = post % 2 == 0 ? 70 : width - 76;
+                        var y = post < 2 ? 35 : height - 55;
+                        DrawRect(pixels, width, height, x, y, 8, 22, dark);
+                        DrawRect(pixels, width, height, x + 2, y + 2, 3, 7, accent);
+                    }
+                }
+                else if (wideBossLayout)
+                {
+                    DrawEllipse(pixels, width, height, width / 2, height / 2 + 3, 88, 52, trailShade, ringOnly: true, thickness: 10);
+                    DrawEllipse(pixels, width, height, width / 2, height / 2 + 3, 68, 38, trail, ringOnly: true, thickness: 4);
+                }
+
+                // Rocks, shrubs, crystals and broken stone break up the open ground without hiding the fighters.
+                var clusters = caveLayout ? 23 : arenaLayout ? 0 : 34;
+                for (var i = 0; i < clusters; i++)
+                {
+                    var side = i % 3;
+                    var x = side == 0 ? random.Next(10, width / 4) : side == 1 ? random.Next(width * 3 / 4, width - 16) : random.Next(12, width - 18);
+                    var y = random.Next(16, height - 28);
+                    var rw = random.Next(caveLayout ? 12 : 7, caveLayout ? 26 : 19);
+                    var rh = random.Next(caveLayout ? 8 : 5, caveLayout ? 19 : 13);
+                    if (caveLayout && Mathf.Abs(x - width / 2) < 116 && Mathf.Abs(y - height / 2) < 62) continue;
+                    var shadow = Color32.Lerp(dark, new Color32(24, 29, 34, 255), .12f);
+                    var stone = Color32.Lerp(secondary, light, caveLayout ? .48f : .36f);
+                    DrawEllipse(pixels, width, height, x + rw / 2, y + rh / 2, rw / 2 + 3, rh / 2 + 3, shadow, ringOnly: false);
+                    DrawEllipse(pixels, width, height, x + rw / 2, y + rh / 2 + 1, rw / 2, rh / 2, stone, ringOnly: false);
+                    if (forestLayout)
+                    {
+                        DrawEllipse(pixels, width, height, x + rw / 2 - 3, y + rh / 2 - 2, Mathf.Max(2, rw / 5), Mathf.Max(2, rh / 5), light, ringOnly: false);
+                        DrawRect(pixels, width, height, x + rw / 2, y + rh / 2, 2, 6, dark);
+                    }
+                    if (caveLayout && i % 3 == 0)
+                    {
+                        DrawRect(pixels, width, height, x + rw / 2 - 2, y + rh / 2 - 5, 4, 12, accent);
+                        DrawRect(pixels, width, height, x + rw / 2 - 4, y + rh / 2 - 2, 8, 5, light);
+                    }
+                }
+
+                var foliage = immortal ? Color32.Lerp(light, new Color32(115, 194, 193, 255), .3f) : Color32.Lerp(light, new Color32(112, 157, 78, 255), .38f);
+                if (forestLayout)
+                {
+                    for (var i = 0; i < 38; i++)
+                    {
+                        var x = random.Next(18, width - 18); var y = random.Next(18, height - 18);
+                        if (Mathf.Abs(x - width / 2) < 112 && Mathf.Abs(y - height / 2) < 58) continue;
+                        var rx = random.Next(7, 13); var ry = random.Next(5, 10);
+                        DrawEllipse(pixels, width, height, x + 1, y - 2, rx + 2, ry + 2, dark, ringOnly: false);
+                        DrawEllipse(pixels, width, height, x, y, rx, ry, foliage, ringOnly: false);
+                        DrawEllipse(pixels, width, height, x - 2, y + 2, Mathf.Max(2, rx / 3), Mathf.Max(2, ry / 3), light, ringOnly: false);
+                        DrawRect(pixels, width, height, x, y - ry - 4, 2, 6, trailShade);
+                    }
+                }
+                else
+                {
+                    for (var i = 0; i < 46; i++)
+                    {
+                        var x = random.Next(4, width - 4); var y = random.Next(4, height - 4);
+                        if (arenaLayout && Mathf.Abs(x - width / 2) < 110 && Mathf.Abs(y - height / 2) < 54) continue;
+                        var size = random.Next(2, 5);
+                        DrawRect(pixels, width, height, x, y, 2, size, foliage);
+                        DrawRect(pixels, width, height, x - 2, y + 1, 2, 2, Color32.Lerp(foliage, secondary, .4f));
+                    }
+                }
+
+                // A light weather veil keeps palette colors readable while leaving the terrain crisp.
+                var texture = new Texture2D(width, height, TextureFormat.RGBA32, false) { name = "PixelBattleGround_" + (mapId ?? "field"), filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
                 texture.SetPixels32(pixels); texture.Apply(false, true); TerrainCache[key] = texture;
                 return texture;
+            }
+        }
+
+        private static void DrawEllipse(Color32[] pixels, int width, int height, int cx, int cy, int rx, int ry, Color32 color, bool ringOnly, int thickness = 2)
+        {
+            if (rx <= 0 || ry <= 0) return;
+            var x0 = Mathf.Max(0, cx - rx - 1); var x1 = Mathf.Min(width - 1, cx + rx + 1);
+            var y0 = Mathf.Max(0, cy - ry - 1); var y1 = Mathf.Min(height - 1, cy + ry + 1);
+            var innerRx = Mathf.Max(1f, rx - thickness); var innerRy = Mathf.Max(1f, ry - thickness);
+            for (var y = y0; y <= y1; y++)
+            for (var x = x0; x <= x1; x++)
+            {
+                var dx = (x - cx) / (float)rx; var dy = (y - cy) / (float)ry;
+                var distance = dx * dx + dy * dy;
+                if (distance > 1f) continue;
+                if (ringOnly)
+                {
+                    var ix = (x - cx) / innerRx; var iy = (y - cy) / innerRy;
+                    if (ix * ix + iy * iy < 1f) continue;
+                }
+                pixels[y * width + x] = color;
             }
         }
 

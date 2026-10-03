@@ -543,6 +543,12 @@ namespace IOSVN.TuTien.Core
 
         private void Update()
         {
+            // The editor screenshot harness ticks behaviours manually and does not invoke Awake.
+            // Keep the runtime path safe there too, while still creating the edge fill after the
+            // auth card has been attached to its canvas.
+            if (rect == null) rect = transform as RectTransform;
+            if (rect == null) return;
+            if (keyboardBackdrop == null) CreateKeyboardBackdrop();
             if (!initialized)
             {
                 basePos = rect.anchoredPosition;

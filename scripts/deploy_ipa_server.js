@@ -2,9 +2,11 @@
 
 const fs = require('node:fs');
 const path = require('node:path');
+const os = require('node:os');
 const { spawnSync } = require('node:child_process');
 const root = path.resolve(__dirname, '..');
-const key = process.env.IPA_SSH_KEY || 'D:/Bot_Chong_Spam_Telegram/LightsailDefaultKey-ap-southeast-1.pem';
+// The game's own deploy key; it does not depend on any other project folder.
+const key = process.env.IPA_SSH_KEY || path.join(os.homedir(), '.ssh', 'iosvn-lightsail.pem');
 const gameHost = '18.138.110.85';
 const proxyHost = '175.41.171.227';
 const publicOrigin = 'https://tutien.iosvn.com.vn';
