@@ -178,6 +178,9 @@ jobs:
     if: ${{ inputs.cache_xcode_export_only != true && needs.license-check.outputs.configured == 'true' }}
     runs-on: macos-15-intel
     timeout-minutes: 90
+    permissions:
+      contents: write
+      actions: read
     steps:
       - uses: actions/checkout@v4
 
@@ -509,28 +512,8 @@ jobs:
           if-no-files-found: error
           retention-days: 14
 
-      - uses: actions/upload-artifact@v4
-        if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa }}
-        with:
-          name: TuTienGioi-signed-ipa
-          path: ${{ runner.temp }}/TuTienGioi-signed.ipa
-          if-no-files-found: error
-          retention-days: 14
-
-  publish-unsigned-ipa-release:
-    name: Attach unsigned IPA to GitHub Release
-    needs: [build-ios]
-    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
-        with:
-          name: TuTienGioi-unsigned-ipa
-          path: release-assets
-
-      - name: Create release and upload IPA
+      - name: Create release and upload unsigned IPA
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -540,13 +523,13 @@ jobs:
           TAG="$RELEASE_TAG_INPUT"
           if [[ -z "$TAG" ]]; then TAG="tutiengioi-unsigned-${GITHUB_RUN_NUMBER}"; fi
           RELEASE_TITLE="Tu Tiên Giới - IPA chưa ký ${GITHUB_RUN_NUMBER}"
+          IPA_PATH="${RUNNER_TEMP}/TuTienGioi-unsigned.ipa"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TITLE" \
               --notes "IPA kiểm thử của Tu Tiên Giới. Cần cài qua công cụ ký như ESign; IPA chưa ký không thể cài trực tiếp."
-            gh release delete-asset "$TAG" iOSVN-unsigned.ipa --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
-            gh release upload "$TAG" release-assets/TuTienGioi-unsigned.ipa --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "$IPA_PATH" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" release-assets/TuTienGioi-unsigned.ipa \
+            gh release create "$TAG" "$IPA_PATH" \
               --repo "$GITHUB_REPOSITORY" \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
@@ -554,6 +537,7 @@ jobs:
           fi
 
       - name: Keep only the two newest unsigned test releases
+        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -568,20 +552,16 @@ jobs:
             gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
           done <<< "$OLD_TAGS"
 
-  publish-signed-ipa-release:
-    name: Attach signed IPA to GitHub Release
-    needs: [build-ios]
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa && inputs.publish_signed_release }}
-    runs-on: ubuntu-latest
-    permissions:
-      contents: write
-    steps:
-      - uses: actions/download-artifact@v4
+      - uses: actions/upload-artifact@v4
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa }}
         with:
           name: TuTienGioi-signed-ipa
-          path: release-assets
+          path: ${{ runner.temp }}/TuTienGioi-signed.ipa
+          if-no-files-found: error
+          retention-days: 14
 
-      - name: Create release and upload IPA
+      - name: Create release and upload signed IPA
+        if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa && inputs.publish_signed_release }}
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
@@ -591,13 +571,13 @@ jobs:
           TAG="$RELEASE_TAG_INPUT"
           if [[ -z "$TAG" ]]; then TAG="tutiengioi-signed-${GITHUB_RUN_NUMBER}"; fi
           RELEASE_TITLE="Tu Tiên Giới - IPA đã ký ${GITHUB_RUN_NUMBER}"
+          IPA_PATH="${RUNNER_TEMP}/TuTienGioi-signed.ipa"
           if gh release view "$TAG" --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1; then
             gh release edit "$TAG" --repo "$GITHUB_REPOSITORY" --title "$RELEASE_TITLE" \
               --notes "IPA ký phát triển của Tu Tiên Giới; provisioning profile phải có thiết bị đã đăng ký."
-            gh release delete-asset "$TAG" iOSVN-signed.ipa --repo "$GITHUB_REPOSITORY" --yes >/dev/null 2>&1 || true
-            gh release upload "$TAG" release-assets/TuTienGioi-signed.ipa --repo "$GITHUB_REPOSITORY" --clobber
+            gh release upload "$TAG" "$IPA_PATH" --repo "$GITHUB_REPOSITORY" --clobber
           else
-            gh release create "$TAG" release-assets/TuTienGioi-signed.ipa \
+            gh release create "$TAG" "$IPA_PATH" \
               --repo "$GITHUB_REPOSITORY" --prerelease \
               --target "$GITHUB_SHA" \
               --title "$RELEASE_TITLE" \
