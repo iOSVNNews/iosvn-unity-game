@@ -64,6 +64,9 @@ namespace IOSVN.TuTien.Editor
             });
             if (report.summary.result != BuildResult.Succeeded)
                 throw new BuildFailedException($"iOS export failed: {report.summary.result} ({report.summary.totalErrors} errors).");
+            var revision = Argument("-iosSourceRevision", Environment.GetEnvironmentVariable("GITHUB_SHA"));
+            if (!string.IsNullOrEmpty(revision))
+                File.WriteAllText(Path.Combine(resolvedOutputPath, "iosvn-source-revision.txt"), revision.Trim() + "\n");
         }
 
         private static string Argument(string name, string fallback)

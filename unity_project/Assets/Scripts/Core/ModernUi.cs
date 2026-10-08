@@ -19,11 +19,11 @@ namespace IOSVN.TuTien.Core
         private static readonly Dictionary<string, Font> Fonts = new Dictionary<string, Font>();
         private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
 
-        public static Font Regular => LoadFont("BeVietnamPro-Regular");
-        public static Font Medium => LoadFont("BeVietnamPro-Medium");
-        public static Font SemiBold => LoadFont("BeVietnamPro-SemiBold");
-        public static Font Bold => LoadFont("BeVietnamPro-Bold");
-        public static Font Display => LoadFont("PlayfairDisplaySC-Bold");
+        public static Font Regular => LoadFont("OpenSans-Regular");
+        public static Font Medium => Regular;
+        public static Font SemiBold => LoadFont("OpenSans-SemiBold");
+        public static Font Bold => LoadFont("OpenSans-Bold");
+        public static Font Display => Bold;
 
         public static Font LoadFont(string name)
         {

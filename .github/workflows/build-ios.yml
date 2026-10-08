@@ -155,6 +155,11 @@ jobs:
           unzip -tq "$ARCHIVE"
           mkdir -p "$GITHUB_WORKSPACE/build/iOS"
           unzip -q "$ARCHIVE" -d "$GITHUB_WORKSPACE/build/iOS"
+          REVISION_FILE="$GITHUB_WORKSPACE/build/iOS/iosvn-source-revision.txt"
+          if [[ ! -f "$REVISION_FILE" || "$(tr -d '\r\n' < "$REVISION_FILE")" != "$GITHUB_SHA" ]]; then
+            echo '::error::Cached Xcode export does not match this source commit. Export the current Unity project and upload its archive before building an IPA.'
+            exit 1
+          fi
 
       - name: Keep Xcode export available for future IPA builds
         if: ${{ inputs.use_prebuilt_xcode == true || github.event_name == 'push' }}
@@ -178,7 +183,7 @@ jobs:
           buildsPath: build
           buildName: TuTienGioi
           buildMethod: IOSVN.TuTien.Editor.IOSBuild.Build
-          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS
+          customParameters: -iosBundleId ${{ vars.IOS_BUNDLE_ID || 'com.iosvn.tutiengioi' }} -ipaServerUrl ${{ vars.IPA_SERVER_URL || '' }} -assetCdnUrl ${{ vars.ASSET_CDN_URL || '' }} -iosBuildPath ../build/iOS -iosSourceRevision ${{ github.sha }}
 
       - name: Locate Xcode project
         shell: bash

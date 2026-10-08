@@ -18,6 +18,122 @@ namespace IOSVN.TuTien.Editor
     public static class QcbhPreview
     {
         private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
+        private static bool validateFontFamily;
+
+        public static void ReviewCreatorAndFonts()
+        {
+            validateFontFamily = true;
+            var state = File.ReadAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples/qcbh_state.json")));
+            renderLog = new System.Text.StringBuilder();
+            foreach (var female in new[] { false, true })
+            foreach (var size in new[] { new Vector2Int(1280, 590), new Vector2Int(1024, 768) })
+            {
+                Render(c =>
+                {
+                    var hub = J.Parse(state);
+                    Set(c, "hub", hub);
+                    var typed = NetworkGameClient.ToGameState(hub);
+                    Set(c, "latestState", typed);
+                    Set(c, "currentCatalog", typed.catalog);
+                    Set(c, "gender", female ? "nu" : "nam");
+                    Set(c, "creatorLook", AvatarComposer.Default(female));
+                    Call(c, "ShowCreator", false);
+                    var name = (InputField)typeof(PrototypeBootstrap).GetField("nameInput", Flags).GetValue(c);
+                    name.text = "Đạo Hữu Kiểm Thử";
+                    Call(c, "SetCreatorGender", female ? "nam" : "nu");
+                    if (name.text != "Đạo Hữu Kiểm Thử") throw new Exception("Gender change lost the typed name");
+                    Call(c, "SetCreatorGender", female ? "nu" : "nam");
+                    var rig = (Component)typeof(PrototypeBootstrap).GetField("creatorRig", Flags).GetValue(c);
+                    var body = rig.transform.Find("Body").GetComponent<Image>();
+                    if (!body.sprite.name.Contains("V3")) throw new Exception("Creator does not show the repaired portrait");
+                    if (!(bool)body.GetType().GetProperty("PreservePaintedShape").GetValue(body)) throw new Exception("Creator distorts the painted face");
+                    var fullBody = (Component)typeof(PrototypeBootstrap).GetField("creatorActor", Flags).GetValue(c);
+                    if (!fullBody.transform.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2")) throw new Exception("Missing full-body preview");
+                    using (var mesh = new VertexHelper())
+                    {
+                        body.GetType().GetMethod("OnPopulateMesh", Flags, null, new[] { typeof(VertexHelper) }, null).Invoke(body, new object[] { mesh });
+                        if (mesh.currentVertCount != 4) throw new Exception("Creator still warps the painted face/body mesh");
+                    }
+                    Set(c, "creatorFullBodyPreview", true);
+                    Call(c, "RefreshCreator");
+                    if (rig.gameObject.activeSelf || !fullBody.gameObject.activeSelf) throw new Exception("Full-body preview tab did not switch");
+                    Set(c, "creatorFullBodyPreview", false);
+                    Call(c, "RefreshCreator");
+                    var motion = rig.GetType().GetMethod("SetMotion");
+                    string Fingerprint()
+                    {
+                        motion.Invoke(rig, new object[] { FighterAction.Idle, 0f, false, false, 0f });
+                        var text = new System.Text.StringBuilder();
+                        foreach (var image in rig.GetComponentsInChildren<Image>())
+                            text.Append(image.enabled).Append(image.sprite?.name).Append(image.sprite?.rect.ToString()).Append(image.color.ToString());
+                        foreach (var property in new[] { "_HairTint", "_SkinTint", "_RobeTint", "_EyeTint" }) text.Append(body.material.GetColor(property).ToString());
+                        return text.ToString();
+                    }
+                    foreach (var key in new[] { "hc", "sk", "oc", "hat", "wp", "au" })
+                    {
+                        Set(c, "creatorCategory", key);
+                        var before = Fingerprint();
+                        // Exercise the actual next-button listener, not just SetLook.
+                        rig.transform.root.Find("Background/SafeArea/Content/Creator/Inner/Custom/Stepper/Next")
+                            .GetComponent<Button>().onClick.Invoke();
+                        if (before == Fingerprint()) throw new Exception("Creator option has no visual effect: " + key);
+                    }
+                    var look = (LookSpec)typeof(PrototypeBootstrap).GetField("creatorLook", Flags).GetValue(c);
+                    var expectedHair = body.material.GetColor("_HairTint");
+                    var expectedRobe = body.material.GetColor("_RobeTint");
+                    Call(c, "ApplyOfflineCharacterChoice", new RegisterChoice { name = name.text, gender = female ? "nu" : "nam", look = look.ToString() });
+                    var prefKeys = new[] { "tutien_offline_character_demo", "tutien_offline_look" };
+                    var prefExists = Array.ConvertAll(prefKeys, PlayerPrefs.HasKey);
+                    var prefValues = Array.ConvertAll(prefKeys, key => PlayerPrefs.GetString(key));
+                    try
+                    {
+                        Call(c, "PersistOfflineAppearance", look.ToString());
+                        var restored = (RegisterChoice)typeof(PrototypeBootstrap).GetMethod("ReadOfflineCharacterChoice", Flags | BindingFlags.Static).Invoke(null, null);
+                        if (restored.look != look.ToString() || restored.gender != (female ? "nu" : "nam"))
+                            throw new Exception("Offline appearance is lost after reload");
+                    }
+                    finally
+                    {
+                        for (var i = 0; i < prefKeys.Length; i++)
+                            if (prefExists[i]) PlayerPrefs.SetString(prefKeys[i], prefValues[i]); else PlayerPrefs.DeleteKey(prefKeys[i]);
+                        PlayerPrefs.Save();
+                    }
+                    if (hub["player"]["look"].Str() != look.ToString() || hub["player"]["lookWorn"].Str() != look.ToString())
+                        throw new Exception("Created appearance was not retained by the player");
+                    Call(c, "ShowWorld");
+                    var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
+                    var worldBody = world.Player.Rect.Find("SkinnedActor/ContinuousBody").GetComponent<Image>();
+                    if (worldBody.material.GetColor("_HairTint") != expectedHair || worldBody.material.GetColor("_RobeTint") != expectedRobe)
+                        throw new Exception("World discarded the creator appearance");
+                    Call(c, "BuildActionBattle", J.Parse(File.ReadAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples/qcbh_battle.json"))))["battle"]);
+                    var battleBody = GameObject.Find("Player/SkinnedActor/ContinuousBody").GetComponent<Image>();
+                    if (battleBody.material.GetColor("_HairTint") != expectedHair || battleBody.material.GetColor("_RobeTint") != expectedRobe)
+                        throw new Exception("Combat discarded the creator appearance");
+                    Call(c, "ShowCreator", true);
+                    if (((LookSpec)typeof(PrototypeBootstrap).GetField("creatorLook", Flags).GetValue(c)).ToString() != look.ToString())
+                        throw new Exception("Reopening appearance lost saved choices");
+                    Canvas.ForceUpdateCanvases();
+                    foreach (var text in GameObject.Find("GameCanvas").GetComponentsInChildren<Text>())
+                        if (text.font == null || !text.font.name.StartsWith("OpenSans")) throw new Exception("Old font: " + text.name);
+                    foreach (var weight in new[] { "Regular", "SemiBold", "Bold" })
+                    {
+                        var font = Resources.Load<Font>("Fonts/OpenSans-" + weight);
+                        font.RequestCharactersInTexture("Tiếng Việt: Đạo hữu, khí vận, khuôn mặt, căn cơ", 24);
+                        foreach (var ch in "ĐđăâêôơưĂÂÊÔƠƯáàảãạấầẩẫậắằẳẵặếềểễệốồổỗộớờởỡợứừửữự")
+                            if (!font.HasCharacter(ch)) throw new Exception("Open Sans lacks Vietnamese glyph: " + ch);
+                    }
+                    renderLog.AppendLine("creator options, name retention, saved look, world/combat appearance, reopen, Open Sans Vietnamese: ok " + female + " " + size);
+                }, "creator-final-" + (female ? "female-" : "male-") + size.x + ".png", size.x, size.y);
+            }
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/qcbh-captures/creator-review.txt")), renderLog.ToString());
+            Debug.Log("CREATOR_APPEARANCE_REVIEW_DONE\n" + renderLog);
+            RenderAll();
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            ValidateCharacterMotion();
+            ValidateMapPresentation();
+            ValidateReportedErrors();
+        }
 
         [MenuItem("iOSVN/Preview/Render creator figures")]
         public static void RenderCreatorFigures()
@@ -593,6 +709,10 @@ namespace IOSVN.TuTien.Editor
             }
             Tick(3);
             Canvas.ForceUpdateCanvases();
+            if (validateFontFamily)
+                foreach (var label in canvas.GetComponentsInChildren<Text>())
+                    if (label.font == null || !label.font.name.StartsWith("OpenSans"))
+                        throw new Exception("Non-Open Sans font in " + filename + ": " + label.name);
             camera.Render();
             var old = RenderTexture.active;
             RenderTexture.active = target;

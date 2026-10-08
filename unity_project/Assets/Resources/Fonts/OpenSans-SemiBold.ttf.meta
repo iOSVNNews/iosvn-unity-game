@@ -1,5 +1,5 @@
 fileFormatVersion: 2
-guid: 737ec005ee452b44ca93f5f6b6af1f58
+guid: 5460d8ccdf4e44edbef82a9f94f8d83e
 TrueTypeFontImporter:
   externalObjects: {}
   serializedVersion: 4
@@ -9,7 +9,7 @@ TrueTypeFontImporter:
   characterPadding: 1
   includeFontData: 1
   fontNames:
-  - Be Vietnam Pro
+  - Open Sans
   fallbackFontReferences: []
   customCharacters: 
   fontRenderingMode: 0

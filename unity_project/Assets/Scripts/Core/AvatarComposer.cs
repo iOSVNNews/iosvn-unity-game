@@ -577,6 +577,7 @@ namespace IOSVN.TuTien.Core
     /// </summary>
     internal sealed class AnimatedPortraitImage : Image
     {
+        public bool PreservePaintedShape { get; set; }
         private FighterAction motion = FighterAction.Idle;
         private float progress;
         private float direction = 1f;
@@ -584,11 +585,12 @@ namespace IOSVN.TuTien.Core
         private bool femaleAppearance;
         private Color skinTone = Color.white;
         private bool integratedFace;
-        private float eyeSize, browLift, noseWidth, mouthWidth;
+        private float eyeSize, browLift, noseWidth, mouthWidth, faceWidth;
 
         public void SetFaceCustomization(LookSpec look)
         {
             integratedFace = true;
+            faceWidth = new[] { -.08f, 0f, .08f, .15f }[Mathf.Clamp(look.Int("fa"), 0, 3)];
             eyeSize = Mathf.Clamp(look.Int("ey"), 0, 7) * .018f;
             browLift = Mathf.Clamp(look.Int("br"), 0, 4) * .001f;
             noseWidth = Mathf.Clamp(look.Int("no"), 0, 3) * .025f;
@@ -623,6 +625,7 @@ namespace IOSVN.TuTien.Core
         protected override void OnPopulateMesh(VertexHelper vh)
         {
             base.OnPopulateMesh(vh);
+            if (PreservePaintedShape) return;
             if (vh.currentVertCount != 4) return;
 
             var corners = new UIVertex[4];
@@ -765,6 +768,7 @@ namespace IOSVN.TuTien.Core
                             return Mathf.SmoothStep(0, 1, Mathf.Clamp01(1 - dx * dx - dy * dy));
                         }
                         // Change proportions in the same mesh; no independently moving face cutouts.
+                        vertex.position.x += (u - center) * width * faceWidth * Weight(center, .83f, .15f, .11f);
                         for (var side = -1; side <= 1; side += 2)
                         {
                             var eyeX = center + side * .034f;
@@ -788,7 +792,8 @@ namespace IOSVN.TuTien.Core
                     var faceDy = (v - .83f) / .095f;
                     var faceDistance = faceDx * faceDx + faceDy * faceDy;
                     var skinWeight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(1f - faceDistance)) * .85f;
-                    var skinColor = Color.Lerp(Color.white, skinTone, skinWeight);
+                    var skinColor = material != null && material.shader.name == "iOSVN/UI/CharacterAppearance"
+                        ? Color.white : Color.Lerp(Color.white, skinTone, skinWeight);
                     tint.r = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.r * skinColor.r), 0, 255);
                     tint.g = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.g * skinColor.g), 0, 255);
                     tint.b = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.b * skinColor.b), 0, 255);

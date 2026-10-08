@@ -177,12 +177,17 @@ namespace IOSVN.TuTien.Core
             body.SetAppearance(look);
             body.SetFaceCustomization(look);
             clothing.SetAppearance(look);
+            // V3 is finished painted art: keep its face and silhouette intact.
+            body.PreservePaintedShape = clothing.PreservePaintedShape = true;
 
             var skin = HeroSprites.ParseColor(look.Get("sk", "#f0d2b4"), new Color32(240, 210, 180, 255));
             body.color = new Color(Mathf.Clamp(skin.r / .94f, .48f, 1f),
                 Mathf.Clamp(skin.g / .82f, .46f, 1f), Mathf.Clamp(skin.b / .71f, .44f, 1f), 1f);
             var cloth = HeroSprites.ParseColor(look.Get("oc", "#e8e2d4"), Color.white);
             clothing.color = Color.Lerp(Color.white, cloth, .16f);
+            body.color = clothing.color = Color.white;
+            CharacterAppearance.Apply(body, look);
+            CharacterAppearance.Apply(clothing, look);
 
             // The painted head and hair belong to the continuous body. Only the
             // facial features are attached above it, so no face-shaped patch or
@@ -228,7 +233,7 @@ namespace IOSVN.TuTien.Core
                 var hatColor = HeroSprites.ParseColor(look.Get("hac", "#e2c57b"), Color.white);
                 hat.color = Color.Lerp(Color.white, hatColor, .18f);
                 weaponStyle = Mathf.Clamp(look.Int("wp", 0), 0, 10);
-                var item = new[] { -1, 5, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
+                var item = new[] { -1, 6, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
                 weapon.enabled = item >= 0;
                 if (weapon.enabled) weapon.sprite = Equipment(accessories, item);
                 var weaponColor = HeroSprites.ParseColor(look.Get("wc", "#e2c57b"), Color.white);
@@ -271,7 +276,6 @@ namespace IOSVN.TuTien.Core
         public void SetHit(bool hit)
         {
             var flash = hit ? new Color(1f, .62f, .58f, 1f) : Color.white;
-            body.material = clothing.material = null;
             body.canvasRenderer.SetColor(flash);
             clothing.canvasRenderer.SetColor(flash);
         }

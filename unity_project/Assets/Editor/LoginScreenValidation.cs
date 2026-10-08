@@ -238,7 +238,7 @@ namespace IOSVN.TuTien.Editor
             textRect.offsetMin = Vector2.zero;
             textRect.offsetMax = Vector2.zero;
             var text = textObject.GetComponent<Text>();
-            text.font = Font.CreateDynamicFontFromOSFont("Arial", fontSize);
+            text.font = Resources.Load<Font>("Fonts/OpenSans-Regular");
             text.fontSize = fontSize;
             text.color = Color.white;
             text.alignment = TextAnchor.MiddleCenter;

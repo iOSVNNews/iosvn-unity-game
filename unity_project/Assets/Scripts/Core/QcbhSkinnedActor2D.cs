@@ -13,13 +13,14 @@ namespace IOSVN.TuTien.Core
         private static readonly Dictionary<int, Sprite> Weapons = new Dictionary<int, Sprite>();
         private RectTransform root;
         private SkinnedActorImage body;
-        private Image weapon;
+        private Image weapon, headwear, aura;
         private bool faceRight;
         private FighterAction action;
         private float progress, clock;
         private bool moving, externallyDriven;
         private Color bodyColor = Color.white;
         private int weaponStyle;
+        private Vector2 headPosition;
 
         public static QcbhSkinnedActor2D Create(RectTransform parent, LookSpec look)
         {
@@ -31,6 +32,13 @@ namespace IOSVN.TuTien.Core
             rect.sizeDelta = new Vector2(430f * atlas.width * .5f / atlas.height, 430f);
             var actor = rect.GetComponent<QcbhSkinnedActor2D>();
             actor.root = rect;
+            actor.aura = new GameObject("AppearanceAura", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            actor.aura.transform.SetParent(rect, false);
+            actor.aura.rectTransform.anchorMin = Vector2.zero;
+            actor.aura.rectTransform.anchorMax = Vector2.one;
+            actor.aura.rectTransform.offsetMin = new Vector2(-40, -15);
+            actor.aura.rectTransform.offsetMax = new Vector2(40, 15);
+            actor.aura.raycastTarget = false;
             actor.body = new GameObject("ContinuousBody", typeof(RectTransform), typeof(SkinnedActorImage)).GetComponent<SkinnedActorImage>();
             actor.body.transform.SetParent(rect, false);
             actor.body.rectTransform.anchorMin = Vector2.zero;
@@ -44,6 +52,12 @@ namespace IOSVN.TuTien.Core
             actor.weapon.preserveAspect = true;
             actor.weapon.rectTransform.anchorMin = actor.weapon.rectTransform.anchorMax = new Vector2(.5f, 0f);
             actor.weapon.rectTransform.sizeDelta = new Vector2(145, 145);
+            actor.headwear = new GameObject("Headwear", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            actor.headwear.transform.SetParent(rect, false);
+            actor.headwear.raycastTarget = false;
+            actor.headwear.preserveAspect = true;
+            actor.headwear.rectTransform.sizeDelta = new Vector2(64, 64);
+            actor.headwear.rectTransform.anchorMin = actor.headwear.rectTransform.anchorMax = new Vector2(.5f, 0f);
             actor.SetLook(look);
             actor.Apply();
             return actor;
@@ -58,6 +72,7 @@ namespace IOSVN.TuTien.Core
         public void SetLook(LookSpec look)
         {
             var female = look != null && look.Get("g", "m") == "f";
+            headPosition = CharacterAppearance.FaceCenter(female, false) + new Vector2(.02f, .085f);
             var texture = ActorAtlas(look);
             if (texture == null) return;
             var key = texture.name + (female ? "_female" : "_male");
@@ -71,14 +86,36 @@ namespace IOSVN.TuTien.Core
             }
             body.sprite = sprite;
             body.CenterX = texture.name == "FullBodyActorsV2" ? .5f : (female ? .46f : .60f);
-            bodyColor = Color.Lerp(Color.white, HeroSprites.ParseColor(look != null ? look.Get("oc", "#ffffff") : "#ffffff", Color.white), .10f);
+            body.SetAppearance(look);
+            CharacterAppearance.Apply(body, look);
+            bodyColor = Color.white;
             body.color = bodyColor;
             weaponStyle = look != null ? Mathf.Clamp(look.Int("wp", 0), 0, 10) : 0;
             var equipment = Resources.Load<Texture2D>("Characters/RigEquipment16V1");
+            var hat = look != null ? Mathf.Clamp(look.Int("hat", 0), 0, 5) : 0;
+            headwear.enabled = equipment != null && hat > 0;
+            if (headwear.enabled)
+            {
+                var index = hat - 1;
+                var cell = equipment.width / 4f;
+                if (!Weapons.TryGetValue(index, out var item) || item == null)
+                {
+                    item = Sprite.Create(equipment, new Rect(index % 4 * cell, equipment.height - (index / 4 + 1) * cell, cell, cell), new Vector2(.5f, .5f), 100f);
+                    Weapons[index] = item;
+                }
+                headwear.sprite = item;
+                headwear.color = HeroSprites.ParseColor(look.Get("hac", "#e2c57b"), Color.white);
+                headwear.rectTransform.anchoredPosition = body.DrawingPoint(headPosition);
+            }
+            var auraStyle = look != null ? Mathf.Clamp(look.Int("au", 0), 0, 5) : 0;
+            aura.enabled = auraStyle > 0;
+            aura.sprite = auraStyle == 2 || auraStyle == 4 ? InkUi.Ring : auraStyle == 3 ? InkUi.Cloud : InkUi.Glow;
+            var auraColor = HeroSprites.ParseColor(look != null ? look.Get("auc", "#8fe0ff") : "#8fe0ff", Color.white);
+            aura.color = new Color(auraColor.r, auraColor.g, auraColor.b, .12f + auraStyle * .035f);
             weapon.enabled = equipment != null && weaponStyle > 0;
             if (weapon.enabled)
             {
-                var index = new[] { 0, 5, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
+                var index = new[] { 0, 6, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
                 var cell = equipment.width / 4f;
                 if (!Weapons.TryGetValue(index, out var item) || item == null)
                 {
@@ -122,6 +159,8 @@ namespace IOSVN.TuTien.Core
                 ghost.preserveAspect = true;
                 ghost.raycastTarget = false;
                 ghost.CenterX = source.CenterX;
+                ghost.SetAppearance(source.Appearance);
+                CharacterAppearance.Apply(ghost, source.Appearance);
                 ghost.color = new Color(tint.r, tint.g, tint.b, .42f);
                 ghost.Pose(action == FighterAction.Idle && moving ? FighterAction.Walk : action, progress, clock);
                 ghost.gameObject.AddComponent<FadeAway>().Duration = seconds;
@@ -139,6 +178,7 @@ namespace IOSVN.TuTien.Core
         private void Apply()
         {
             body.Pose(action == FighterAction.Idle && moving ? FighterAction.Walk : action, progress, clock);
+            if (headwear.enabled) headwear.rectTransform.anchoredPosition = body.DrawingPoint(body.MapPoint(headPosition));
             if (weapon.enabled)
             {
                 var hand = weaponStyle == 1 ? body.MapPoint(new Vector2(body.CenterX + .10f, .64f)) : body.MapPoint(new Vector2(body.CenterX - .21f, .49f));
@@ -163,6 +203,8 @@ namespace IOSVN.TuTien.Core
         private readonly Matrix4x4[] skin = new Matrix4x4[11];
         private readonly Matrix4x4[] posed = new Matrix4x4[11];
         private readonly float[] angles = new float[11];
+        internal LookSpec Appearance { get; private set; }
+        internal void SetAppearance(LookSpec look) { Appearance = look; SetVerticesDirty(); }
         public float CenterX { get; set; } = .5f;
         public float HandAngle => angles[0] + angles[1] + angles[3] + angles[4];
 

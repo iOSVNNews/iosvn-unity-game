@@ -1083,6 +1083,7 @@ namespace IOSVN.TuTien.Core
                 {
                     var portrait = portraitRect.gameObject.AddComponent<Image>();
                     portrait.sprite = face;
+                    CharacterAppearance.Apply(portrait, LookOf(player));
                     portrait.preserveAspect = true;
                     portrait.raycastTarget = false;
                 }

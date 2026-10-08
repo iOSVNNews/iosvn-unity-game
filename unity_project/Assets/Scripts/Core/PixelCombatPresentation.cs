@@ -847,7 +847,7 @@ namespace IOSVN.TuTien.Core
             var go = new GameObject(name, typeof(RectTransform), typeof(Text));
             go.transform.SetParent(parent, false);
             Place(go.GetComponent<RectTransform>(), min, max);
-            var text = go.GetComponent<Text>(); text.font = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf"); text.fontSize = Mathf.RoundToInt(size * 1.4f); text.color = color; text.alignment = anchor;
+            var text = go.GetComponent<Text>(); text.font = ModernUi.Regular; text.fontSize = Mathf.RoundToInt(size * 1.4f); text.color = color; text.alignment = anchor;
             text.horizontalOverflow = HorizontalWrapMode.Wrap; text.verticalOverflow = VerticalWrapMode.Truncate;
             PixelUiSkin.ApplyTextTreatment(text);
             return text;

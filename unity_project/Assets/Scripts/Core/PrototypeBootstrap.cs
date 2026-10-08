@@ -568,6 +568,11 @@ namespace IOSVN.TuTien.Core
             var charCatAsset = Resources.Load<TextAsset>("CharacterCatalog");
             if (charCatAsset != null) currentCatalog = JsonUtility.FromJson<GameCatalog>(charCatAsset.text);
 
+            EnterOfflineWorldWithChoice(ReadOfflineCharacterChoice());
+        }
+
+        private static RegisterChoice ReadOfflineCharacterChoice()
+        {
             RegisterChoice savedChoice = null;
             var savedChoiceJson = PlayerPrefs.GetString("tutien_offline_character_demo", "");
             if (!string.IsNullOrEmpty(savedChoiceJson))
@@ -576,7 +581,13 @@ namespace IOSVN.TuTien.Core
                 catch { savedChoice = null; }
             }
 
-            EnterOfflineWorldWithChoice(savedChoice);
+            var savedLook = PlayerPrefs.GetString("tutien_offline_look", "");
+            if (savedChoice != null && !string.IsNullOrEmpty(savedLook))
+            {
+                savedChoice.look = savedLook;
+                savedChoice.gender = LookSpec.Parse(savedLook).Get("g", "m") == "f" ? "nu" : "nam";
+            }
+            return savedChoice;
         }
 
         private void EnterOfflineWorldWithChoice(RegisterChoice choice)
@@ -963,6 +974,7 @@ namespace IOSVN.TuTien.Core
             if (offlineCreationPreview)
             {
                 PlayerPrefs.SetString("tutien_offline_character_demo", JsonUtility.ToJson(choice));
+                PlayerPrefs.SetString("tutien_offline_look", choice.look ?? "");
                 PlayerPrefs.Save();
                 EnterOfflineWorldWithChoice(choice);
                 return;
@@ -3996,7 +4008,7 @@ namespace IOSVN.TuTien.Core
             return text;
         }
 
-        private static Font BuiltinFont() => Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
+        private static Font BuiltinFont() => ModernUi.Regular;
         private static string[] Names(ChoiceInfo[] choices)
         {
             if (choices == null) return Array.Empty<string>();
