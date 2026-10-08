@@ -186,6 +186,7 @@ namespace IOSVN.TuTien.Core
         private RectTransform OpenScreen(string title, string subtitle, string iconId, Action back)
         {
             ClearContent();
+            if (cityRoot != null) cityRoot.SetActive(false);
             if (worldView != null)
             {
                 // closing the screen rebuilds the map: come back to the spot the player left, not the last saved one

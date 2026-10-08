@@ -387,6 +387,7 @@ namespace IOSVN.TuTien.Core
             var player = hub["player"];
             var body = OpenScreen("Nhân Vật", Clean(player["fullName"].Str(player["name"].Str())), "ho_so", back);
             var (left, right) = Split(body, .42f);
+            GlassPanel(right, 26f, new Color32(22, 28, 34, 248), new Color32(12, 18, 24, 248));
             var portraitArea = Anchored("Portrait", left, new Vector2(0, .22f), Vector2.one, Vector2.zero, Vector2.zero);
             GlassPanel(portraitArea, 26f, new Color32(26, 30, 34, 220), new Color32(14, 18, 20, 220));
             if (CultivatorPuppet2D.Available)

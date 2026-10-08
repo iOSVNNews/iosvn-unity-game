@@ -61,8 +61,8 @@ namespace IOSVN.TuTien.Core
             var data = WorldMapData.Load(mapId);
             var biome = data?.biome ?? "verdant";
             var painting = CityPainting(biome);
-            if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
-            if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
+            if (worldView != null) { worldView.gameObject.SetActive(false); Destroy(worldView.gameObject); worldView = null; }
+            if (cityRoot != null) { cityRoot.SetActive(false); Destroy(cityRoot); cityRoot = null; }
             HideHudAction();
             if (wayfinderRoot != null) { Destroy(wayfinderRoot.gameObject); wayfinderRoot = null; }
             wayfinders.Clear();
@@ -623,7 +623,7 @@ namespace IOSVN.TuTien.Core
 
         private void LeaveCity()
         {
-            if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
+            if (cityRoot != null) { cityRoot.SetActive(false); Destroy(cityRoot); cityRoot = null; }
             var data = WorldMapData.Load(hub["town"]["mapId"].Str());
             var town = data?.Town(cityTownId);
             cityTownId = null;

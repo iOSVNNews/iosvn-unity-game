@@ -94,6 +94,12 @@ namespace IOSVN.TuTien.Core
             creatorEditingExisting = editingExisting;
             if (!CultivatorPuppet2D.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
             ClearContent();
+            if (cityRoot != null) cityRoot.SetActive(false);
+            if (worldView != null)
+            {
+                if (worldView.Player != null && !worldReturnTile.HasValue) worldReturnTile = worldView.Player.Pos;
+                worldView.gameObject.SetActive(false);
+            }
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
             if (editingExisting && hub.IsObject && hub["player"].IsObject)
             {

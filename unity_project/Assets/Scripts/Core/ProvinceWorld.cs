@@ -679,10 +679,12 @@ namespace IOSVN.TuTien.Core
 
         private void StepActor(WorldActor actor, float dt, bool manualMoving = false)
         {
+            if (actor == null || actor.Rect == null || !isActiveAndEnabled) return;
             if (!manualMoving) actor.Moving = false;
             if (actor.Path != null && actor.PathIndex < actor.Path.Count)
             {
-                var next = (Vector2)actor.Path[actor.PathIndex];
+                var path = actor.Path;
+                var next = (Vector2)path[actor.PathIndex];
                 var delta = next - actor.Pos;
                 var dist = delta.magnitude;
                 var step = actor.Speed * dt;
@@ -691,6 +693,9 @@ namespace IOSVN.TuTien.Core
                     actor.Pos = next;
                     actor.PathIndex++;
                     if (actor == Player) OnPlayerStep?.Invoke();
+                    // A step can synchronously enter town, cancel walking or start a new path.
+                    // Do not continue using the path or scene that the callback just retired.
+                    if (this == null || !isActiveAndEnabled || actor.Rect == null || actor.Path != path) return;
                 }
                 else actor.Pos += delta / dist * step;
                 if (dist > .001f)
@@ -706,10 +711,11 @@ namespace IOSVN.TuTien.Core
                     var arrive = actor.OnArrive;
                     actor.OnArrive = null;
                     arrive?.Invoke();
+                    if (this == null || !isActiveAndEnabled || actor.Rect == null) return;
                 }
             }
             actor.AnimTime += dt;
-            if (actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
+            if (actor.Body != null && actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
             {
                 actor.Body.sprite = actor.Frames[HeroSprites.FrameIndex(actor.Moving && !(actor == Player && Flying), actor.AnimTime)];
                 actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight ? -1f : 1f, 1f, 1f);
@@ -1003,6 +1009,7 @@ namespace IOSVN.TuTien.Core
                 {
                     lastStepTile = curTile;
                     OnPlayerStep?.Invoke();
+                    if (this == null || !isActiveAndEnabled || Player?.Rect == null) return;
                 }
 
                 following = true;
@@ -1018,6 +1025,7 @@ namespace IOSVN.TuTien.Core
                     chaseTarget = null;
                     Player.Path = null;
                     arrive?.Invoke();
+                    if (this == null || !isActiveAndEnabled || Player?.Rect == null) return;
                 }
                 else if (Time.time >= nextRepath)
                 {

@@ -583,6 +583,18 @@ namespace IOSVN.TuTien.Core
         private int bodyShape = 1;
         private bool femaleAppearance;
         private Color skinTone = Color.white;
+        private bool integratedFace;
+        private float eyeSize, browLift, noseWidth, mouthWidth;
+
+        public void SetFaceCustomization(LookSpec look)
+        {
+            integratedFace = true;
+            eyeSize = Mathf.Clamp(look.Int("ey"), 0, 7) * .018f;
+            browLift = Mathf.Clamp(look.Int("br"), 0, 4) * .001f;
+            noseWidth = Mathf.Clamp(look.Int("no"), 0, 3) * .025f;
+            mouthWidth = Mathf.Clamp(look.Int("mo"), 0, 4) * .025f;
+            SetVerticesDirty();
+        }
 
         public void SetAppearance(LookSpec look)
         {
@@ -643,7 +655,8 @@ namespace IOSVN.TuTien.Core
                 }
             }
 
-            const int columns = 24, rows = 28;
+            var columns = integratedFace ? 64 : 24;
+            var rows = integratedFace ? 80 : 28;
             var time = Time.unscaledTime;
             var width = maxX - minX;
             var height = maxY - minY;
@@ -742,6 +755,27 @@ namespace IOSVN.TuTien.Core
                     var bodyWeight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .10f) / .18f))
                         * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.79f - v) / .17f));
                     vertex.position.x += (u - .5f) * width * (build - 1f) * bodyWeight;
+                    if (integratedFace)
+                    {
+                        var center = femaleAppearance ? .554f : .595f;
+                        var eyeY = femaleAppearance ? .840f : .824f;
+                        float Weight(float cx, float cy, float rx, float ry)
+                        {
+                            var dx = (u - cx) / rx; var dy = (v - cy) / ry;
+                            return Mathf.SmoothStep(0, 1, Mathf.Clamp01(1 - dx * dx - dy * dy));
+                        }
+                        // Change proportions in the same mesh; no independently moving face cutouts.
+                        for (var side = -1; side <= 1; side += 2)
+                        {
+                            var eyeX = center + side * .034f;
+                            var eyeWeight = Weight(eyeX, eyeY, .039f, .025f);
+                            vertex.position.x += (u - eyeX) * width * eyeSize * eyeWeight;
+                            vertex.position.y += (v - eyeY) * height * eyeSize * eyeWeight;
+                            vertex.position.y += height * browLift * Weight(eyeX, eyeY + .019f, .04f, .015f);
+                        }
+                        vertex.position.x += (u - center) * width * noseWidth * Weight(center, .805f, .03f, .025f);
+                        vertex.position.x += (u - center) * width * mouthWidth * Weight(center, .778f, .037f, .02f);
+                    }
 
                     // Atlas figures reach their cell borders. Fade those last pixels
                     // into the parchment instead of showing a straight cut seam.
@@ -749,7 +783,7 @@ namespace IOSVN.TuTien.Core
                     var right = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((1f - u) / .13f));
                     var tint = vertex.color;
                     tint.a = (byte)Mathf.RoundToInt(tint.a * Mathf.Min(left, right));
-                    var faceX = femaleAppearance ? .56f : .63f;
+                    var faceX = integratedFace ? (femaleAppearance ? .554f : .595f) : (femaleAppearance ? .56f : .63f);
                     var faceDx = (u - faceX) / .105f;
                     var faceDy = (v - .83f) / .095f;
                     var faceDistance = faceDx * faceDx + faceDy * faceDy;

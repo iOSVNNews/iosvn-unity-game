@@ -85,14 +85,14 @@ namespace IOSVN.TuTien.Core
             SetAtlasOrientation(false);
             ClearContent();
             ClearBattleScene();
-            if (cityRoot != null) { Destroy(cityRoot); cityRoot = null; }
+            if (cityRoot != null) { cityRoot.SetActive(false); Destroy(cityRoot); cityRoot = null; }
             worldData = data;
             worldMapId = mapId;
             worldCityEntryPending = false;
             worldActorEngagedId = null;
             worldActorConfirmId = null;
             worldMonsterActors.Clear();
-            if (worldView != null) { Destroy(worldView.gameObject); worldView = null; }
+            if (worldView != null) { worldView.gameObject.SetActive(false); Destroy(worldView.gameObject); worldView = null; }
             worldView = ProvinceWorld.Build(backgroundRoot, data, painting);
             worldView.transform.SetAsFirstSibling();
             var player = hub["player"];

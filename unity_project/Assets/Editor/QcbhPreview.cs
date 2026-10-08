@@ -416,6 +416,61 @@ namespace IOSVN.TuTien.Editor
             ValidateMapPresentation();
         }
 
+        public static void ReviewReportedErrors()
+        {
+            RenderAll();
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            ValidateReportedErrors();
+        }
+
+        public static void ValidateReportedErrors()
+        {
+            var samples = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples"));
+            renderLog = new System.Text.StringBuilder();
+            foreach (var female in new[] { false, true })
+            foreach (var size in new[] { new Vector2Int(1280, 590), new Vector2Int(1024, 768) })
+            {
+                Render(c =>
+                {
+                    var hub = J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_state.json")));
+                    hub["player"].Set("look", female ? "g=f;ey=4;br=3;no=2;mo=4" : "g=m;ey=0;br=0;no=0;mo=0");
+                    hub["player"].Set("lookWorn", hub["player"]["look"].Str());
+                    Set(c, "hub", hub);
+                    Set(c, "latestState", NetworkGameClient.ToGameState(hub));
+                    Set(c, "offlinePreview", true);
+                    Call(c, "ShowWorld");
+                    Canvas.ForceUpdateCanvases();
+                    var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
+                    var actor = world.Player;
+                    void StepWith(Action callback)
+                    {
+                        actor.Path = new System.Collections.Generic.List<Vector2Int> { Vector2Int.RoundToInt(actor.Pos) };
+                        actor.PathIndex = 0;
+                        actor.Speed = 100;
+                        world.OnPlayerStep = callback;
+                        world.GetType().GetMethod("StepActor", Flags).Invoke(world, new object[] { actor, .05f, false });
+                    }
+                    StepWith(() => actor.Path = null);
+                    StepWith(() => Call(c, "ShowCity", hub["town"]["id"].Str()));
+                    if (world.gameObject.activeSelf) throw new Exception("Retired world still active after town entry");
+                    var city = (GameObject)typeof(PrototypeBootstrap).GetField("cityRoot", Flags).GetValue(c);
+                    if (city == null || !city.activeSelf) throw new Exception("Town did not open");
+                    Call(c, "OpenCharacterScreen");
+                    if (city.activeSelf) throw new Exception("City panorama leaks behind profile");
+                    var puppet = GameObject.Find("CultivatorPuppet");
+                    if (puppet == null) throw new Exception("Missing repaired portrait");
+                    var body = puppet.transform.Find("Body").GetComponent<Image>();
+                    if (!body.sprite.name.Contains("V3")) throw new Exception("Profile uses the old faceless asset");
+                    foreach (var feature in new[] { "LeftEye", "RightEye", "LeftBrow", "RightBrow", "Nose", "Mouth" })
+                        if (puppet.transform.Find(feature).GetComponent<Image>().enabled) throw new Exception("Loose face patch visible: " + feature);
+                    renderLog.AppendLine("path cancellation, town transition, city/profile isolation, integrated face: ok " + female + " " + size);
+                }, "fixed-profile-" + (female ? "female-" : "male-") + size.x + ".png", size.x, size.y);
+            }
+            File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/qcbh-captures/reported-errors-review.txt")), renderLog.ToString());
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            Debug.Log("REPORTED_ERRORS_REVIEW_DONE\n" + renderLog);
+        }
+
         private static void Set(object target, string field, object value)
         {
             var f = typeof(PrototypeBootstrap).GetField(field, Flags);

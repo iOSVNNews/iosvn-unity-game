@@ -11,8 +11,8 @@ namespace IOSVN.TuTien.Core
     /// </summary>
     internal sealed class CultivatorPuppet2D : MonoBehaviour
     {
-        public static bool Available => Resources.Load<Texture2D>("Characters/PuppetMaleV2") != null
-            && Resources.Load<Texture2D>("Characters/PuppetFemaleV2") != null;
+        public static bool Available => Resources.Load<Texture2D>("Characters/PuppetMaleV3") != null
+            && Resources.Load<Texture2D>("Characters/PuppetFemaleV3") != null;
 
         private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
         private RectTransform root;
@@ -150,13 +150,14 @@ namespace IOSVN.TuTien.Core
             if (look == null) return;
             female = look.Get("g", "m") == "f";
             var sex = female ? "Female" : "Male";
-            var sheet = Resources.Load<Texture2D>("Characters/Puppet" + sex + "V2");
+            var sheet = Resources.Load<Texture2D>("Characters/Puppet" + sex + "V3");
             var features = Resources.Load<Texture2D>("Characters/Puppet" + sex + "FacePartsV1");
             if (sheet == null || features == null) return;
             sheet.filterMode = features.filterMode = FilterMode.Bilinear;
             body.sprite = Half(sheet, false);
             clothing.sprite = Half(sheet, true);
             body.SetAppearance(look);
+            body.SetFaceCustomization(look);
             clothing.SetAppearance(look);
 
             var skin = HeroSprites.ParseColor(look.Get("sk", "#f0d2b4"), new Color32(240, 210, 180, 255));
@@ -180,7 +181,12 @@ namespace IOSVN.TuTien.Core
             Place(nose, Feature(features, "nose", 180, 675, 320, 470), cx, eyeY - 15f, 16f, 20f);
             Place(mouth, Feature(features, "mouth", 680, 850, 500, 310), cx, eyeY - 30f, 25f, 11f);
             for (var i = 0; i < facialFeatures.Length; i++)
+            {
                 facialPositions[i] = facialFeatures[i].rectTransform.anchoredPosition;
+                // The repaired face is painted into the continuous body texture.
+                // Keep the old patches out of both the portrait and creator.
+                facialFeatures[i].enabled = false;
+            }
             var eyeStyle = Mathf.Abs(look.Int("ey", 0));
             var browStyle = Mathf.Abs(look.Int("br", 0));
             var noseStyle = Mathf.Abs(look.Int("no", 0));
