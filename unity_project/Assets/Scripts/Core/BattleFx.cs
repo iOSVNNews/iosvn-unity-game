@@ -21,6 +21,7 @@ namespace IOSVN.TuTien.Core
         public int StartFrame;
         public float Punch = .12f;         // extra scale at the first instant of a one-shot
         public float Spin;                 // degrees per second (law wheels turn slowly)
+        public float Pulse = .07f;
         public int HoldFrame = -1;         // >= 0: show only this frame for the whole life (layers of a wheel)
         public Action Done;
         private Image image, blend;
@@ -70,6 +71,11 @@ namespace IOSVN.TuTien.Core
                 next = HoldFrame >= 0 ? index : (index + 1) % Frames.Length;
                 alpha = Mathf.Clamp01(t / .1f) * Mathf.Clamp01((Life - t) / .18f);
                 if (Frozen) alpha = 1f;
+                if (!Frozen)
+                {
+                    var pulse = 1f + Pulse * Mathf.Sin(t * (HoldFrame >= 0 ? 2.2f : 4.2f));
+                    transform.localScale = new Vector3(baseScale.x * pulse, baseScale.y * pulse, 1f);
+                }
             }
             else
             {
@@ -154,7 +160,8 @@ namespace IOSVN.TuTien.Core
     internal static class BattleFx
     {
         /// <summary>Canvas units per effect pixel (effects are drawn about as fine as the monsters).</summary>
-        public const float PixelScale = 4f / 3f;
+        public const float PixelScale = 1f;
+        private const float EffectVisualScale = .48f;
 
         /// <summary>How far above its centre an effect's ground line sits, in effect pixels.</summary>
         private static readonly Dictionary<string, float> GroundOffset = new Dictionary<string, float>
@@ -242,7 +249,7 @@ namespace IOSVN.TuTien.Core
             var rect = (RectTransform)go.transform;
             rect.SetParent(parent, false);
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
-            rect.sizeDelta = new Vector2(info.w, info.h) * PixelScale * scale;
+            rect.sizeDelta = new Vector2(info.w, info.h) * PixelScale * EffectVisualScale * scale;
             rect.anchoredPosition = pos;
             rect.localScale = new Vector3(flip ? -1f : 1f, 1f, 1f);
             rect.localRotation = Quaternion.Euler(0, 0, rotation);
@@ -254,6 +261,8 @@ namespace IOSVN.TuTien.Core
             player.Fps = fps > 0 ? fps : info.fps;
             player.Delay = delay;
             player.Life = life > 0 ? life : (info.loop ? .7f : 0f);
+            player.Spin = effect == "halo" ? 9f : effect == "vortex" ? -22f : 0f;
+            player.Pulse = effect == "halo" || effect == "vortex" || effect == "cast" ? .1f : .055f;
             return player;
         }
 
@@ -261,7 +270,7 @@ namespace IOSVN.TuTien.Core
         public static FxPlayer OnGround(RectTransform parent, string effect, string element, Vector2 ground, float scale = 1f, bool flip = false, float delay = 0f, float life = 0f)
         {
             GroundOffset.TryGetValue(effect, out var up);
-            return Spawn(parent, effect, element, ground + new Vector2(0, up * PixelScale * scale), scale, flip, 0f, delay, life);
+            return Spawn(parent, effect, element, ground + new Vector2(0, up * PixelScale * EffectVisualScale * scale), scale, flip, 0f, delay, life);
         }
 
         /// <summary>A full-size empty layer of a battle scene (effects behind the fighters, the fighters, effects in front).</summary>
@@ -850,7 +859,8 @@ namespace IOSVN.TuTien.Core
             if (set != null && !set.Alive) set = ArtSprites.MonsterFrames(monsterId);     // rebuilt if Unity unloaded the textures
             var alive = set != null && set.Alive;
             var t = time + phase * 2f;
-            var sx = FaceRight ? -1f : 1f;
+            var sx = string.Equals(monsterId, "da_lang", StringComparison.Ordinal)
+                ? (FaceRight ? 1f : -1f) : (FaceRight ? -1f : 1f);
             var fade = 1f;
             var squash = 1f;
             if (dieAt >= 0)
@@ -910,12 +920,15 @@ namespace IOSVN.TuTien.Core
     /// <summary>A layered figure on the field with its aura: idle / walk / attack / cast / hurt / down.</summary>
     internal sealed class FighterView : MonoBehaviour
     {
+        internal const float BattleScale = 1.2f;
         public const float AttackTime = .36f, CastTime = .5f, HurtTime = .28f;
         public RectTransform Rect { get; private set; }
         public bool FaceRight;
         public bool Moving;
         private Image body, flash;
         private Sprite[] frames;
+        private Sprite paintedBody;
+        private QcbhSkinnedActor2D rig;
         private AuraAnimator aura;
         private LookSpec look;
         private FighterAction action = FighterAction.Idle;
@@ -930,16 +943,30 @@ namespace IOSVN.TuTien.Core
             rect.SetParent(parent, false);
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, .5f);
             rect.pivot = new Vector2(.5f, 0f);
-            rect.sizeDelta = new Vector2(HeroSprites.FrameW, HeroSprites.FrameH) * pixelScale;
-            var shadow = InkUi.Simple(rect, "Shadow", InkUi.Shadow, Color.white, new Vector2(rect.sizeDelta.x * .5f, rect.sizeDelta.x * .15f));
+            var scale = Mathf.Clamp(pixelScale, .65f, 2.9f);
+            var painted = AvatarComposer.CombatIllustration(look);
+            var characterHeight = 110f * scale;
+            rect.sizeDelta = painted != null
+                ? new Vector2(characterHeight * painted.rect.width / painted.rect.height, characterHeight)
+                : new Vector2(HeroSprites.FrameW, HeroSprites.FrameH) * scale;
+            var shadow = InkUi.Simple(rect, "Shadow", InkUi.Shadow, Color.white, new Vector2(rect.sizeDelta.y * .62f, rect.sizeDelta.y * .12f));
             shadow.rectTransform.anchorMin = shadow.rectTransform.anchorMax = new Vector2(.5f, 0f);
             shadow.rectTransform.anchoredPosition = new Vector2(0, 8);
             var view = rect.gameObject.AddComponent<FighterView>();
             view.Rect = rect;
             view.look = look;
-            view.frames = HeroSprites.Get(look);
+            view.paintedBody = painted;
+            view.frames = painted == null ? HeroSprites.Get(look) : null;
             var auraBack = Layer(rect, "AuraBack");
-            view.body = Layer(rect, "Body");
+            if (QcbhSkinnedActor2D.Available)
+            {
+                var actorAtlas = Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
+                rect.sizeDelta = new Vector2(characterHeight * actorAtlas.width * .5f / actorAtlas.height, characterHeight);
+                view.rig = QcbhSkinnedActor2D.Create(rect, look);
+            }
+            view.body = Layer(rect, "Body", painted != null);
+            if (view.rig != null) view.body.enabled = false;
+            if (view.body is AnimatedPortraitImage animatedFigure) animatedFigure.SetAppearance(look);
             var auraFront = Layer(rect, "AuraFront");
             view.flash = Layer(rect, "Flash");
             var material = BattleFx.Flash;
@@ -957,9 +984,9 @@ namespace IOSVN.TuTien.Core
             return view;
         }
 
-        private static Image Layer(RectTransform parent, string name)
+        private static Image Layer(RectTransform parent, string name, bool animated = false)
         {
-            var image = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            var image = new GameObject(name, typeof(RectTransform), animated ? typeof(AnimatedPortraitImage) : typeof(Image)).GetComponent<Image>();
             image.transform.SetParent(parent, false);
             var r = image.rectTransform;
             r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
@@ -1013,7 +1040,21 @@ namespace IOSVN.TuTien.Core
 
         private void Show()
         {
-            if (frames == null || frames.Length < HeroSprites.Total || frames[0] == null) frames = HeroSprites.Get(look);
+            if (rig != null)
+            {
+                var elapsedRig = Time.unscaledTime - actionStart;
+                var duration = action == FighterAction.Attack ? AttackTime : action == FighterAction.Cast ? CastTime : HurtTime;
+                var progressRig = Mathf.Clamp01(elapsedRig / duration);
+                if (action == FighterAction.Down) progressRig = Mathf.Clamp01(elapsedRig / .35f);
+                rig.SetMotion(action, progressRig, Moving, FaceRight, time);
+                rig.SetHit(Time.unscaledTime < flashUntil);
+                if (aura != null) aura.Flip = FaceRight;
+                if (Application.isPlaying && ((action == FighterAction.Attack && elapsedRig >= AttackTime)
+                    || (action == FighterAction.Cast && elapsedRig >= CastTime)
+                    || (action == FighterAction.Hurt && elapsedRig >= HurtTime))) action = FighterAction.Idle;
+                return;
+            }
+            if (paintedBody == null && (frames == null || frames.Length < HeroSprites.Total || frames[0] == null)) frames = HeroSprites.Get(look);
             var elapsed = Time.unscaledTime - actionStart;
             int index;
             var tilt = 0f;
@@ -1036,16 +1077,84 @@ namespace IOSVN.TuTien.Core
                     tilt = Mathf.Clamp01(elapsed / .35f) * 78f;
                     break;
                 default:
+                case FighterAction.Idle:
+                case FighterAction.Walk:
                     index = HeroSprites.FrameIndex(Moving, time);
                     break;
             }
-            var sprite = frames[Mathf.Clamp(index, 0, frames.Length - 1)];
+            var sprite = paintedBody != null ? paintedBody : frames[Mathf.Clamp(index, 0, frames.Length - 1)];
             body.sprite = sprite;
             body.enabled = sprite != null;
+            if (body is AnimatedPortraitImage animatedBody)
+            {
+                var duration = action == FighterAction.Attack ? AttackTime : action == FighterAction.Cast ? CastTime : HurtTime;
+                animatedBody.SetMotion(action == FighterAction.Idle && Moving ? FighterAction.Walk : action,
+                    Mathf.Clamp01(elapsed / duration), FaceRight);
+            }
             var sx = FaceRight ? -1f : 1f;
-            body.rectTransform.localScale = new Vector3(sx, 1f, 1f);
-            flash.rectTransform.localScale = new Vector3(sx, 1f, 1f);
-            Rect.localRotation = Quaternion.Euler(0, 0, FaceRight ? tilt : -tilt);
+            var bodyRect = body.rectTransform;
+            var flashRect = flash.rectTransform;
+            bodyRect.localScale = new Vector3(paintedBody != null ? 1f : sx, 1f, 1f);
+            flashRect.localScale = bodyRect.localScale;
+            Rect.localRotation = Quaternion.Euler(0, 0, paintedBody != null ? 0f : FaceRight ? tilt : -tilt);
+            bodyRect.localPosition = flashRect.localPosition = Vector3.zero;
+            bodyRect.localRotation = flashRect.localRotation = Quaternion.identity;
+            if (paintedBody != null)
+            {
+                var progress = Mathf.Clamp01(elapsed / (action == FighterAction.Attack ? AttackTime : action == FighterAction.Cast ? CastTime : HurtTime));
+                var toward = FaceRight ? 1f : -1f;
+                var poseX = 0f; var bob = 0f; var poseTilt = 0f; var poseScaleX = 1f; var poseScaleY = 1f;
+                if (action == FighterAction.Attack)
+                {
+                    var strike = Mathf.Sin(Mathf.PI * progress);
+                    poseX = toward * (8f + strike * 28f);
+                    bob = strike * 5f;
+                    poseTilt = toward * (12f * strike - 7f * (1f - progress));
+                    poseScaleX = 1f + .045f * strike;
+                    poseScaleY = 1f - .035f * strike;
+                }
+                else if (action == FighterAction.Cast)
+                {
+                    var lift = Mathf.Sin(Mathf.PI * progress);
+                    bob = 5f + lift * 12f + Mathf.Sin(time * 8f) * 2f;
+                    poseTilt = toward * (2f + lift * 5f);
+                    poseScaleX = 1f - .025f * lift;
+                    poseScaleY = 1f + .06f * lift;
+                }
+                else if (action == FighterAction.Hurt)
+                {
+                    var recoil = Mathf.Sin(Mathf.PI * progress);
+                    poseX = -toward * recoil * 15f;
+                    poseTilt = -toward * recoil * 14f;
+                    poseScaleX = 1f + .06f * recoil;
+                    poseScaleY = 1f - .04f * recoil;
+                }
+                else if (action == FighterAction.Down)
+                {
+                    poseTilt = -toward * Mathf.Clamp01(elapsed / .35f) * 76f;
+                    poseX = -toward * 12f;
+                    poseScaleY = .94f;
+                }
+                else if (action == FighterAction.Walk || Moving)
+                {
+                    var step = Mathf.Sin(time * 11f);
+                    bob = Mathf.Abs(step) * 4f;
+                    poseX = step * 2f;
+                    poseTilt = -toward * step * 4f;
+                    poseScaleY = 1f + Mathf.Abs(step) * .025f;
+                }
+                else
+                {
+                    bob = Mathf.Sin(time * 2.2f) * 1.7f;
+                    poseScaleY = 1f + Mathf.Sin(time * 2.2f) * .018f;
+                }
+                var posePosition = new Vector3(poseX, bob, 0f);
+                var poseScale = new Vector3(poseScaleX, poseScaleY, 1f);
+                var poseRotation = Quaternion.Euler(0, 0, poseTilt);
+                bodyRect.localPosition = flashRect.localPosition = posePosition;
+                bodyRect.localScale = flashRect.localScale = poseScale;
+                bodyRect.localRotation = flashRect.localRotation = poseRotation;
+            }
             if (aura != null) aura.Flip = FaceRight;
             var hit = Time.unscaledTime < flashUntil;
             var hasFlash = flash.material != null && flash.material == BattleFx.Flash;

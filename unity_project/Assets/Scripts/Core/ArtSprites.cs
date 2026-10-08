@@ -8,8 +8,8 @@ namespace IOSVN.TuTien.Core
     /// The redrawn art set, stored as PNG bytes under Resources/Art so it needs no import settings:
     ///   Art/Items/&lt;id&gt;       128 px item icon with its quality aura
     ///   Art/Monsters/&lt;id&gt;    4 body frames of 256 px (the body really moves: breathing, undulating, wing beats)
-    ///   Art/MonsterFx/&lt;id&gt;   6 frames x 2 rows of 256 px — row 0 aura behind the body, row 1 embers in front
-    ///   Art/Vfx/&lt;effect&gt;_&lt;element&gt;  skill / combat effect sheets (frame grids, see FxInfo)
+    ///   Art/MonsterFx/&lt;id&gt;   retired legacy effect sheets; painted monsters use their body frames only
+    ///   Art/PaintedCombatFx         transparent 5 x 4 hand-painted effect atlas used for every skill
     /// Looked up by the same ids as the original PixelArt icons, which stay as the fallback.
     /// </summary>
     public static class ArtSprites
@@ -45,8 +45,9 @@ namespace IOSVN.TuTien.Core
 
         private static readonly Dictionary<string, Sprite> Cache = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         private static readonly Dictionary<string, MonsterSet> Monsters = new Dictionary<string, MonsterSet>(StringComparer.Ordinal);
-        private static readonly Dictionary<string, Sprite[]> Fxs = new Dictionary<string, Sprite[]>(StringComparer.Ordinal);
+        private static readonly Dictionary<string, Sprite[]> PaintedFxs = new Dictionary<string, Sprite[]>(StringComparer.Ordinal);
         private static readonly HashSet<string> Missing = new HashSet<string>(StringComparer.Ordinal);
+        private static Texture2D paintedFxAtlas;
 
         /// <summary>Maps an original icon path (PixelArt/Monsters/id, PixelArt/Items/id) to the new sprite, or null.</summary>
         public static Sprite ForLegacyPath(string resourcePath)
@@ -83,7 +84,7 @@ namespace IOSVN.TuTien.Core
             if (asset == null) { Missing.Add(path); return null; }
             var texture = new Texture2D(2, 2, TextureFormat.RGBA32, mipmaps);
             if (!texture.LoadImage(asset.bytes, !readable)) { Kill(texture); Missing.Add(path); return null; }
-            texture.filterMode = FilterMode.Point;      // crisp when enlarged; the mip chain keeps small icons clean
+            texture.filterMode = FilterMode.Bilinear;
             texture.wrapMode = TextureWrapMode.Clamp;
             texture.name = path;
             return texture;
@@ -103,7 +104,7 @@ namespace IOSVN.TuTien.Core
             return sprite;
         }
 
-        /// <summary>One still picture of a monster (aura + body + embers) for lists, the map and icons.</summary>
+        /// <summary>One painted body frame for lists, the map and icons.</summary>
         public static Sprite Monster(string id)
         {
             if (string.IsNullOrEmpty(id)) return null;
@@ -111,26 +112,19 @@ namespace IOSVN.TuTien.Core
             if (Cache.TryGetValue(key, out var cached) && cached != null) return cached;
             var body = LoadTexture("Art/Monsters/" + id, false, true);
             if (body == null) return null;
+            if (string.Equals(id, "da_lang", StringComparison.Ordinal)) body.filterMode = FilterMode.Bilinear;
             const int n = MonsterSize;
             var pixels = body.GetPixels32();
             var width = body.width;
             Kill(body);
             if (width < n || pixels.Length < width * n) return null;
             var still = new Color32[n * n];
-            var fx = LoadTexture("Art/MonsterFx/" + id, false, true);
-            Color32[] fxPixels = null;
-            var fxWidth = 0;
-            if (fx != null && fx.height >= n * 2) { fxPixels = fx.GetPixels32(); fxWidth = fx.width; }
-            Kill(fx);
             for (var y = 0; y < n; y++)
                 for (var x = 0; x < n; x++)
                 {
-                    var c = fxPixels != null ? fxPixels[(y + n) * fxWidth + x] : default;       // aura row is the top half
-                    Over(ref c, pixels[y * width + x]);
-                    if (fxPixels != null) Over(ref c, fxPixels[y * fxWidth + x]);
-                    still[y * n + x] = c;
+                    still[y * n + x] = pixels[y * width + x];
                 }
-            var texture = new Texture2D(n, n, TextureFormat.RGBA32, true) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = key };
+            var texture = new Texture2D(n, n, TextureFormat.RGBA32, true) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, name = key };
             texture.SetPixels32(still);
             texture.Apply(true, true);
             var sprite = Sprite.Create(texture, new Rect(0, 0, n, n), new Vector2(.5f, .5f), 64f);
@@ -155,48 +149,45 @@ namespace IOSVN.TuTien.Core
             if (Monsters.TryGetValue(id, out var cached) && cached != null && cached.Alive) return cached;
             var body = LoadTexture("Art/Monsters/" + id, false, false);
             if (body == null) return null;
+            if (string.Equals(id, "da_lang", StringComparison.Ordinal)) body.filterMode = FilterMode.Bilinear;
             const int n = MonsterSize;
             var set = new MonsterSet { Body = new Sprite[Mathf.Max(1, Mathf.Min(BodyFrames, body.width / n))] };
             for (var i = 0; i < set.Body.Length; i++) set.Body[i] = Sprite.Create(body, new Rect(i * n, 0, n, n), new Vector2(.5f, 0f), 64f);
-            var fx = LoadTexture("Art/MonsterFx/" + id, false, false);
-            if (fx != null && fx.height >= n * 2)
-            {
-                var count = Mathf.Min(AuraFrames, fx.width / n);
-                set.Back = new Sprite[count];
-                set.Front = new Sprite[count];
-                for (var i = 0; i < count; i++)
-                {
-                    set.Back[i] = Sprite.Create(fx, new Rect(i * n, n, n, n), new Vector2(.5f, 0f), 64f);
-                    set.Front[i] = Sprite.Create(fx, new Rect(i * n, 0, n, n), new Vector2(.5f, 0f), 64f);
-                }
-            }
             Evict(Monsters, 4);        // each set is ~4 MB of pixels
             Monsters[id] = set;
             return set;
         }
 
-        /// <summary>Frames of a combat effect in an element's colours (falls back to metal).</summary>
+        /// <summary>Hand-painted combat effect cell in the matching element palette.</summary>
         public static Sprite[] Fx(string effect, string element)
         {
-            if (string.IsNullOrEmpty(effect) || !FxInfo.TryGetValue(effect, out var info)) return null;
+            if (string.IsNullOrEmpty(effect) || !FxInfo.ContainsKey(effect)) return null;
             if (Array.IndexOf(Elements, element) < 0) element = "kim";
             var key = effect + "_" + element;
-            if (Fxs.TryGetValue(key, out var cached) && cached != null && cached.Length > 0 && cached[0] != null) return cached;
-            var texture = LoadTexture("Art/Vfx/" + key, false, false);
-            if (texture == null) return null;
-            var cols = Mathf.Max(1, Mathf.Min(info.cols, texture.width / info.w));
-            var rows = Mathf.Max(1, texture.height / info.h);
-            var count = Mathf.Min(info.frames, cols * rows);
-            var frames = new Sprite[count];
-            for (var i = 0; i < count; i++)
+            if (PaintedFxs.TryGetValue(key, out var cached) && cached != null && cached.Length > 0 && cached[0] != null) return cached;
+            if (paintedFxAtlas == null)
             {
-                // the sheet's first row is at the top; texture coordinates start at the bottom
-                var x = (i % cols) * info.w;
-                var y = texture.height - (i / cols + 1) * info.h;
-                frames[i] = Sprite.Create(texture, new Rect(x, y, info.w, info.h), new Vector2(.5f, .5f), 64f);
+                paintedFxAtlas = Resources.Load<Texture2D>("Art/PaintedCombatFx");
+                if (paintedFxAtlas != null) paintedFxAtlas.filterMode = FilterMode.Bilinear;
             }
-            Evict(Fxs, 20);            // a sheet is 1-5 MB of pixels
-            Fxs[key] = frames;
+            if (paintedFxAtlas == null || paintedFxAtlas.width < 5 || paintedFxAtlas.height < 4) return null;
+
+            var row = effect == "slash" || effect == "sword" || effect == "claw" || effect == "bite" || effect == "chain" || effect == "wave" || effect == "palm" ? 1
+                : effect == "hit" || effect == "burst" || effect == "quake" ? 2
+                : effect == "cast" || effect == "pillar" || effect == "guard" || effect == "heal" || effect == "rain" || effect == "vortex" || effect == "lotus" || effect == "giantsword" || effect == "halo" ? 3
+                : 0;
+            var column = element == "moc" || element == "phong" ? 1
+                : element == "thuy" || element == "bang" ? 2
+                : element == "hoa" ? 3
+                : element == "loi" || element == "ma" ? 4
+                : 0;
+            var cellWidth = paintedFxAtlas.width / 5;
+            var cellHeight = paintedFxAtlas.height / 4;
+            var rect = new Rect(column * cellWidth, paintedFxAtlas.height - (row + 1) * cellHeight, cellWidth, cellHeight);
+            var sprite = Sprite.Create(paintedFxAtlas, rect, new Vector2(.5f, .5f), 256f);
+            sprite.name = "PaintedFx_" + row + "_" + column;
+            var frames = new[] { sprite };
+            PaintedFxs[key] = frames;
             return frames;
         }
     }

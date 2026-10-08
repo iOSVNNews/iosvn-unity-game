@@ -6,7 +6,7 @@ using UnityEngine.UI;
 
 namespace IOSVN.TuTien.Core
 {
-    /// <summary>Animated, server-synchronized pixel presentation shared by PvE and PvP.</summary>
+    /// <summary>Animated server-synchronized fallback presentation shared by PvE and PvP.</summary>
     public sealed class PixelCombatPresentation : MonoBehaviour
     {
         private sealed class Fighter
@@ -191,7 +191,7 @@ namespace IOSVN.TuTien.Core
 
         private void BuildGround(BattleMapInfo map)
         {
-            var texture = GroundFor(map, immortalRealm);
+            var texture = pvp ? PvpGround() : GroundFor(map, immortalRealm);
             var go = new GameObject("PixelBattleGround", typeof(RectTransform), typeof(RawImage));
             go.transform.SetParent(transform, false);
             Place(go.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
@@ -205,7 +205,14 @@ namespace IOSVN.TuTien.Core
         {
             var illustrated = IllustratedGroundFor(map);
             if (illustrated != null) return illustrated;
-            return PixelGround(map?.id, immortal, map?.palette, map?.layout);
+            illustrated = LoadIllustratedGround("battle-pham-pve-hoang-nguyen");
+            return illustrated ?? LoadIllustratedGround("battle-pham-small-monster");
+        }
+
+        internal static Texture2D PvpGround()
+        {
+            var arena = LoadIllustratedGround("battle-pham-duel");
+            return arena ?? LoadIllustratedGround("battle-pham-small-monster");
         }
 
         private static Texture2D IllustratedGroundFor(BattleMapInfo map)
@@ -213,7 +220,11 @@ namespace IOSVN.TuTien.Core
             var theme = (map?.visualThemeId ?? string.Empty).ToLowerInvariant();
             var layout = (map?.layout ?? string.Empty).ToLowerInvariant();
             string asset = null;
-            if (theme.Contains("/small-monster") || layout.Contains("forest") || layout.Contains("trail"))
+            if (theme.Contains("bang-lien") || theme.Contains("frost") || theme.Contains("snow") || theme.Contains("ice") || layout.Contains("snow") || layout.Contains("ice"))
+                asset = "battle-pham-pve-bang-lien";
+            else if (theme.Contains("hoang-nguyen") || theme.Contains("wasteland") || layout.Contains("barren") || layout.Contains("ash_field"))
+                asset = "battle-pham-pve-hoang-nguyen";
+            else if (theme.Contains("/small-monster") || layout.Contains("forest") || layout.Contains("trail"))
                 asset = "battle-pham-small-monster";
             else if (theme.Contains("/elite-boss") || theme.Contains("/cave-") || layout.Contains("cave") || layout.Contains("cavern"))
                 asset = "battle-pham-boss-cave";
@@ -222,11 +233,15 @@ namespace IOSVN.TuTien.Core
             else if (theme.Contains("/ranked") || theme.Contains("/sect") || layout.Contains("courtyard"))
                 asset = "battle-pham-sect-arena";
             else if (theme.Contains("/world-boss") || layout.Contains("world_field") || layout.Contains("worldboss"))
-                asset = "battle-pham-world-boss";
+                asset = "battle-pham-pve-hoang-nguyen";
             else if (theme.Contains("/sat-phat") || layout.Contains("broken") || layout.Contains("shattered"))
                 asset = "battle-pham-sat-phat";
-            if (asset == null) return null;
+            return asset == null ? null : LoadIllustratedGround(asset);
+        }
 
+        private static Texture2D LoadIllustratedGround(string asset)
+        {
+            if (string.IsNullOrEmpty(asset)) return null;
             if (!IllustratedGroundCache.TryGetValue(asset, out var texture) || texture == null)
             {
                 texture = Resources.Load<Texture2D>("BattleMaps/" + asset);

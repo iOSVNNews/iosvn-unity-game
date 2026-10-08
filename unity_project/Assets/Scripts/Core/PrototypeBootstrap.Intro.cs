@@ -11,9 +11,8 @@ namespace IOSVN.TuTien.Core
         private GameObject openingIntroRoot;
         private CanvasGroup openingIntroGroup;
         private CanvasGroup openingBrandGroup;
-        private RectTransform openingDragonRect;
-        private Image openingLeftEye;
-        private Image openingRightEye;
+        private RectTransform openingPaintingRect;
+        private Image openingGateGlow;
         private Image[] openingMists = Array.Empty<Image>();
         private Vector2[] openingMistOrigins = Array.Empty<Vector2>();
         private Image[] openingMotes = Array.Empty<Image>();
@@ -28,11 +27,11 @@ namespace IOSVN.TuTien.Core
         private void BeginOpeningIntro()
         {
             startupIntroFinished = false;
-            var painting = Resources.Load<Texture2D>("Brand/OpeningDragonInk");
+            var painting = Resources.Load<Texture2D>("Brand/OpeningCelestialGate");
             if (painting == null)
             {
                 startupIntroFinished = true;
-                Debug.LogWarning("OpeningDragonInk is missing; continuing to startup checks.");
+                Debug.LogWarning("OpeningCelestialGate is missing; continuing to startup checks.");
                 return;
             }
 
@@ -55,12 +54,12 @@ namespace IOSVN.TuTien.Core
             hitButton.targetGraphic = hitImage;
             hitButton.onClick.AddListener(SkipOpeningIntro);
 
-            var art = new GameObject("DragonPainting", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
+            var art = new GameObject("CelestialGatePainting", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
             art.transform.SetParent(openingIntroRoot.transform, false);
-            openingDragonRect = art.GetComponent<RectTransform>();
-            openingDragonRect.anchorMin = openingDragonRect.anchorMax = new Vector2(.5f, .5f);
-            openingDragonRect.pivot = new Vector2(.5f, .5f);
-            openingDragonRect.sizeDelta = Vector2.zero;
+            openingPaintingRect = art.GetComponent<RectTransform>();
+            openingPaintingRect.anchorMin = openingPaintingRect.anchorMax = new Vector2(.5f, .5f);
+            openingPaintingRect.pivot = new Vector2(.5f, .5f);
+            openingPaintingRect.sizeDelta = Vector2.zero;
             var artImage = art.GetComponent<RawImage>();
             artImage.texture = painting;
             artImage.raycastTarget = false;
@@ -69,7 +68,7 @@ namespace IOSVN.TuTien.Core
             aspect.aspectRatio = (float)painting.width / painting.height;
 
             var vignette = OpeningImage("Vignette", openingIntroRoot.transform, InkUi.Vignette, Vector2.zero, Vector2.one,
-                new Color(.10f, .11f, .13f, .43f));
+                new Color(.08f, .12f, .14f, .27f));
             vignette.raycastTarget = false;
 
             openingMists = new Image[3];
@@ -87,8 +86,7 @@ namespace IOSVN.TuTien.Core
                 openingMistOrigins[i] = new Vector2((i - 1) * 28f, 0f);
             }
 
-            openingLeftEye = OpeningGlow("EyeGlowLeft", openingIntroRoot.transform, new Vector2(.624f, .505f), new Vector2(84f, 62f));
-            openingRightEye = OpeningGlow("EyeGlowRight", openingIntroRoot.transform, new Vector2(.667f, .51f), new Vector2(84f, 62f));
+            openingGateGlow = OpeningGlow("GateGlow", openingIntroRoot.transform, new Vector2(.68f, .52f), new Vector2(390f, 330f));
 
             openingMotes = new Image[12];
             openingMotePhases = new float[openingMotes.Length];
@@ -111,10 +109,10 @@ namespace IOSVN.TuTien.Core
             openingBrandGroup = brand.GetComponent<CanvasGroup>();
             openingBrandGroup.alpha = 0f;
 
-            var logo = Resources.Load<Texture2D>("Brand/TuTienGioi_Logo");
+            var logo = Resources.Load<Texture2D>("Brand/OpeningEmblem");
             if (logo != null)
             {
-                var slot = Anchored("LogoSlot", brandRect, new Vector2(.015f, .025f), new Vector2(.215f, .355f), Vector2.zero, Vector2.zero);
+                var slot = Anchored("LogoSlot", brandRect, new Vector2(.027f, .815f), new Vector2(.135f, .965f), Vector2.zero, Vector2.zero);
                 var logoObject = new GameObject("Logo", typeof(RectTransform), typeof(RawImage), typeof(AspectRatioFitter));
                 logoObject.transform.SetParent(slot, false);
                 Place(logoObject.GetComponent<RectTransform>(), Vector2.zero, Vector2.one);
@@ -125,14 +123,6 @@ namespace IOSVN.TuTien.Core
                 logoAspect.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
                 logoAspect.aspectRatio = (float)logo.width / logo.height;
             }
-
-            var subtitle = AnchoredText(brandRect, "Subtitle", "HÀNH TRÌNH TU TIÊN BẮT ĐẦU", ModernUi.SemiBold, 25,
-                new Color32(247, 234, 205, 255), TextAnchor.MiddleCenter,
-                new Vector2(.29f, .045f), new Vector2(.73f, .11f), Vector2.zero, Vector2.zero);
-            subtitle.gameObject.AddComponent<Shadow>().effectColor = new Color(0f, 0f, 0f, .8f);
-            var outline = subtitle.gameObject.AddComponent<Outline>();
-            outline.effectColor = new Color(.12f, .10f, .08f, .85f);
-            outline.effectDistance = new Vector2(1.5f, -1.5f);
 
             var skip = Anchored("Skip", openingIntroRoot.transform, new Vector2(.86f, .89f), new Vector2(.975f, .965f), Vector2.zero, Vector2.zero);
             var skipImage = skip.gameObject.AddComponent<Image>();
@@ -188,10 +178,10 @@ namespace IOSVN.TuTien.Core
             openingIntroGroup.alpha = Mathf.Min(fadeIn, fadeOut);
 
             var progress = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(elapsed / OpeningIntroDuration));
-            if (openingDragonRect != null)
+            if (openingPaintingRect != null)
             {
-                openingDragonRect.localScale = Vector3.one * Mathf.Lerp(1f, 1.105f, progress);
-                openingDragonRect.anchoredPosition = new Vector2(Mathf.Lerp(-34f, 26f, progress), Mathf.Sin(elapsed * .28f) * 5f);
+                openingPaintingRect.localScale = Vector3.one * Mathf.Lerp(1f, 1.07f, progress);
+                openingPaintingRect.anchoredPosition = new Vector2(Mathf.Lerp(-24f, 22f, progress), Mathf.Sin(elapsed * .28f) * 4f);
             }
 
             for (var i = 0; i < openingMists.Length; i++)
@@ -205,9 +195,8 @@ namespace IOSVN.TuTien.Core
                 mist.color = c;
             }
 
-            var eyePulse = .18f + .18f * (0.5f + 0.5f * Mathf.Sin(elapsed * 2.2f));
-            if (openingLeftEye != null) openingLeftEye.color = new Color(1f, .48f, .08f, eyePulse);
-            if (openingRightEye != null) openingRightEye.color = new Color(1f, .48f, .08f, eyePulse * .9f);
+            var gatePulse = .11f + .10f * (0.5f + 0.5f * Mathf.Sin(elapsed * 1.55f));
+            if (openingGateGlow != null) openingGateGlow.color = new Color(.15f, .88f, .83f, gatePulse);
 
             for (var i = 0; i < openingMotes.Length; i++)
             {
@@ -237,9 +226,8 @@ namespace IOSVN.TuTien.Core
             openingIntroRoot = null;
             openingIntroGroup = null;
             openingBrandGroup = null;
-            openingDragonRect = null;
-            openingLeftEye = null;
-            openingRightEye = null;
+            openingPaintingRect = null;
+            openingGateGlow = null;
             openingMists = Array.Empty<Image>();
             openingMistOrigins = Array.Empty<Vector2>();
             openingMotes = Array.Empty<Image>();

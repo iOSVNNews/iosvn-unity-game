@@ -26,6 +26,7 @@ namespace IOSVN.TuTien.Core
 
         public static readonly Dictionary<string, int> Counts = new Dictionary<string, int>
         {
+            { "bo", 4 },
             { "fa", 4 }, { "ea", 3 }, { "ey", 8 }, { "br", 5 }, { "no", 4 }, { "mo", 5 }, { "bd", 5 }, { "ha", 10 },
             { "ti", 4 }, { "to", 6 }, { "tot", 6 }, { "pa", 4 }, { "sh", 3 }, { "be", 3 }, { "hat", 6 }, { "wp", 11 }, { "au", 6 },
         };
@@ -43,8 +44,8 @@ namespace IOSVN.TuTien.Core
         public static LookSpec Default(bool female)
         {
             return LookSpec.Parse(female
-                ? "g=f;fa=2;ea=2;ey=2;ec=#6a4ab0;br=0;no=2;mo=3;bd=0;ha=9;hc=#24202c;ti=2;tc=#f2edf2;to=5;oc=#443b64;ac=#d6b875;pa=2;pc=#30283d;sh=1;sc=#262332;be=1;bc=#392f4d;hat=5;hac=#e2c57b;sk=#f6dcc4;wp=2;au=5;auc=#b48cff"
-                : "g=m;fa=1;ea=0;ey=2;ec=#32a088;br=0;no=0;mo=3;bd=0;ha=6;hc=#181618;ti=3;tc=#e8e4dc;to=5;oc=#203f4b;ac=#d8b46a;pa=0;pc=#202a30;sh=1;sc=#20242a;be=1;bc=#262a30;hat=1;hac=#d8b46a;sk=#f2d8be;wp=2;au=5;auc=#8fe0ff");
+                ? "g=f;bo=2;fa=2;ea=2;ey=2;ec=#6a4ab0;br=0;no=2;mo=3;bd=0;ha=9;hc=#24202c;ti=2;tc=#f2edf2;to=5;oc=#443b64;ac=#d6b875;pa=2;pc=#30283d;sh=1;sc=#262332;be=1;bc=#392f4d;hat=5;hac=#e2c57b;sk=#f6dcc4;wp=2;au=5;auc=#b48cff"
+                : "g=m;bo=1;fa=1;ea=0;ey=2;ec=#32a088;br=0;no=0;mo=3;bd=0;ha=6;hc=#181618;ti=3;tc=#e8e4dc;to=5;oc=#203f4b;ac=#d8b46a;pa=0;pc=#202a30;sh=1;sc=#20242a;be=1;bc=#262a30;hat=1;hac=#d8b46a;sk=#f2d8be;wp=2;au=5;auc=#8fe0ff");
         }
 
         // ------------------------------------------------------------------ parts
@@ -361,12 +362,17 @@ namespace IOSVN.TuTien.Core
         public static RectTransform BuildIllustration(RectTransform parent, LookSpec look, float auraStrength = .8f)
         {
             var female = look != null && look.Get("g", "m") == "f";
-            var portrait = PresetIllustration(female, look != null ? look.Int("preset", 0) : 0);
+            var selected = look != null ? look.Int("preset", -1) : 0;
+            if (selected < 0) selected = look != null ? look.Int("template", 0) : 0;
+            var portrait = PresetIllustration(female, selected);
             if (portrait == null) return Build(parent, look, auraStrength);
 
-            var rect = new GameObject("IllustratedAvatar", typeof(RectTransform)).GetComponent<RectTransform>();
+            var rect = new GameObject("IllustratedAvatar", typeof(RectTransform), typeof(AspectRatioFitter)).GetComponent<RectTransform>();
             rect.SetParent(parent, false);
             rect.anchorMin = Vector2.zero; rect.anchorMax = Vector2.one; rect.offsetMin = rect.offsetMax = Vector2.zero;
+            var fit = rect.GetComponent<AspectRatioFitter>();
+            fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
+            fit.aspectRatio = portrait.rect.width / portrait.rect.height;
             Image Layer(string name)
             {
                 var image = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
@@ -384,10 +390,15 @@ namespace IOSVN.TuTien.Core
             var auraLook = look ?? Default(female);
             var auraColor = HeroSprites.ParseColor(auraLook.Get("auc", "#8fe0ff"), new Color32(143, 224, 255, 255));
             back.color = new Color32(auraColor.r, auraColor.g, auraColor.b, (byte)Mathf.RoundToInt(255f * Mathf.Clamp01(auraStrength * .72f)));
-            var figure = Layer("Illustration");
+            var figure = new GameObject("Illustration", typeof(RectTransform), typeof(AnimatedPortraitImage)).GetComponent<AnimatedPortraitImage>();
+            figure.transform.SetParent(rect, false);
+            figure.rectTransform.anchorMin = Vector2.zero; figure.rectTransform.anchorMax = Vector2.one;
+            figure.rectTransform.offsetMin = figure.rectTransform.offsetMax = Vector2.zero;
+            figure.raycastTarget = false;
             figure.enabled = true;
             figure.sprite = portrait;
             figure.preserveAspect = true;
+            figure.SetAppearance(look);
             var anim = rect.gameObject.AddComponent<IllustrationAuraMotion>();
             anim.Set(back, auraLook.Int("au"));
             rect.gameObject.AddComponent<AvatarIdleMotion>();
@@ -415,13 +426,25 @@ namespace IOSVN.TuTien.Core
             return sprite;
         }
 
+        /// <summary>The hand-painted full-body template selected for live combat figures.</summary>
+        internal static Sprite CombatIllustration(LookSpec look)
+        {
+            var female = look != null && look.Get("g", "m") == "f";
+            var preset = look != null ? look.Int("preset", -1) : -1;
+            if (preset < 0) preset = look != null ? look.Int("template", 0) : 0;
+            return PresetIllustration(female, preset);
+        }
+
         /// <summary>Updates the displayed template and matching colored aura after a creator choice.</summary>
         public static void RefreshIllustration(RectTransform avatar, LookSpec look, float auraStrength = .8f)
         {
             if (avatar == null || look == null) return;
             var female = look.Get("g", "m") == "f";
             var figure = avatar.Find("Illustration")?.GetComponent<Image>();
-            if (figure != null) figure.sprite = PresetIllustration(female, look.Int("preset", 0));
+            var selected = look.Int("preset", -1);
+            if (selected < 0) selected = look.Int("template", 0);
+            if (figure != null) figure.sprite = PresetIllustration(female, selected);
+            if (figure is AnimatedPortraitImage animatedFigure) animatedFigure.SetAppearance(look);
             var aura = avatar.Find("AuraBack")?.GetComponent<Image>();
             if (aura != null)
             {
@@ -544,6 +567,228 @@ namespace IOSVN.TuTien.Core
             rect.anchoredPosition = rest;
             rect.localScale = Vector3.one;
             ready = false;
+        }
+    }
+
+    /// <summary>
+    /// Draws an illustrated figure with soft atlas edges and restrained, continuous
+    /// movement in the hair, shoulders and robe. The face stays rigid so the portrait
+    /// does not stretch while the rest of the figure breathes or reacts in combat.
+    /// </summary>
+    internal sealed class AnimatedPortraitImage : Image
+    {
+        private FighterAction motion = FighterAction.Idle;
+        private float progress;
+        private float direction = 1f;
+        private int bodyShape = 1;
+        private bool femaleAppearance;
+        private Color skinTone = Color.white;
+
+        public void SetAppearance(LookSpec look)
+        {
+            bodyShape = Mathf.Clamp(look != null ? look.Int("bo", 1) : 1, 0, 3);
+            femaleAppearance = look != null && look.Get("g", "m") == "f";
+            var skin = HeroSprites.ParseColor(look != null ? look.Get("sk", "#f0d2b4") : "#f0d2b4",
+                new Color32(240, 210, 180, 255));
+            skinTone = new Color(Mathf.Clamp(skin.r / .94f, .45f, 1.1f),
+                Mathf.Clamp(skin.g / .82f, .42f, 1.1f), Mathf.Clamp(skin.b / .71f, .4f, 1.1f), 1f);
+            SetVerticesDirty();
+        }
+
+        public void SetMotion(FighterAction state, float actionProgress, bool faceRight)
+        {
+            motion = state;
+            progress = Mathf.Clamp01(actionProgress);
+            direction = faceRight ? 1f : -1f;
+            SetVerticesDirty();
+        }
+
+        private void LateUpdate()
+        {
+            if (isActiveAndEnabled) SetVerticesDirty();
+        }
+
+        protected override void OnPopulateMesh(VertexHelper vh)
+        {
+            base.OnPopulateMesh(vh);
+            if (vh.currentVertCount != 4) return;
+
+            var corners = new UIVertex[4];
+            var minX = float.MaxValue; var maxX = float.MinValue;
+            var minY = float.MaxValue; var maxY = float.MinValue;
+            for (var i = 0; i < 4; i++)
+            {
+                vh.PopulateUIVertex(ref corners[i], i);
+                minX = Mathf.Min(minX, corners[i].position.x);
+                maxX = Mathf.Max(maxX, corners[i].position.x);
+                minY = Mathf.Min(minY, corners[i].position.y);
+                maxY = Mathf.Max(maxY, corners[i].position.y);
+            }
+            if (maxX - minX < .01f || maxY - minY < .01f) return;
+
+            UIVertex bottomLeft = default, bottomRight = default, topLeft = default, topRight = default;
+            var midX = (minX + maxX) * .5f;
+            var midY = (minY + maxY) * .5f;
+            foreach (var corner in corners)
+            {
+                if (corner.position.x < midX)
+                {
+                    if (corner.position.y < midY) bottomLeft = corner;
+                    else topLeft = corner;
+                }
+                else
+                {
+                    if (corner.position.y < midY) bottomRight = corner;
+                    else topRight = corner;
+                }
+            }
+
+            const int columns = 24, rows = 28;
+            var time = Time.unscaledTime;
+            var width = maxX - minX;
+            var height = maxY - minY;
+            var actionWave = Mathf.Sin(Mathf.PI * progress);
+            var build = bodyShape == 0 ? .88f : bodyShape == 2 ? 1.08f : bodyShape == 3 ? 1.17f : 1f;
+            var step = Mathf.Sin(time * 9.5f);
+            var leftArmAngle = Mathf.Sin(time * 1.2f) * 1.4f;
+            var rightArmAngle = -leftArmAngle;
+            var leftLegAngle = 0f;
+            var rightLegAngle = 0f;
+            if (motion == FighterAction.Walk)
+            {
+                leftArmAngle -= step * 8f;
+                rightArmAngle += step * 8f;
+                leftLegAngle = step * 5f;
+                rightLegAngle = -step * 5f;
+            }
+            else if (motion == FighterAction.Attack)
+            {
+                leftArmAngle -= actionWave * 9f;
+                rightArmAngle += direction * actionWave * 27f;
+                leftLegAngle = -actionWave * 3f;
+                rightLegAngle = actionWave * 4f;
+            }
+            else if (motion == FighterAction.Cast)
+            {
+                leftArmAngle -= actionWave * 23f;
+                rightArmAngle += actionWave * 23f;
+            }
+            else if (motion == FighterAction.Hurt || motion == FighterAction.Down)
+            {
+                leftArmAngle -= actionWave * 15f;
+                rightArmAngle += actionWave * 15f;
+            }
+            vh.Clear();
+            for (var row = 0; row <= rows; row++)
+            {
+                var v = row / (float)rows;
+                for (var col = 0; col <= columns; col++)
+                {
+                    var u = col / (float)columns;
+                    var lower = Mix(bottomLeft, bottomRight, u);
+                    var upper = Mix(topLeft, topRight, u);
+                    var vertex = Mix(lower, upper, v);
+
+                    // A tiny torso breath and a delayed flow in the loose hair and hem.
+                    var torso = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .25f) / .36f));
+                    var hair = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .64f) / .32f));
+                    var hem = 1f - Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .06f) / .42f));
+                    var x = width * (.006f * torso * Mathf.Sin(time * .75f + v * .4f)
+                        + .008f * hair * Mathf.Sin(time * 1.05f + v * 2.5f)
+                        + .009f * hem * Mathf.Sin(time * .9f + u * 3f));
+                    var y = height * .003f * torso * Mathf.Sin(time * 1.4f);
+                    x += (u - .5f) * width * .007f * torso * Mathf.Sin(time * 1.4f);
+
+                    if (motion == FighterAction.Walk)
+                    {
+                        x += width * .014f * hem * Mathf.Sin(time * 9.5f + u * 2f);
+                        y += height * .008f * hem * Mathf.Sin(time * 9.5f + u * 2f);
+                    }
+                    else if (motion == FighterAction.Attack)
+                    {
+                        x += direction * width * actionWave * (.025f * torso - .014f * hem);
+                        y -= height * actionWave * .006f * torso;
+                    }
+                    else if (motion == FighterAction.Cast)
+                    {
+                        x += width * .013f * hair * actionWave * Mathf.Sin(time * 7f + v * 3f);
+                        y += height * .009f * torso * actionWave;
+                    }
+                    else if (motion == FighterAction.Hurt)
+                    {
+                        x -= direction * width * .016f * torso * actionWave;
+                    }
+                    vertex.position += new Vector3(x, y, 0f);
+
+                    // Move both painted sleeves and the hem around their own
+                    // shoulder and hip regions. Smooth weights keep the torso
+                    // joined to the moving limbs, with no cutout socket seams.
+                    var armBand = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .29f) / .15f))
+                        * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.82f - v) / .15f));
+                    var leftArmWeight = armBand * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.53f - u) / .20f));
+                    var rightArmWeight = armBand * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((u - .47f) / .20f));
+                    var legBand = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.47f - v) / .18f));
+                    var leftLegWeight = legBand * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.53f - u) / .18f));
+                    var rightLegWeight = legBand * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((u - .47f) / .18f));
+                    var point = new Vector2(vertex.position.x, vertex.position.y);
+                    point += (RotateAround(point, new Vector2(minX + width * .34f, minY + height * .72f), leftArmAngle) - point) * leftArmWeight;
+                    point += (RotateAround(point, new Vector2(minX + width * .66f, minY + height * .72f), rightArmAngle) - point) * rightArmWeight;
+                    point += (RotateAround(point, new Vector2(minX + width * .43f, minY + height * .43f), leftLegAngle) - point) * leftLegWeight;
+                    point += (RotateAround(point, new Vector2(minX + width * .57f, minY + height * .43f), rightLegAngle) - point) * rightLegWeight;
+                    vertex.position = new Vector3(point.x, point.y, vertex.position.z);
+
+                    // Keep the painted face unchanged while widening or
+                    // narrowing the shoulders, waist and robe for body choices.
+                    var bodyWeight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((v - .10f) / .18f))
+                        * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((.79f - v) / .17f));
+                    vertex.position.x += (u - .5f) * width * (build - 1f) * bodyWeight;
+
+                    // Atlas figures reach their cell borders. Fade those last pixels
+                    // into the parchment instead of showing a straight cut seam.
+                    var left = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(u / .07f));
+                    var right = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01((1f - u) / .13f));
+                    var tint = vertex.color;
+                    tint.a = (byte)Mathf.RoundToInt(tint.a * Mathf.Min(left, right));
+                    var faceX = femaleAppearance ? .56f : .63f;
+                    var faceDx = (u - faceX) / .105f;
+                    var faceDy = (v - .83f) / .095f;
+                    var faceDistance = faceDx * faceDx + faceDy * faceDy;
+                    var skinWeight = Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(1f - faceDistance)) * .85f;
+                    var skinColor = Color.Lerp(Color.white, skinTone, skinWeight);
+                    tint.r = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.r * skinColor.r), 0, 255);
+                    tint.g = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.g * skinColor.g), 0, 255);
+                    tint.b = (byte)Mathf.Clamp(Mathf.RoundToInt(tint.b * skinColor.b), 0, 255);
+                    vertex.color = tint;
+                    vh.AddVert(vertex);
+                }
+            }
+            for (var row = 0; row < rows; row++)
+            for (var col = 0; col < columns; col++)
+            {
+                var a = row * (columns + 1) + col;
+                var b = a + columns + 1;
+                vh.AddTriangle(a, b, b + 1);
+                vh.AddTriangle(a, b + 1, a + 1);
+            }
+        }
+
+        private static UIVertex Mix(UIVertex from, UIVertex to, float t)
+        {
+            var vertex = from;
+            vertex.position = Vector3.Lerp(from.position, to.position, t);
+            vertex.uv0 = Vector4.Lerp(from.uv0, to.uv0, t);
+            vertex.color = Color32.Lerp(from.color, to.color, t);
+            return vertex;
+        }
+
+        private static Vector2 RotateAround(Vector2 point, Vector2 pivot, float degrees)
+        {
+            var radians = degrees * Mathf.Deg2Rad;
+            var sine = Mathf.Sin(radians);
+            var cosine = Mathf.Cos(radians);
+            var offset = point - pivot;
+            return pivot + new Vector2(offset.x * cosine - offset.y * sine,
+                offset.x * sine + offset.y * cosine);
         }
     }
 

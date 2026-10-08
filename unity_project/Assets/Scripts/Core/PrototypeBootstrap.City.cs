@@ -41,9 +41,9 @@ namespace IOSVN.TuTien.Core
             if (CityPaintings.TryGetValue(biome, out var cached) && cached != null) return cached;
             var asset = Resources.Load<TextAsset>("World/city_" + biome) ?? Resources.Load<TextAsset>("World/city_verdant");
             if (asset == null) return null;
-            var texture = new Texture2D(2, 2, TextureFormat.RGB24, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp };
+            var texture = new Texture2D(2, 2, TextureFormat.RGB24, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp };
             if (!texture.LoadImage(asset.bytes, true)) return null;
-            texture.filterMode = FilterMode.Point;
+            texture.filterMode = FilterMode.Bilinear;
             CityPaintings[biome] = texture;
             return texture;
         }

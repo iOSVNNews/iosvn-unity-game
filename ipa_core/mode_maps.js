@@ -25,6 +25,15 @@ const fixedMode = (id, name, maps) => Object.freeze({
     maps: Object.freeze(maps),
 });
 
+const rotatingMode = (id, name, maps, periodSeconds = CAVE_ROTATION_SECONDS) => Object.freeze({
+    id,
+    name,
+    activityType: id.startsWith('pvp_') ? 'pvp' : 'pve',
+    rotationStrategy: 'random_cycle',
+    rotationPeriodSeconds: periodSeconds,
+    maps: Object.freeze(maps),
+});
+
 const caveMode = maps => Object.freeze({
     id: 'pve_ancient_cave',
     name: 'PvE Cổ Động',
@@ -62,11 +71,23 @@ const BATTLE_MAP_SETS = Object.freeze([
                 'Đại diễn võ trường của tông môn, bốn góc có kiếm trụ và khu vực quan chiến của đệ tử.',
                 'Sơn môn tông phái', 'sect_square_courtyard', ['#283B37', '#537769', '#D6B46C'], 'Gió nhẹ', 'battle/pham/sect'
             )]),
-            fixedMode('pve_small_monster', 'PvE Tiểu Yêu', [makeMap(
-                'pham_pve_truc_lam', 'Rừng Trúc Thanh Vân',
-                'Lối rừng hẹp có bụi trúc, đá rêu và khoảng trống nhỏ để chạm trán tiểu yêu.',
-                'Rừng trúc', 'winding_forest_path', ['#23372C', '#567A48', '#B8A46A'], 'Mù sương', 'battle/pham/small-monster'
-            )]),
+            rotatingMode('pve_small_monster', 'PvE Tiểu Yêu', [
+                makeMap(
+                    'pham_pve_truc_lam', 'Rừng Trúc Thanh Vân',
+                    'Bãi cỏ xanh có bụi trúc, rêu đá và khoảng trống giữa rừng cho tiểu yêu xuất hiện.',
+                    'Rừng trúc', 'winding_forest_path', ['#23372C', '#567A48', '#B8A46A'], 'Mù sương', 'battle/pham/small-monster'
+                ),
+                makeMap(
+                    'pham_pve_hoang_nguyen', 'Hoang Nguyên Tàn Mộc',
+                    'Bãi đất xám rộng, cây khô và cụm đá rải quanh rìa chiến trường.',
+                    'Hoang nguyên', 'barren_ash_field', ['#4D493E', '#8C806A', '#C0B59A'], 'Bụi khô', 'battle/pham/pve-hoang-nguyen'
+                ),
+                makeMap(
+                    'pham_pve_bang_lien', 'Băng Liên Tuyết Cốc',
+                    'Thung lũng tuyết rộng với hồ đóng băng, núi băng và tàn tích phủ sương tím xanh.',
+                    'Tuyết cốc', 'snowy_icefield', ['#AABDD0', '#7189A6', '#B9A8CE'], 'Tuyết vụ', 'battle/pham/pve-bang-lien'
+                ),
+            ]),
             fixedMode('pve_elite_boss', 'PvE Đại Boss', [makeMap(
                 'pham_pve_duongkhang', 'Sào Huyệt Đương Khang',
                 'Hang núi rộng có nền đất nứt, tinh thạch ven vách và một bệ boss trung tâm.',

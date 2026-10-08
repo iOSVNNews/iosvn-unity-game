@@ -17,7 +17,6 @@ namespace IOSVN.TuTien.Core
         private string worldMapId;
         private string activePaintingId;
         private static readonly Dictionary<string, Texture2D> PaintingCache = new Dictionary<string, Texture2D>();
-        private static readonly Dictionary<string, Sprite> MiniMapSpriteCache = new Dictionary<string, Sprite>();
         private readonly Dictionary<string, WorldActor> worldMonsterActors = new Dictionary<string, WorldActor>();
         private float nextWorldSave;
         private float nextMonsterRefresh;
@@ -30,6 +29,9 @@ namespace IOSVN.TuTien.Core
         private Action hudActionCallback;
         private RectTransform miniPlayerDot;
         private RectTransform miniMapRect;
+        private RectTransform miniViewport, miniMapFrame, miniMapRoot;
+        private Rect miniTileBounds;
+        private string miniRegionId;
         private WorldHudTicker hudTicker;
         private bool hudActionAuto;
         private WorldPoi promptPoi;
@@ -1107,43 +1109,42 @@ namespace IOSVN.TuTien.Core
 
         private void BuildMiniMap(RectTransform root, WorldMapData data)
         {
+            if (miniMapFrame != null) { miniMapFrame.gameObject.SetActive(false); Destroy(miniMapFrame.gameObject); }
+            miniMapRoot = root;
+            var playerRegion = data.RegionAt(Mathf.FloorToInt(worldView.Player?.Pos.x ?? 0f), Mathf.FloorToInt(worldView.Player?.Pos.y ?? 0f));
+            miniRegionId = playerRegion?.id;
+            miniTileBounds = playerRegion == null ? new Rect(0, 0, data.w, data.h)
+                : new Rect(playerRegion.x, playerRegion.y, playerRegion.w, playerRegion.h);
             var miniHeight = 240f;
-            var miniWidth = miniHeight * data.w / data.h;
+            var miniWidth = miniHeight * miniTileBounds.width / miniTileBounds.height;
             var frameWidth = miniWidth + 16f;
             var frameHeight = miniHeight + 33f;
             var frame = Anchored("MiniMap", root, new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-frameWidth - 20f, -frameHeight - 20f), new Vector2(-20, -20));
+            miniMapFrame = frame;
             var bg = ModernSurface(frame, new Color32(12, 18, 24, 242), 14f, new Color32(232, 196, 120, 165), true);
 
             var map = Anchored("Map", frame, Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -25));
             var texture = worldView.Painting.texture as Texture2D;
-            var image = map.gameObject.AddComponent<Image>();
-            if (texture != null)
-            {
-                var key = data.id;
-                if (!MiniMapSpriteCache.TryGetValue(key, out var sprite))
-                {
-                    sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 100f);
-                    sprite.name = texture.name + "_MiniMap";
-                    MiniMapSpriteCache[key] = sprite;
-                }
-                image.sprite = sprite;
-            }
-            image.type = Image.Type.Simple;
-            image.preserveAspect = false;
+            map.gameObject.AddComponent<RectMask2D>();
+            var image = map.gameObject.AddComponent<RawImage>();
+            image.texture = texture;
+            var crop = worldView.Painting.uvRect;
+            image.uvRect = new Rect(crop.x + crop.width * miniTileBounds.x / data.w,
+                crop.y + crop.height * (1f - miniTileBounds.yMax / data.h),
+                crop.width * miniTileBounds.width / data.w, crop.height * miniTileBounds.height / data.h);
             image.color = Color.white;
             image.raycastTarget = false;
             miniMapRect = map;
 
             var realmIndex = offlinePreview ? offlineProgress.realmIndex : hub["realm"]["index"].Int();
-            var playerRegion = data.RegionAt(Mathf.RoundToInt(worldView.Player?.Pos.x ?? 0f), Mathf.RoundToInt(worldView.Player?.Pos.y ?? 0f));
             foreach (var region in data.regions)
             {
-                if (region == null) continue;
-                var xMin = region.x / (float)data.w;
-                var xMax = (region.x + region.w) / (float)data.w;
-                var yMin = 1f - (region.y + region.h) / (float)data.h;
-                var yMax = 1f - region.y / (float)data.h;
+                if (region == null || (playerRegion != null && region.id != playerRegion.id)) continue;
+                var xMin = (region.x - miniTileBounds.x) / miniTileBounds.width;
+                var xMax = (region.x + region.w - miniTileBounds.x) / miniTileBounds.width;
+                var yMin = 1f - (region.y + region.h - miniTileBounds.y) / miniTileBounds.height;
+                var yMax = 1f - (region.y - miniTileBounds.y) / miniTileBounds.height;
                 var area = Anchored("Province_" + region.id, map, new Vector2(xMin, yMin), new Vector2(xMax, yMax), Vector2.zero, Vector2.zero);
                 var isCurrent = playerRegion != null && playerRegion.id == region.id || worldMapId == region.id;
                 var unlocked = region.realmMin <= realmIndex;
@@ -1155,9 +1156,9 @@ namespace IOSVN.TuTien.Core
             }
             foreach (var town in data.towns)
             {
-                if (town?.gate == null) continue;
+                if (town?.gate == null || !miniTileBounds.Contains(new Vector2(town.gate[0], town.gate[1]))) continue;
                 var townHalf = town.big ? 5.8f : 4.4f;
-                var townAt = new Vector2((town.gate[0] + .5f) / data.w, 1f - (town.gate[1] + .5f) / data.h);
+                var townAt = MiniMapPoint(new Vector2(town.gate[0] + .5f, town.gate[1] + .5f));
                 var dot = Anchored("Town", map, townAt, townAt, new Vector2(-townHalf, -townHalf), new Vector2(townHalf, townHalf)).gameObject.AddComponent<Image>();
                 dot.sprite = InkUi.Glow;
                 dot.color = HudGold;
@@ -1168,7 +1169,8 @@ namespace IOSVN.TuTien.Core
             foreach (var poi in data.pois)
             {
                 if (poi == null || (poi.kind != "province_gate" && poi.kind != "ascension_gate")) continue;
-                var at = new Vector2((poi.x + .5f) / data.w, 1f - (poi.y + .5f) / data.h);
+                if (!miniTileBounds.Contains(new Vector2(poi.x, poi.y))) continue;
+                var at = MiniMapPoint(new Vector2(poi.x + .5f, poi.y + .5f));
                 var half = poi.kind == "ascension_gate" ? 6f : 4.5f;
                 var mark = Anchored("Mark_" + poi.kind, map, at, at, new Vector2(-half, -half), new Vector2(half, half)).gameObject.AddComponent<Image>();
                 mark.sprite = InkUi.Glow;
@@ -1176,9 +1178,15 @@ namespace IOSVN.TuTien.Core
                     : new Color32(135, 221, 255, 235);
                 mark.raycastTarget = false;
             }
-            miniPlayerDot = Anchored("Me", map, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-6.5f, -6.5f), new Vector2(6.5f, 6.5f));
+            miniViewport = Anchored("CameraViewport", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            var viewBorder = miniViewport.gameObject.AddComponent<Image>();
+            ModernUi.Ring(viewBorder, 6f, 1.4f);
+            viewBorder.fillCenter = false;
+            viewBorder.color = new Color32(255, 250, 224, 210);
+            viewBorder.raycastTarget = false;
+            miniPlayerDot = Anchored("Me", map, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-9f, -9f), new Vector2(9f, 9f));
             var me = miniPlayerDot.gameObject.AddComponent<Image>();
-            me.sprite = InkUi.Glow;
+            ModernUi.Fill(me, 9f);
             me.color = new Color32(255, 80, 60, 255);
             me.raycastTarget = false;
             UpdateMiniPlayer();
@@ -1251,10 +1259,20 @@ namespace IOSVN.TuTien.Core
         {
             if (miniPlayerDot == null || worldView?.Player == null || worldData == null) return;
             var p = worldView.Player.Pos;
-            var u = (p.x + .5f) / worldData.w;
-            var v = 1f - (p.y + .5f) / worldData.h;
-            miniPlayerDot.anchorMin = miniPlayerDot.anchorMax = new Vector2(u, v);
+            var region = worldData.RegionAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
+            if (region?.id != miniRegionId && miniMapRoot != null) { BuildMiniMap(miniMapRoot, worldData); return; }
+            miniPlayerDot.anchorMin = miniPlayerDot.anchorMax = MiniMapPoint(p + Vector2.one * .5f);
+            if (miniViewport != null)
+            {
+                var view = worldView.VisibleTiles;
+                miniViewport.anchorMin = MiniMapPoint(new Vector2(view.xMin, view.yMax));
+                miniViewport.anchorMax = MiniMapPoint(new Vector2(view.xMax, view.yMin));
+            }
         }
+
+        private Vector2 MiniMapPoint(Vector2 tile) => new Vector2(
+            Mathf.Clamp01((tile.x - miniTileBounds.x) / miniTileBounds.width),
+            Mathf.Clamp01(1f - (tile.y - miniTileBounds.y) / miniTileBounds.height));
 
         private Button WuxiaHudButton(RectTransform rect, string label, string iconId, Action click, Color? bgColor = null, Color? textColor = null)
         {
@@ -1354,7 +1372,7 @@ namespace IOSVN.TuTien.Core
             }
         }
 
-        internal void WorldTick() => TickWorld();
+        internal void WorldTick() { UpdateMiniPlayer(); TickWorld(); }
 
         // ------------------------------------------------------------------ finding places
 

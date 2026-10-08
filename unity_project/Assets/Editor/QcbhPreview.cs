@@ -19,6 +19,28 @@ namespace IOSVN.TuTien.Editor
     {
         private const BindingFlags Flags = BindingFlags.Instance | BindingFlags.NonPublic | BindingFlags.Public;
 
+        [MenuItem("iOSVN/Preview/Render creator figures")]
+        public static void RenderCreatorFigures()
+        {
+            var state = File.ReadAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples/qcbh_state.json")));
+            renderLog = new System.Text.StringBuilder();
+            foreach (var female in new[] { false, true })
+            {
+                Render(c =>
+                {
+                    var hub = J.Parse(state);
+                    Set(c, "hub", hub);
+                    var typed = NetworkGameClient.ToGameState(hub);
+                    Set(c, "latestState", typed);
+                    Set(c, "currentCatalog", typed?.catalog);
+                    Set(c, "gender", female ? "nu" : "nam");
+                    Set(c, "creatorLook", AvatarComposer.Default(female));
+                    Call(c, "ShowCreator", false);
+                }, female ? "qcbh-creator-nu-review.png" : "qcbh-creator-nam-review.png", 1280, 590);
+            }
+            Debug.Log("QCBH_CREATOR_REVIEW\n" + renderLog);
+        }
+
         [MenuItem("iOSVN/Preview/Render QCBH screens")]
         public static void RenderAll()
         {
@@ -44,6 +66,17 @@ namespace IOSVN.TuTien.Editor
             Render(c =>
             {
                 Prepare(c);
+                Set(c, "gender", "nam");
+                Step("creator-face-edit", () =>
+                {
+                    Call(c, "ShowCreator", false);
+                    Set(c, "creatorCategory", "fa");
+                    Call(c, "RefreshCreator");
+                });
+            }, "qcbh-creator-face-edit.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
                 Step("opening-intro", () => { Call(c, "BeginOpeningIntro"); Call(c, "UpdateOpeningIntroVisuals", 3.4f); });
             }, "qcbh-opening-intro.png", 1280, 590);
             Render(c =>
@@ -53,6 +86,26 @@ namespace IOSVN.TuTien.Editor
                 Set(c, "creatorLook", AvatarComposer.Default(true));
                 Step("creator-f", () => Call(c, "ShowCreator", false));
             }, "qcbh-creator-nu.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "gender", "nam");
+                var look = AvatarComposer.Default(false);
+                look.Set("bo", 0);
+                look.Set("sk", "#9a6a4a");
+                Set(c, "creatorLook", look);
+                Step("creator-m-slim-dark", () => { Call(c, "ShowCreator", false); Set(c, "creatorCategory", "bo"); Call(c, "RefreshCreator"); });
+            }, "qcbh-creator-nam-body-dark.png", 1280, 590);
+            Render(c =>
+            {
+                Prepare(c);
+                Set(c, "gender", "nu");
+                var look = AvatarComposer.Default(true);
+                look.Set("bo", 3);
+                look.Set("sk", "#c08860");
+                Set(c, "creatorLook", look);
+                Step("creator-f-curvy-dark", () => { Call(c, "ShowCreator", false); Set(c, "creatorCategory", "bo"); Call(c, "RefreshCreator"); });
+            }, "qcbh-creator-nu-body-dark.png", 1280, 590);
             Render(c => { Prepare(c); Step("world", () => Call(c, "ShowWorld")); }, "qcbh-world.png", 1280, 590);
             Render(c => { Prepare(c); Step("world-routes", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-routes.png", 1280, 590);
             Render(c => { Prepare(c); Step("home-profile", () => Call(c, "ShowHome", NetworkGameClient.ToGameState(J.Parse(stateText)))); }, "qcbh-home-profile.png", 1280, 590);
@@ -71,9 +124,9 @@ namespace IOSVN.TuTien.Editor
                 Step("world-atlas-tien", () => Call(c, "ShowMap", NetworkGameClient.ToGameState(J.Parse(stateText))));
             }, "qcbh-world-atlas-tien.png", 1280, 590);
             Render(c => { Prepare(c); Step("teleport", () => Call(c, "OpenTeleportScreen", true)); }, "qcbh-teleport.png", 1280, 590);
-            Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(4.6f); }); }, "qcbh-world-zoom.png", 1280, 590);
+            Render(c => { Prepare(c); Step("world-zoom", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(w.MaxZoom); }); }, "qcbh-world-zoom.png", 1280, 590);
             // the whole province from high up: how far the cities lie from each other
-            Render(c => { Prepare(c); Step("world-wide", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(.85f); }); }, "qcbh-world-wide.png", 1280, 590);
+            Render(c => { Prepare(c); Step("world-wide", () => { Call(c, "ShowWorld"); var w = GameObject.Find("ProvinceWorld")?.GetComponent<ProvinceWorld>(); if (w != null) w.SetZoom(w.MinZoom); }); }, "qcbh-world-wide.png", 1280, 590);
             // flying sword and mount: the rider crosses rock and forest, with the trail behind
             foreach (var (file, item) in new[]
             {
@@ -167,6 +220,24 @@ namespace IOSVN.TuTien.Editor
                 Prepare(c);
                 Step("battle-fx", () => { Call(c, "BuildActionBattle", J.Parse(battleText)["battle"]); Moment(c, "actionBattle"); });
             }, "qcbh-battle-fx.png", 1280, 590);
+            foreach (var (filename, logName, id, name, theme, layout) in new[]
+            {
+                ("qcbh-pve-forest.png", "pve-forest", "pham_pve_truc_lam", "Rừng Trúc Thanh Vân", "battle/pham/small-monster", "winding_forest_path"),
+                ("qcbh-pve-wasteland.png", "pve-wasteland", "pham_pve_hoang_nguyen", "Hoang Nguyên Tàn Mộc", "battle/pham/pve-hoang-nguyen", "barren_ash_field"),
+                ("qcbh-pve-frost.png", "pve-frost", "pham_pve_bang_lien", "Băng Liên Tuyết Cốc", "battle/pham/pve-bang-lien", "snowy_icefield"),
+            })
+            {
+                Render(c =>
+                {
+                    Prepare(c);
+                    var variant = J.Parse(battleText)["battle"];
+                    variant["battleMap"].Set("id", id);
+                    variant["battleMap"].Set("name", name);
+                    variant["battleMap"].Set("visualThemeId", theme);
+                    variant["battleMap"].Set("layout", layout);
+                    Step(logName, () => { Call(c, "BuildActionBattle", variant); Moment(c, "actionBattle"); });
+                }, filename, 1280, 590);
+            }
             Render(c =>
             {
                 Prepare(c);
@@ -186,6 +257,163 @@ namespace IOSVN.TuTien.Editor
             Directory.CreateDirectory(Path.GetDirectoryName(output));
             File.WriteAllText(output, log.ToString());
             Debug.Log("QCBH_PREVIEW_DONE\n" + log);
+        }
+
+        [MenuItem("iOSVN/Preview/Validate character motion")]
+        public static void ValidateCharacterMotion()
+        {
+            renderLog = new System.Text.StringBuilder();
+            foreach (var female in new[] { false, true })
+            foreach (var pose in new[] { FighterAction.Idle, FighterAction.Walk, FighterAction.Attack, FighterAction.Cast, FighterAction.Hurt, FighterAction.Down })
+            {
+                Render(c =>
+                {
+                    var parent = new GameObject("MotionReview", typeof(RectTransform)).GetComponent<RectTransform>();
+                    parent.SetParent(GameObject.Find("GameCanvas").transform, false);
+                    parent.anchorMin = parent.anchorMax = new Vector2(.5f, .5f);
+                    parent.sizeDelta = new Vector2(320f, 480f);
+                    var rigType = typeof(AvatarComposer).Assembly.GetType("IOSVN.TuTien.Core.QcbhSkinnedActor2D", true);
+                    var rig = (Component)rigType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static).Invoke(null, new object[] { parent, AvatarComposer.Default(female) });
+                    void Motion(FighterAction state, float progress, bool moving, bool right, float time) => rigType.GetMethod("SetMotion").Invoke(rig, new object[] { state, progress, moving, right, time });
+                    Motion(pose, .5f, pose == FighterAction.Walk, false, .17f);
+                    for (var i = 0; i < 120; i++) Motion(pose, .5f, pose == FighterAction.Walk, false, .17f);
+                    var mesh = rig.transform.Find("ContinuousBody").GetComponent<Image>();
+                    var map = mesh.GetType().GetMethod("MapPoint");
+                    Vector2 Point(float x, float y) => (Vector2)map.Invoke(mesh, new object[] { new Vector2(x, y) });
+                    var before = Point(.43f, .12f);
+                    Motion(pose, .5f, pose == FighterAction.Walk, true, .50f);
+                    rig.gameObject.SendMessage("LateUpdate");
+                    if (rig.transform.localScale.x >= 0f) throw new Exception("Facing did not mirror");
+                    if (pose == FighterAction.Walk && Vector2.Distance(before, Point(.43f, .12f)) < .001f)
+                        throw new Exception("Walk mesh did not advance");
+                    for (var y = .1f; y < .95f; y += .1f)
+                    for (var x = .1f; x < .95f; x += .1f)
+                    {
+                        var point = Point(x, y);
+                        if (float.IsNaN(point.x) || float.IsNaN(point.y) || float.IsInfinity(point.x) || float.IsInfinity(point.y))
+                            throw new Exception("Invalid skinning weights");
+                    }
+                    rigType.GetMethod("SetHit").Invoke(rig, new object[] { true });
+                    rigType.GetMethod("SetHit").Invoke(rig, new object[] { false });
+                    foreach (var image in rig.GetComponentsInChildren<Image>())
+                        if (image.enabled && image.sprite == null) throw new Exception("Missing sprite: " + image.name);
+                    Debug.Log("CHARACTER_MOTION_OK: " + (female ? "female" : "male") + " " + pose);
+                }, "motion-" + (female ? "female-" : "male-") + pose.ToString().ToLowerInvariant() + ".png", 720, 590);
+            }
+            File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/qcbh-captures/motion-review.txt")), renderLog.ToString());
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            Debug.Log("CHARACTER_MOTION_REVIEW_DONE");
+        }
+
+        [MenuItem("iOSVN/Preview/Render skinned walk cycle")]
+        public static void RenderWalkCycle()
+        {
+            renderLog = new System.Text.StringBuilder();
+            for (var frame = 0; frame < 24; frame++)
+            {
+                var time = frame / 24f * (Mathf.PI * 2f / 9f);
+                Render(c =>
+                {
+                    foreach (var female in new[] { false, true })
+                    {
+                        var parent = new GameObject("WalkingActor", typeof(RectTransform)).GetComponent<RectTransform>();
+                        parent.SetParent(GameObject.Find("GameCanvas").transform, false);
+                        parent.anchorMin = parent.anchorMax = new Vector2(female ? .68f : .32f, .5f);
+                        parent.sizeDelta = new Vector2(400f, 650f);
+                        var actorType = typeof(AvatarComposer).Assembly.GetType("IOSVN.TuTien.Core.QcbhSkinnedActor2D", true);
+                        var look = AvatarComposer.Default(female); look.Set("wp", 0);
+                        var actor = (Component)actorType.GetMethod("Create", BindingFlags.Public | BindingFlags.Static).Invoke(null, new object[] { parent, look });
+                        actorType.GetMethod("SetMotion").Invoke(actor, new object[] { FighterAction.Walk, 0f, true, false, time });
+                    }
+                }, "walk-cycle-" + frame.ToString("000") + ".png", 900, 590);
+            }
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            Debug.Log("WALK_CYCLE_RENDERED");
+        }
+
+        public static void ReviewSkinnedCharacters()
+        {
+            ValidateCharacterMotion();
+            RenderAll();
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+        }
+
+        public static void ValidateMapPresentation()
+        {
+            var samples = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples"));
+            var state = File.ReadAllText(Path.Combine(samples, "qcbh_state.json"));
+            renderLog = new System.Text.StringBuilder();
+            void PrepareMap(PrototypeBootstrap c)
+            {
+                var hub = J.Parse(state);
+                Set(c, "hub", hub);
+                var typed = NetworkGameClient.ToGameState(hub);
+                Set(c, "latestState", typed);
+                Set(c, "currentCatalog", typed?.catalog);
+                Call(c, "ShowWorld");
+                Canvas.ForceUpdateCanvases();
+                Tick(3);
+            }
+            void Check(bool valid, string message) { if (!valid) throw new Exception(message); }
+            foreach (var size in new[] { new Vector2Int(1280, 590), new Vector2Int(1024, 768) })
+            {
+                Render(c =>
+                {
+                    PrepareMap(c);
+                    var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
+                    world.SetZoom(world.MinZoom);
+                    var wide = world.VisibleTiles;
+                    world.SetZoom(world.MaxZoom);
+                    var close = world.VisibleTiles;
+                    Check(close.width < wide.width && close.height < wide.height, "Zoom must change the camera footprint");
+                    Check(close.Contains(world.Player.Pos), "Following camera lost the player");
+                    var region = world.Data.regions[world.Data.regions.Length - 1];
+                    var target = new Vector2(region.x + region.w * .5f, region.y + region.h * .5f);
+                    world.Teleport(world.Player, target);
+                    Call(c, "UpdateMiniPlayer");
+                    var bounds = (Rect)typeof(PrototypeBootstrap).GetField("miniTileBounds", Flags).GetValue(c);
+                    var dot = (RectTransform)typeof(PrototypeBootstrap).GetField("miniPlayerDot", Flags).GetValue(c);
+                    var map = (RectTransform)typeof(PrototypeBootstrap).GetField("miniMapRect", Flags).GetValue(c);
+                    Check(bounds.Contains(target), "Minimap did not switch province after teleport");
+                    Check(Vector2.Distance(dot.anchorMin, new Vector2((target.x + .5f - bounds.x) / bounds.width,
+                        1f - (target.y + .5f - bounds.y) / bounds.height)) < .001f, "Player marker uses the wrong coordinate space");
+                    var uv = map.GetComponent<RawImage>().uvRect;
+                    var texture = map.GetComponent<RawImage>().texture;
+                    Check(Mathf.Abs(texture.width * uv.width / (texture.height * uv.height)
+                        - bounds.width / bounds.height) < .001f, "Minimap painting is stretched");
+                    renderLog.AppendLine("zoom, camera, province transition, player marker, UV aspect: ok " + size);
+                }, "qcbh-minimap-transition-" + size.x + ".png", size.x, size.y);
+            }
+            float pveHeight = 0;
+            Render(c =>
+            {
+                PrepareMap(c);
+                Call(c, "BuildActionBattle", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_battle.json")))["battle"]);
+                pveHeight = GameObject.Find("Player").GetComponent<RectTransform>().sizeDelta.y;
+                var ground = GameObject.Find("Battlefield/Scenery").GetComponent<RawImage>();
+                var world = ground.transform.parent.GetComponent<RectTransform>();
+                Check(Mathf.Abs(world.rect.width / world.rect.height
+                    - ground.texture.width * ground.uvRect.width / (ground.texture.height * ground.uvRect.height)) < .001f,
+                    "PvE ground is distorted");
+            }, "qcbh-battle-scale-check.png", 1280, 590);
+            Render(c =>
+            {
+                PrepareMap(c);
+                Call(c, "BuildPvpArena", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_pvp.json")))["battle"]);
+                Check(Mathf.Abs(GameObject.Find("Me").GetComponent<RectTransform>().sizeDelta.y - pveHeight) < .001f,
+                    "PvP and PvE character proportions differ");
+                renderLog.AppendLine("PvE ground aspect and PvE/PvP human height: ok (" + pveHeight + ")");
+            }, "qcbh-pvp-scale-check.png", 1280, 590);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/qcbh-captures/map-review.txt")), renderLog.ToString());
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            Debug.Log("MAP_PRESENTATION_REVIEW_DONE\n" + renderLog);
+        }
+
+        public static void ReviewMaps()
+        {
+            RenderAll();
+            if (renderLog.ToString().Contains("FAIL")) throw new Exception(renderLog.ToString());
+            ValidateMapPresentation();
         }
 
         private static void Set(object target, string field, object value)

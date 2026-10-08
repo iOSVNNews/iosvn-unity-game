@@ -67,28 +67,9 @@ namespace IOSVN.TuTien.Core
             pvpArena = root.gameObject.AddComponent<PvpArena>();
             var hud = HudRoot();
             BuildOverlays();
-            var mapId = hub["town"]["mapId"].Str();
-            Texture painting = null;
-            var uv = new Rect(0, 0, 1, 1);
-            var battleMap = BattleMapFromJson(battle["battleMap"]);
-            if (battleMap != null)
-            {
-                var immortal = hub["player"].IsObject && hub["player"]["ascended"].Bool();
-                painting = PixelCombatPresentation.GroundFor(battleMap, immortal);
-            }
-            else
-            {
-                var data = WorldMapData.Load(mapId);
-                if (data != null)
-                {
-                    painting = GetPainting(mapId);
-                    var w = 30f / data.w;
-                    var h = 16.9f / data.h;
-                    var tile = worldReturnTile ?? new Vector2(data.w * .5f, data.h * .5f);
-                    uv = new Rect(Mathf.Clamp(tile.x / data.w - w / 2, 0, 1 - w), Mathf.Clamp(1f - tile.y / data.h - h / 2, 0, 1 - h), w, h);
-                }
-            }
-            pvpArena.Init(this, client, root, hud, battle, painting, uv);
+            // PvP is deliberately one consistent stone ring regardless of queue or realm.
+            var painting = PixelCombatPresentation.PvpGround();
+            pvpArena.Init(this, client, root, hud, battle, painting, new Rect(0, 0, 1, 1));
         }
 
         internal LookSpec PvpLook(J side)
@@ -159,7 +140,9 @@ namespace IOSVN.TuTien.Core
                 var r = bg.rectTransform;
                 r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
                 bg.texture = painting;
-                bg.uvRect = uv;
+                var fit = ProvinceWorld.TextureUv(painting, root.rect.width / root.rect.height);
+                bg.uvRect = new Rect(uv.x + fit.x * uv.width, uv.y + fit.y * uv.height,
+                    uv.width * fit.width, uv.height * fit.height);
                 bg.raycastTarget = false;
             }
             var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .16f), Vector2.zero);
@@ -171,17 +154,6 @@ namespace IOSVN.TuTien.Core
             dimImage = InkUi.Simple(root, "Dim", InkUi.White, new Color(.02f, .01f, .05f, 0f), Vector2.zero);
             dimImage.rectTransform.anchorMin = Vector2.zero; dimImage.rectTransform.anchorMax = Vector2.one;
             dimImage.rectTransform.offsetMin = dimImage.rectTransform.offsetMax = Vector2.zero;
-            // the duelling platform
-            var arenaSize = root.rect.size;
-            var stageWidth = Mathf.Max(1500f, (arenaSize.x > 0f ? arenaSize.x : 1920f) * .94f);
-            var stageHeight = Mathf.Max(390f, (arenaSize.y > 0f ? arenaSize.y : 1080f) * .57f);
-            var stage = InkUi.Simple(root, "Stage", InkUi.Glow, new Color(0, 0, 0, .16f), new Vector2(stageWidth, stageHeight));
-            stage.rectTransform.anchorMin = stage.rectTransform.anchorMax = new Vector2(.5f, .5f);
-            stage.rectTransform.anchoredPosition = new Vector2(0, -(arenaSize.y > 0f ? arenaSize.y : 1080f) * .07f);
-            var stageRing = InkUi.Simple(stage.rectTransform, "Ring", InkUi.Ring, new Color(.92f, .76f, .46f, .5f), Vector2.zero);
-            stageRing.rectTransform.anchorMin = Vector2.zero; stageRing.rectTransform.anchorMax = Vector2.one;
-            stageRing.rectTransform.offsetMin = stageRing.rectTransform.offsetMax = Vector2.zero;
-
             var mine = battle["me"];
             var theirs = battle["opponent"];
             meElement = mine["element"].Str("kim");
@@ -189,8 +161,8 @@ namespace IOSVN.TuTien.Core
             backLayer = BattleFx.Layer(root, "BackEffects");
             fighterLayer = BattleFx.Layer(root, "Fighters");
             fxLayer = BattleFx.Layer(root, "Effects");
-            foe = FighterView.Create(fighterLayer, "Opponent", owner.PvpLook(theirs), 2.9f, AvatarComposer.AuraStrength(theirs["realm"].Int()));
-            me = FighterView.Create(fighterLayer, "Me", owner.PvpLook(mine), 2.9f, AvatarComposer.AuraStrength(mine["realm"].Int()));
+            foe = FighterView.Create(fighterLayer, "Opponent", owner.PvpLook(theirs), FighterView.BattleScale, AvatarComposer.AuraStrength(theirs["realm"].Int()));
+            me = FighterView.Create(fighterLayer, "Me", owner.PvpLook(mine), FighterView.BattleScale, AvatarComposer.AuraStrength(mine["realm"].Int()));
             foe.FaceRight = true;
             me.FaceRight = false;
             foe.Rect.anchoredPosition = foePos;
@@ -224,39 +196,39 @@ namespace IOSVN.TuTien.Core
         private void BuildHud(J b)
         {
             var A = (Func<string, Transform, Vector2, Vector2, Vector2, Vector2, RectTransform>)owner.BattleAnchored;
-            RectTransform Plate(string name, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax, string title, TextAnchor anchor, out Image hp, out Image mp, out Text hpText, out Text mpText, out Image trail)
-            {
-                var plate = A(name, hud, min, max, offMin, offMax);
-                var brush = plate.gameObject.AddComponent<Image>();
-                brush.sprite = InkUi.Brush; brush.type = Image.Type.Sliced; brush.raycastTarget = false;
-                owner.BattleText(plate, "Name", title, ModernUi.SemiBold, 28, Gold, anchor, Vector2.zero, Vector2.one, new Vector2(46, 0), new Vector2(-46, -12));
-                hp = Bar(plate, new Vector2(46, 62), new Vector2(-46, 94), new Color32(196, 62, 54, 255), out hpText, out trail);
-                mp = Bar(plate, new Vector2(46, 26), new Vector2(-46, 54), new Color32(72, 140, 214, 255), out mpText, out _);
-                return plate;
-            }
-            Plate("FoeBar", new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -176), new Vector2(660, -24), owner.BattleClean(b["opponent"]["name"].Str("Đối thủ")), TextAnchor.UpperLeft,
-                out foeHp, out foeMp, out foeHpText, out foeMpText, out foeTrail);
-            Plate("MeBar", new Vector2(1, 1), new Vector2(1, 1), new Vector2(-660, -176), new Vector2(-24, -24), owner.BattleClean(b["me"]["name"].Str("Đạo hữu")), TextAnchor.UpperRight,
-                out meHp, out meMp, out meHpText, out meMpText, out meTrail);
-            meHp.fillOrigin = (int)Image.OriginHorizontal.Right; meMp.fillOrigin = (int)Image.OriginHorizontal.Right; meTrail.fillOrigin = (int)Image.OriginHorizontal.Right;
-            roundText = owner.BattleText(hud, "Round", "", ModernUi.Display, 46, Gold, TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-260, -110), new Vector2(260, -28));
+            var foePlate = A("FoeBar", hud, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-300, -86), new Vector2(300, -18));
+            var foeBrush = foePlate.gameObject.AddComponent<Image>();
+            foeBrush.sprite = InkUi.Brush; foeBrush.type = Image.Type.Sliced; foeBrush.raycastTarget = false;
+            owner.BattleText(foePlate, "Name", owner.BattleClean(b["opponent"]["name"].Str("Đối thủ")), ModernUi.SemiBold, 21, Gold, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(14, 34), new Vector2(-14, -4));
+            foeHp = Bar(foePlate, new Vector2(14, 10), new Vector2(-14, 31), new Color32(196, 62, 54, 255), out foeHpText, out foeTrail);
+            foeMp = null; foeMpText = null;
+
+            var mePlate = A("MeBar", hud, new Vector2(.18f, 0), new Vector2(.53f, 0), new Vector2(0, 82), new Vector2(0, 180));
+            var meBrush = mePlate.gameObject.AddComponent<Image>();
+            meBrush.sprite = InkUi.Brush; meBrush.type = Image.Type.Sliced; meBrush.raycastTarget = false;
+            owner.BattleText(mePlate, "Name", owner.BattleClean(b["me"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 25, Gold, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(34, 0), new Vector2(-30, -8));
+            meHp = Bar(mePlate, new Vector2(34, 55), new Vector2(-30, 81), new Color32(196, 62, 54, 255), out meHpText, out meTrail);
+            meMp = Bar(mePlate, new Vector2(34, 22), new Vector2(-30, 46), new Color32(72, 140, 214, 255), out meMpText, out _);
+            roundText = owner.BattleText(hud, "Round", "", ModernUi.Display, 24, Gold, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(26, -82), new Vector2(176, -52));
             roundText.gameObject.AddComponent<Outline>().effectColor = new Color(.25f, .08f, 0, .9f);
-            statusText = owner.BattleText(hud, "Status", "", ModernUi.SemiBold, 24, new Color32(255, 190, 150, 255), TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-560, -160), new Vector2(560, -116));
+            statusText = owner.BattleText(hud, "Status", "", ModernUi.SemiBold, 14, new Color32(255, 190, 150, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(26, -118), new Vector2(300, -86));
             statusText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
-            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 21, Cream, TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-600, -290), new Vector2(600, -186));
+            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 13, Cream, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(26, -215), new Vector2(325, -122));
             logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             // controls (bottom right): attack, the equipped skills on an arc, dodge
-            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-370, 60), new Vector2(-110, 320));
-            RoundButton(attack, "swords", "Đánh", new Color32(150, 40, 34, 235), () => Send("attack", null, J.Null), 40);
+            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-158, 44), new Vector2(-28, 174));
+            RoundButton(attack, "swords", "Đánh", new Color32(82, 42, 39, 225), () => Send("attack", null, J.Null), 20);
             attackCooldown = Cooldown(attack);
-            var center = new Vector2(-240, 190);
-            var angles = new[] { 172f, 140f, 108f, 76f, 205f };
+            var skillCenters = new[]
+            {
+                new Vector2(-330f, 136f), new Vector2(-295f, 236f), new Vector2(-205f, 294f),
+                new Vector2(-106f, 307f), new Vector2(-405f, 253f)
+            };
             var skills = b["me"]["skills"];
             for (var i = 0; i < Mathf.Min(5, skills.Count); i++)
             {
-                var a = angles[i] * Mathf.Deg2Rad;
-                var pos = center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 255f;
-                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(78, 78), pos + new Vector2(78, 78));
+                var pos = skillCenters[i];
+                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(47, 47), pos + new Vector2(47, 47));
                 var skill = skills[i];
                 var id = skill["id"].Str();
                 var skillElement = BattleFx.ElementOfSkill(skill["name"].Str(), meElement);
@@ -266,7 +238,7 @@ namespace IOSVN.TuTien.Core
                 icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
                 icon.preserveAspect = true;
                 var label = owner.BattleText(rect, "Name", owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "\n<color=#8cc8ff>" + skill["mp"].Int() + " LL</color>" : ""),
-                    ModernUi.SemiBold, 17, Cream, TextAnchor.UpperCenter, new Vector2(-.3f, 0), new Vector2(1.3f, 0), new Vector2(0, -50), new Vector2(0, -2));
+                    ModernUi.SemiBold, 13, Cream, TextAnchor.UpperCenter, new Vector2(-.45f, 0), new Vector2(1.45f, 0), new Vector2(0, -40), new Vector2(0, -2));
                 label.supportRichText = true;
                 label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var cd = Cooldown(rect);
@@ -275,20 +247,19 @@ namespace IOSVN.TuTien.Core
                 seconds.raycastTarget = false;
                 skillButtons.Add((rect, cd, seconds, icon, id));
             }
-            var dodgeA = 187f * Mathf.Deg2Rad;
-            var dpos = center + new Vector2(Mathf.Cos(dodgeA), Mathf.Sin(dodgeA)) * 415f;
-            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(64, 64), dpos + new Vector2(64, 64));
-            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), () => Send("dodge", null, J.Null), 22);
+            var dpos = new Vector2(-245f, 83f);
+            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(42, 42), dpos + new Vector2(42, 42));
+            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), () => Send("dodge", null, J.Null), 16);
             dodgeCooldown = Cooldown(dodge);
             // bottom left: circular analog joystick for movement in PvP arena
-            var stickBase = A("PvpStick", hud, Vector2.zero, Vector2.zero, new Vector2(70, 70), new Vector2(390, 390));
+            var stickBase = A("PvpStick", hud, Vector2.zero, Vector2.zero, new Vector2(38, 36), new Vector2(204, 202));
             var baseImage = stickBase.gameObject.AddComponent<Image>();
-            ModernUi.Fill(baseImage, 160f);
+            ModernUi.Fill(baseImage, 84f);
             baseImage.color = new Color(0, 0, 0, .28f);
             var baseRing = InkUi.Simple(stickBase, "Ring", InkUi.Ring, new Color(1, 1, 1, .45f), Vector2.zero);
             baseRing.rectTransform.anchorMin = Vector2.zero; baseRing.rectTransform.anchorMax = Vector2.one;
             baseRing.rectTransform.offsetMin = baseRing.rectTransform.offsetMax = Vector2.zero;
-            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(150, 150));
+            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(70, 70));
             var stick = stickBase.gameObject.AddComponent<BattleStick>();
             stick.Knob = knob.rectTransform;
             stick.OnMove = v => moveInput = v;
@@ -387,6 +358,7 @@ namespace IOSVN.TuTien.Core
 
         private static void SetBar(Image fill, Text text, double value, double max)
         {
+            if (fill == null || text == null) return;
             fill.fillAmount = Mathf.Clamp01((float)(value / Math.Max(1, max)));
             text.text = Vn(value) + " / " + Vn(max);
         }
@@ -607,6 +579,7 @@ namespace IOSVN.TuTien.Core
                 mePos.y = Mathf.Clamp(mePos.y, -260f, 60f);
                 if (Mathf.Abs(moveInput.x) > .2f) me.FaceRight = moveInput.x > 0;
             }
+            me.Moving = moveInput.sqrMagnitude > .01f && !over;
             var meLunge = Time.time < meLungeUntil ? new Vector2(-170f, 0) * Mathf.Sin((meLungeUntil - Time.time) / .28f * Mathf.PI) : Vector2.zero;
             var foeLunge = Time.time < foeLungeUntil ? new Vector2(170f, 0) * Mathf.Sin((foeLungeUntil - Time.time) / .28f * Mathf.PI) : Vector2.zero;
             me.Rect.anchoredPosition = mePos + meLunge + shakeOffset;

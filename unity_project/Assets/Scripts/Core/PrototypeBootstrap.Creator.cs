@@ -6,16 +6,14 @@ using UnityEngine.UI;
 namespace IOSVN.TuTien.Core
 {
     /// <summary>
-    /// Character creator on an ink scroll (Quỷ Cốc Bát Hoang style): layered pixel avatar with
-    /// face, ears, eyes, brows, nose, mouth, beard, hair, inner/outer robe, trousers, shoes, belt,
-    /// hat and sword, each with styles and colours; sect, element and three innate talents.
+    /// Character creator with a jointed, painted 2D figure; sect, element and innate talents.
     /// </summary>
     public sealed partial class PrototypeBootstrap
     {
         private LookSpec creatorLook;
         private string creatorCategory = "preset";
         private int creatorPresetIndex;
-        private RawImage creatorPreview;
+        private CultivatorPuppet2D creatorRig;
         private Text creatorStyleLabel;
         private RectTransform creatorSwatches;
         private RectTransform creatorChips;
@@ -25,6 +23,7 @@ namespace IOSVN.TuTien.Core
         private static readonly (string key, string label, string colorKey, string colorLabel)[] CreatorCategories =
         {
             ("preset", "Mẫu", "tc", "Màu áo"),
+            ("bo", "Dáng người", "sk", "Màu da"),
             ("fa", "Khuôn mặt", "sk", "Màu da"), ("ey", "Mắt", "ec", "Màu mắt"), ("br", "Lông mày", "hc", "Màu tóc"),
             ("no", "Mũi", "sk", "Màu da"), ("mo", "Miệng", null, null), ("ea", "Tai", "sk", "Màu da"),
             ("bd", "Râu", "hc", "Màu tóc"), ("ha", "Kiểu tóc", "hc", "Màu tóc"), ("hat", "Mũ / Quan", "hac", "Màu mũ"),
@@ -35,6 +34,7 @@ namespace IOSVN.TuTien.Core
 
         private static readonly Dictionary<string, string[]> StyleNames = new Dictionary<string, string[]>
         {
+            { "bo", new[] { "Mảnh mai", "Cân đối", "Rắn chắc", "Đầy đặn" } },
             { "fa", new[] { "Tuấn tú", "Góc cạnh", "Thanh tú", "Phúc hậu" } },
             { "ey", new[] { "Phượng nhãn", "Tuấn mục", "Lãnh mâu", "Hiền nhãn", "Mi dài", "Hung mục", "Đào hoa", "Bế mục tĩnh tọa" } },
             { "br", new[] { "Kiếm mi", "Mày ngang", "Mày dựng", "Mày cong", "Lá liễu" } },
@@ -85,19 +85,14 @@ namespace IOSVN.TuTien.Core
 
         private static readonly string[] HairNamesFemale = { "Song búi tiên nữ", "Búi cao xõa dài", "Rẽ ngôi xõa", "Đuôi ngựa cao", "Nửa búi", "Bím lệch", "Hai bím", "Búi cung trang", "Tóc ngắn", "Vương miện tết" };
 
-        private RectTransform creatorAvatar;
-        private RectTransform creatorIllustration;
         private RectTransform creatorZoom;
-        private bool? creatorZoomChoice;          // set by tapping the figure; cleared when another category is picked
-        // categories that change the head: the preview moves in on the face while one of them is open
-        private static readonly HashSet<string> CreatorFaceCategories = new HashSet<string> { "fa", "ey", "br", "no", "mo", "ea", "bd", "ha", "hat" };
 
         private bool creatorEditingExisting;
 
         private void ShowCreator(bool editingExisting = false)
         {
             creatorEditingExisting = editingExisting;
-            if (!AvatarComposer.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
+            if (!CultivatorPuppet2D.Available) { ShowCharacterCreationForm(resetSelection: true); return; }
             ClearContent();
             authBackdrop = LoginBackdrop.Create(backgroundRoot, Resources.Load<Texture2D>("Brand/LoginLandscapePixel"));
             if (editingExisting && hub.IsObject && hub["player"].IsObject)
@@ -106,9 +101,8 @@ namespace IOSVN.TuTien.Core
                 gender = creatorLook.Get("g", hub["player"]["gender"].Str() == "nu" ? "f" : "m") == "f" ? "nu" : "nam";
                 creatorPresetIndex = creatorLook.Int("preset", -1);
                 creatorCategory = creatorPresetIndex >= 0 ? "preset" : "ha";
-                creatorZoomChoice = false;
             }
-            else if (creatorLook == null) { creatorPresetIndex = 0; creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex); creatorCategory = "preset"; creatorZoomChoice = false; }   // first shown as the whole figure
+            else if (creatorLook == null) { creatorPresetIndex = 0; creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex); creatorCategory = "preset"; }
             var root = Anchored("Creator", content.transform, new Vector2(-.05f, -.03f), new Vector2(1.05f, 1.03f), Vector2.zero, Vector2.zero);
             // scroll: two rollers and parchment
             var paper = Anchored("Paper", root, Vector2.zero, Vector2.one, new Vector2(70, 18), new Vector2(-70, -18));
@@ -152,19 +146,9 @@ namespace IOSVN.TuTien.Core
             halo.sprite = InkUi.Cloud;
             halo.color = new Color(.62f, .66f, .66f, .55f);
             halo.raycastTarget = false;
-            var view = Anchored("Preview", col, new Vector2(.02f, .19f), new Vector2(.98f, 1f), Vector2.zero, Vector2.zero);
-            // the figure sits in a frame that can be scaled up around the face; the view clips what falls outside
-            view.gameObject.AddComponent<RectMask2D>();
-            var touch = view.gameObject.AddComponent<Image>();
-            touch.color = new Color(0, 0, 0, 0);
-            var toggle = view.gameObject.AddComponent<Button>();
-            toggle.transition = Selectable.Transition.None;
-            toggle.targetGraphic = touch;
-            toggle.onClick.AddListener(() => { creatorZoomChoice = !CreatorZoomed(); ApplyCreatorZoom(); });
+            var view = Anchored("Preview", col, new Vector2(.02f, .19f), new Vector2(.98f, 1f), new Vector2(18, 12), new Vector2(-18, -12));
             creatorZoom = Anchored("Zoom", view, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            creatorIllustration = AvatarComposer.BuildIllustration(creatorZoom, creatorLook, .9f);
-            creatorAvatar = AvatarComposer.Build(creatorZoom, creatorLook, .9f);
-            creatorPreview = creatorAvatar.Find("Figure").GetComponent<RawImage>();
+            creatorRig = CultivatorPuppet2D.Create(creatorZoom, creatorLook);
         }
 
         private void BuildCreatorCustomizer(RectTransform inner)
@@ -172,21 +156,31 @@ namespace IOSVN.TuTien.Core
             var col = Anchored("Custom", inner, new Vector2(.015f, .14f), new Vector2(.30f, 1), new Vector2(6, 0), new Vector2(-6, 0));
             var panel = col.gameObject.AddComponent<Image>();
             ModernUi.Fill(panel, 24f);
-            panel.color = new Color32(255, 255, 255, 92);
+            panel.color = new Color32(251, 248, 239, 232);
             panel.raycastTarget = false;
+            ModernUi.Soft(col, 24f, new Color32(24, 38, 42, 28), new Vector2(0, -4), 2f);
+            CreatorPanelBorder(col);
             AnchoredText(col, "Title", "DIỆN MẠO", ModernUi.Display, 34, new Color32(46, 40, 38, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -50), Vector2.zero);
-            creatorChips = Anchored("Chips", col, new Vector2(0, .46f), new Vector2(1, 1), Vector2.zero, new Vector2(0, -76));
+            creatorChips = Anchored("Chips", col, new Vector2(0, .46f), new Vector2(1, 1), new Vector2(16, 0), new Vector2(-16, -76));
             var stepper = Anchored("Stepper", inner, new Vector2(.34f, .21f), new Vector2(.66f, .29f), Vector2.zero, Vector2.zero);
             var prev = Anchored("Prev", stepper, new Vector2(0, 0), new Vector2(.18f, 1), Vector2.zero, Vector2.zero);
-            PillButton(prev, "", "arrowLeft", false, () => StepCreatorStyle(-1));
+            CreatorArrowButton(prev, "arrowLeft", () => StepCreatorStyle(-1));
             var next = Anchored("Next", stepper, new Vector2(.82f, 0), new Vector2(1, 1), Vector2.zero, Vector2.zero);
-            PillButton(next, "", "arrowRight", false, () => StepCreatorStyle(1));
+            CreatorArrowButton(next, "arrowRight", () => StepCreatorStyle(1));
             creatorStyleLabel = AnchoredText(stepper, "Style", "", ModernUi.SemiBold, 27, new Color32(40, 34, 32, 255), TextAnchor.MiddleCenter, new Vector2(.18f, 0), new Vector2(.82f, 1), Vector2.zero, Vector2.zero);
             creatorSwatches = Anchored("Swatches", inner, new Vector2(.35f, .15f), new Vector2(.65f, .21f), Vector2.zero, Vector2.zero);
 
             var nameBox = Anchored("NameBox", col, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-230, 62), new Vector2(230, 62 + 38 + AuthFieldHeight));
             nameInput = AuthField(nameBox, "name", "Đạo hiệu", "Tên nhân vật (2–24 ký tự)", "user", 0f, 0f, 460f, false);
             nameInput.characterLimit = 24;
+            nameInput.textComponent.color = new Color32(248, 248, 239, 255);
+            if (nameInput.placeholder is Text nameHint) nameHint.color = new Color32(207, 221, 216, 255);
+            var nameLabel = nameBox.Find("nameLabel")?.GetComponent<Text>();
+            if (nameLabel != null)
+            {
+                nameLabel.color = new Color32(48, 75, 70, 255);
+                nameLabel.font = ModernUi.SemiBold;
+            }
             if (creatorEditingExisting && hub.IsObject && hub["player"].IsObject)
             {
                 nameInput.text = Clean(hub["player"]["fullName"].Str(hub["player"]["name"].Str()));
@@ -203,19 +197,21 @@ namespace IOSVN.TuTien.Core
             var col = Anchored("Destiny", inner, new Vector2(.70f, .14f), new Vector2(.99f, 1), new Vector2(6, 0), new Vector2(-6, 0));
             var panel = col.gameObject.AddComponent<Image>();
             ModernUi.Fill(panel, 24f);
-            panel.color = new Color32(255, 255, 255, 92);
+            panel.color = new Color32(251, 248, 239, 232);
             panel.raycastTarget = false;
+            ModernUi.Soft(col, 24f, new Color32(24, 38, 42, 28), new Vector2(0, -4), 2f);
+            CreatorPanelBorder(col);
             AnchoredText(col, "Title", "CĂN CƠ", ModernUi.Display, 34, new Color32(46, 40, 38, 255), TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -50), Vector2.zero);
             sectNames = Names(currentCatalog?.mon);
             elementNames = Names(currentCatalog?.he);
             sectIndex = Mathf.Clamp(sectIndex, 0, Math.Max(0, sectNames.Length - 1));
             elementIndex = Mathf.Clamp(elementIndex, 0, Math.Max(0, elementNames.Length - 1));
-            var sect = Anchored("Sect", col, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -136), new Vector2(0, -62));
+            var sect = Anchored("Sect", col, new Vector2(0, 1), new Vector2(1, 1), new Vector2(18, -136), new Vector2(-18, -62));
             CreatorCycler(sect, "Môn phái", () => sectNames.Length == 0 ? "—" : sectNames[sectIndex], d => { if (sectNames.Length > 0) sectIndex = (sectIndex + d + sectNames.Length) % sectNames.Length; });
-            var element = Anchored("Element", col, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -218), new Vector2(0, -144));
+            var element = Anchored("Element", col, new Vector2(0, 1), new Vector2(1, 1), new Vector2(18, -218), new Vector2(-18, -144));
             CreatorCycler(element, "Ngũ hành", () => elementNames.Length == 0 ? "—" : elementNames[elementIndex], d => { if (elementNames.Length > 0) elementIndex = (elementIndex + d + elementNames.Length) % elementNames.Length; });
-            creatorTalentCount = AnchoredText(col, "TalentTitle", "", ModernUi.SemiBold, 24, new Color32(60, 50, 44, 255), TextAnchor.MiddleLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(0, -268), new Vector2(0, -228));
-            creatorTalentArea = Anchored("Talents", col, new Vector2(0, 0), new Vector2(1, 1), Vector2.zero, new Vector2(0, -276));
+            creatorTalentCount = AnchoredText(col, "TalentTitle", "", ModernUi.SemiBold, 24, new Color32(60, 50, 44, 255), TextAnchor.MiddleLeft, new Vector2(0, 1), new Vector2(1, 1), new Vector2(18, -268), new Vector2(-18, -228));
+            creatorTalentArea = Anchored("Talents", col, new Vector2(0, 0), new Vector2(1, 1), new Vector2(18, 0), new Vector2(-18, -276));
         }
 
         private void BuildCreatorFooter(RectTransform inner)
@@ -227,12 +223,12 @@ namespace IOSVN.TuTien.Core
             for (var i = 0; i < stats.Length; i++)
             {
                 var cell = Anchored("Stat" + i, footer, new Vector2(i * .1f, 0), new Vector2((i + 1) * .1f, 1), new Vector2(4, 6), new Vector2(-4, -8));
-                AnchoredText(cell, "L", stats[i].Item1, ModernUi.Regular, 20, new Color32(90, 80, 72, 255), TextAnchor.UpperCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                AnchoredText(cell, "L", stats[i].Item1, ModernUi.Medium, 20, new Color32(61, 76, 76, 255), TextAnchor.UpperCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 AnchoredText(cell, "V", stats[i].Item2, ModernUi.SemiBold, 28, new Color32(40, 34, 32, 255), TextAnchor.LowerCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             }
-            var back = Anchored("Back", footer, new Vector2(.61f, .1f), new Vector2(.75f, .9f), Vector2.zero, Vector2.zero);
+            var back = Anchored("Back", footer, new Vector2(.61f, .1f), new Vector2(.75f, .9f), new Vector2(8, 0), new Vector2(-8, 0));
             PillButton(back, "Quay lại", "arrowLeft", false, BackFromCharacterCreation);
-            var start = Anchored("Start", footer, new Vector2(.76f, .1f), new Vector2(1, .9f), Vector2.zero, Vector2.zero);
+            var start = Anchored("Start", footer, new Vector2(.76f, .1f), new Vector2(1, .9f), new Vector2(8, 0), new Vector2(-18, 0));
             if (creatorEditingExisting)
                 PillButton(start, "Lưu diện mạo", "arrowRight", true, SaveAppearance);
             else
@@ -283,15 +279,34 @@ namespace IOSVN.TuTien.Core
             });
         }
 
+        private void CreatorPanelBorder(RectTransform parent)
+        {
+            var border = Anchored("Border", parent, Vector2.zero, Vector2.one, new Vector2(1, 1), new Vector2(-1, -1)).gameObject.AddComponent<Image>();
+            ModernUi.Ring(border, 22f, 1.25f);
+            border.color = new Color32(163, 133, 73, 118);
+            border.raycastTarget = false;
+        }
+
         private void CreatorChip(RectTransform parent, string label, Vector2 min, Vector2 max, bool active, Action click)
         {
-            var rect = Anchored("Chip_" + label, parent, min, max, new Vector2(3, 3), new Vector2(-3, -3));
+            var rect = Anchored("Chip_" + label, parent, min, max, new Vector2(4, 4), new Vector2(-4, -4));
             var fill = rect.gameObject.AddComponent<Image>();
-            fill.sprite = InkUi.Brush;
-            fill.type = Image.Type.Sliced;
-            fill.color = active ? Color.white : new Color(1, 1, 1, .28f);
-            var text = AnchoredText(rect, "Text", label, ModernUi.SemiBold, 22, active ? new Color32(246, 240, 226, 255) : new Color32(40, 34, 32, 255), TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(10, 0), new Vector2(-10, 0));
-            text.resizeTextForBestFit = true; text.resizeTextMinSize = 14; text.resizeTextMaxSize = 22;
+            ModernUi.Fill(fill, 12f);
+            if (active)
+            {
+                fill.color = Color.white;
+                UiGradient.Apply(fill, new Color32(38, 112, 102, 255), new Color32(24, 73, 73, 255));
+            }
+            else
+            {
+                fill.color = new Color32(238, 234, 222, 255);
+                var border = Anchored("Border", rect, Vector2.zero, Vector2.one, Vector2.one, -Vector2.one).gameObject.AddComponent<Image>();
+                ModernUi.Ring(border, 12f, 1f);
+                border.color = new Color32(133, 120, 92, 92);
+                border.raycastTarget = false;
+            }
+            var text = AnchoredText(rect, "Text", label, ModernUi.SemiBold, 22, active ? Color.white : new Color32(35, 49, 53, 255), TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(10, 0), new Vector2(-10, 0));
+            text.resizeTextForBestFit = true; text.resizeTextMinSize = 15; text.resizeTextMaxSize = 22;
             var button = rect.gameObject.AddComponent<Button>();
             button.targetGraphic = fill;
             button.onClick.AddListener(() => click());
@@ -300,19 +315,31 @@ namespace IOSVN.TuTien.Core
 
         private void CreatorCycler(RectTransform row, string label, Func<string> value, Action<int> step)
         {
-            AnchoredText(row, "Label", label, ModernUi.Regular, 20, new Color32(90, 80, 72, 255), TextAnchor.UpperLeft, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            AnchoredText(row, "Label", label, ModernUi.Medium, 20, new Color32(57, 75, 73, 255), TextAnchor.UpperLeft, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var valueText = AnchoredText(row, "Value", value(), ModernUi.SemiBold, 27, new Color32(40, 34, 32, 255), TextAnchor.LowerCenter, new Vector2(.16f, 0), new Vector2(.84f, 1), Vector2.zero, Vector2.zero);
-            PillButton(Anchored("Prev", row, new Vector2(0, 0), new Vector2(.15f, .62f), Vector2.zero, Vector2.zero), "", "arrowLeft", false, () => { step(-1); valueText.text = value(); });
-            PillButton(Anchored("Next", row, new Vector2(.85f, 0), new Vector2(1, .62f), Vector2.zero, Vector2.zero), "", "arrowRight", false, () => { step(1); valueText.text = value(); });
+            CreatorArrowButton(Anchored("Prev", row, new Vector2(0, 0), new Vector2(.15f, .62f), Vector2.zero, Vector2.zero), "arrowLeft", () => { step(-1); valueText.text = value(); });
+            CreatorArrowButton(Anchored("Next", row, new Vector2(.85f, 0), new Vector2(1, .62f), Vector2.zero, Vector2.zero), "arrowRight", () => { step(1); valueText.text = value(); });
+        }
+
+        private void CreatorArrowButton(RectTransform rect, string iconId, Action click)
+        {
+            // Keep the full rectangle as the touch target while drawing only the arrow.
+            var hitArea = rect.gameObject.AddComponent<Image>();
+            hitArea.color = new Color(1f, 1f, 1f, 0f);
+            var arrow = Anchored("Arrow", rect, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-20, -20), new Vector2(20, 20)).gameObject.AddComponent<Image>();
+            arrow.sprite = ModernUi.Icon(iconId);
+            arrow.preserveAspect = true;
+            arrow.color = new Color32(49, 58, 58, 255);
+            arrow.raycastTarget = false;
+            var button = rect.gameObject.AddComponent<Button>();
+            button.targetGraphic = hitArea;
+            button.onClick.AddListener(() => click());
         }
 
         private void RefreshCreator()
         {
-            if (creatorPreview == null) return;
-            AvatarComposer.Refresh(creatorAvatar, creatorLook, .9f);
-            AvatarComposer.RefreshIllustration(creatorIllustration, creatorLook, .9f);
-            if (creatorIllustration != null) creatorIllustration.gameObject.SetActive(creatorCategory == "preset");
-            if (creatorAvatar != null) creatorAvatar.gameObject.SetActive(creatorCategory != "preset");
+            if (creatorRig == null) return;
+            creatorRig.SetLook(creatorLook);
             ApplyCreatorZoom();
             // category chips (3 columns)
             for (var i = creatorChips.childCount - 1; i >= 0; i--) Destroy(creatorChips.GetChild(i).gameObject);
@@ -331,7 +358,6 @@ namespace IOSVN.TuTien.Core
                             creatorPresetIndex = Mathf.Clamp(creatorPresetIndex, 0, MalePresetNames.Length - 1);
                             creatorLook = BuildCreatorPreset(gender == "nu", creatorPresetIndex);
                         }
-                        creatorZoomChoice = null;
                         RefreshCreator();
                     });
             }
@@ -389,27 +415,15 @@ namespace IOSVN.TuTien.Core
             }
         }
 
-        private bool CreatorZoomed() => creatorZoomChoice ?? CreatorFaceCategories.Contains(creatorCategory);
-
-        /// <summary>Full figure, or a close-up of the head while the face is being edited (tap the figure to switch).</summary>
+        /// <summary>Keep the entire portrait inside its frame at every resolution and for every edit category.</summary>
         private void ApplyCreatorZoom()
         {
             if (creatorZoom == null) return;
-            var zoomed = CreatorZoomed();
-            // where the face is in the portrait (0 = soles, 1 = top), corrected for the letterboxing of the 3:5 figure
-            var head = .835f;
-            var view = ((RectTransform)creatorZoom.parent).rect;
-            if (view.height > 1f)
-            {
-                var figure = Mathf.Min(view.height, view.width * AvatarComposer.H / AvatarComposer.W);
-                head = .5f + (head - .5f) * figure / view.height;
-            }
-            var shift = zoomed ? head - .52f : 0f;
-            creatorZoom.pivot = new Vector2(.5f, head);
-            creatorZoom.anchorMin = new Vector2(0, -shift);
-            creatorZoom.anchorMax = new Vector2(1, 1 - shift);
+            creatorZoom.pivot = new Vector2(.5f, .5f);
+            creatorZoom.anchorMin = Vector2.zero;
+            creatorZoom.anchorMax = Vector2.one;
             creatorZoom.offsetMin = creatorZoom.offsetMax = Vector2.zero;
-            creatorZoom.localScale = zoomed ? new Vector3(2.3f, 2.3f, 1f) : Vector3.one;
+            creatorZoom.localScale = Vector3.one;
         }
 
         private void StepCreatorStyle(int delta)
@@ -445,6 +459,8 @@ namespace IOSVN.TuTien.Core
             var look = AvatarComposer.Default(female);
             look.Set("g", female ? "f" : "m");
             look.Set("preset", i);
+            look.Set("template", i);
+            look.Set("bo", (i + (female ? 1 : 0)) % AvatarComposer.Counts["bo"]);
             look.Set("fa", (i * 3 + (female ? 1 : 0)) % AvatarComposer.Counts["fa"]);
             look.Set("ea", (i + (female ? 1 : 0)) % AvatarComposer.Counts["ea"]);
             look.Set("ey", (i * 3 + 1) % AvatarComposer.Counts["ey"]);

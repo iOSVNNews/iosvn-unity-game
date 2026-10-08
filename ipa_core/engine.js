@@ -957,7 +957,7 @@ const THIEN_KIEU_USERS = new Set(['1354709393', '5811879139']);
 const SCROLL_PRICE = { pt: 20, hiem: 200, cuchiem: 2000, tt: 10000, cam: 25000, vang: 50000, docban: 1000000 };
 const SLOT_NAMES = { weapon: 'Vũ khí', armor: 'Giáp', acc1: 'Trang sức 1', acc2: 'Trang sức 2', ring1: 'Nhẫn / Vòng 1', ring2: 'Nhẫn / Vòng 2', phiKiem: 'Phi kiếm / Tọa kỵ', loDinh: 'Lô đỉnh', nhanTruDo: 'Nhẫn Trữ Đồ', nhanNaDi: 'Nhẫn Dịch Chuyển' };
 
-const LOOK_STYLE_KEYS = { preset: 10, fa: 4, ea: 3, ey: 8, br: 5, no: 4, mo: 5, bd: 5, ha: 10, ti: 4, to: 6, tot: 6, pa: 4, sh: 3, be: 3, hat: 6, wp: 11, au: 6 };
+const LOOK_STYLE_KEYS = { preset: 10, bo: 4, fa: 4, ea: 3, ey: 8, br: 5, no: 4, mo: 5, bd: 5, ha: 10, ti: 4, to: 6, tot: 6, pa: 4, sh: 3, be: 3, hat: 6, wp: 11, au: 6 };
 const LOOK_COLOR_KEYS = ['sk', 'hc', 'ec', 'tc', 'oc', 'pc', 'sc', 'bc', 'hac', 'ac', 'auc'];   // 'wc' (weapon colour) only comes from equipment, see wornLook
 
 /** Validates the layered-avatar look string ("g=m;fa=0;hc=#1e1a1e;..."). Returns { text, values } or null. */

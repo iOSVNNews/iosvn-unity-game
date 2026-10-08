@@ -60,11 +60,10 @@ namespace IOSVN.TuTien.Core
         public RectTransform LabelLayer;
         public RawImage Painting;
         public Image NightTint;
-        // The unified realm paintings are authored at roughly two pixels per tile.
-        // Keep the default camera close to native scale and focused on the player's region.
-        public float Zoom = .28f;
-        public float MinZoom = .16f;
-        public float MaxZoom = .42f;
+        // Explore one province at a readable scale; the atlas supplies the realm overview.
+        public float Zoom = .52f;
+        public float MinZoom = .28f;
+        public float MaxZoom = .85f;
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
@@ -124,21 +123,7 @@ namespace IOSVN.TuTien.Core
             paint.transform.SetParent(world.MapRect, false);
             Stretch(paint.rectTransform);
             paint.texture = painting;
-            if (painting != null && painting.width > 0 && painting.height > 0)
-            {
-                var imageAspect = (float)painting.width / painting.height;
-                var mapAspect = (float)data.w / data.h;
-                if (imageAspect > mapAspect)
-                {
-                    var visibleWidth = mapAspect / imageAspect;
-                    paint.uvRect = new Rect((1f - visibleWidth) * .5f, 0f, visibleWidth, 1f);
-                }
-                else if (imageAspect < mapAspect)
-                {
-                    var visibleHeight = imageAspect / mapAspect;
-                    paint.uvRect = new Rect(0f, (1f - visibleHeight) * .5f, 1f, visibleHeight);
-                }
-            }
+            paint.uvRect = TextureUv(painting, data.w / (float)data.h);
             paint.raycastTarget = false;
             world.Painting = paint;
             world.BuildIllustrations();
@@ -778,6 +763,7 @@ namespace IOSVN.TuTien.Core
         {
             var old = Zoom;
             Zoom = Mathf.Clamp(Zoom * factor, MinZoom, MaxZoom);
+            if (following && Player != null) focus = TileToLocal(Player.Pos);
             if (!following && screenPivot.HasValue && RectTransformUtility.ScreenPointToLocalPointInRectangle(Viewport, screenPivot.Value, null, out var pivot))
             {
                 // keep the map point under the pivot fixed
@@ -791,10 +777,34 @@ namespace IOSVN.TuTien.Core
         public void SetZoom(float value)
         {
             Zoom = Mathf.Clamp(value, MinZoom, MaxZoom);
+            if (following && Player != null) focus = TileToLocal(Player.Pos);
             ApplyCamera();
         }
 
         public void Recenter() { following = true; }
+
+        // One crop for the world, atlas and minimap; markers use the same tile space.
+        public static Rect TextureUv(Texture texture, float aspect)
+        {
+            if (texture == null || texture.height <= 0 || aspect <= 0) return new Rect(0, 0, 1, 1);
+            var source = texture.width / (float)texture.height;
+            var w = Mathf.Min(1f, aspect / source);
+            var h = Mathf.Min(1f, source / aspect);
+            return new Rect((1f - w) * .5f, (1f - h) * .5f, w, h);
+        }
+
+        public Rect VisibleTiles
+        {
+            get
+            {
+                var half = Viewport.rect.size * .5f;
+                var a = (-half - MapRect.anchoredPosition) / Zoom;
+                var b = (half - MapRect.anchoredPosition) / Zoom;
+                return Rect.MinMaxRect(Mathf.Clamp(a.x / T, 0, Data.w),
+                    Mathf.Clamp(Data.h - b.y / T, 0, Data.h), Mathf.Clamp(b.x / T, 0, Data.w),
+                    Mathf.Clamp(Data.h - a.y / T, 0, Data.h));
+            }
+        }
 
         private void ApplyCamera()
         {
@@ -1065,7 +1075,7 @@ namespace IOSVN.TuTien.Core
             {
                 if (actor.Tag == null) continue;
                 var showAtOverview = actor.Kind == "player";
-                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= 2.2f);
+                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= .65f);
                 actor.Tag.gameObject.SetActive(tagVisible);
                 if (!tagVisible) continue;
                 var local = TileToLocal(actor.Pos);

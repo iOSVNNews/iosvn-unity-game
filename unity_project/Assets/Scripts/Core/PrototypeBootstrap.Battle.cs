@@ -101,10 +101,10 @@ namespace IOSVN.TuTien.Core
 
         // ---- callbacks used by the battle component (keeps the partial's private helpers in reach)
 
-        internal Sprite BattleSkillIcon(J skill) => SkillIcon(skill);
-        internal Sprite BattleItemIcon(J item) => ItemSprite(item, "dan_duoc");
-        internal Sprite BattleMonsterSprite(string id) => MonsterSprite(id);
-        internal Sprite BattleUiIcon(string id) => UiPixelIcon(id);
+        internal Sprite BattleSkillIcon(J skill) => BattleInkIcons.Skill(skill["name"].Str(), BattleFx.ElementOfSkill(skill["name"].Str(), skill["element"].Str("kim")));
+        internal Sprite BattleItemIcon(J item) => ArtSprites.Item(item["id"].Str()) ?? BattleInkIcons.Potion;
+        internal Sprite BattleMonsterSprite(string id) => ArtSprites.Monster(id) ?? ArtSprites.Monster("da_lang");
+        internal Sprite BattleUiIcon(string id) => BattleInkIcons.Ui(id);
         internal void BattleToast(string message, bool error) => Toast(message, error);
         internal RectTransform BattleAnchored(string name, Transform parent, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax) => Anchored(name, parent, min, max, offMin, offMax);
         internal Text BattleText(Transform parent, string name, string value, Font font, int size, Color color, TextAnchor anchor, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax)
@@ -196,7 +196,9 @@ namespace IOSVN.TuTien.Core
         private float shakeUntil, shakeAmp;
         private Image dimImage;
         private float dimFrom, dimUntil;
-        private RectTransform backLayer, fighterLayer, fxLayer;
+        private RectTransform worldLayer, backLayer, fighterLayer, fxLayer;
+        private Vector2 cameraOffset, cameraVelocity;
+        private const float ArenaWorldScale = 1.35f;
         private static readonly Color Cream = new Color32(244, 236, 220, 255);
         private static readonly Color Gold = new Color32(232, 196, 120, 255);
 
@@ -209,21 +211,33 @@ namespace IOSVN.TuTien.Core
             this.hud = hud;
             arena = root;
             element = battle["p"]["element"].Str("kim");
-            // scenery: the painted province around the player, darkened toward the edges
+            // The battlefield is a real world larger than the phone viewport. The phone
+            // camera shows a section of it and pans as the player moves toward the edge.
+            worldLayer = new GameObject("Battlefield", typeof(RectTransform)).GetComponent<RectTransform>();
+            worldLayer.SetParent(root, false);
+            worldLayer.anchorMin = worldLayer.anchorMax = new Vector2(.5f, .5f);
+            var groundAspect = painting == null ? root.rect.width / root.rect.height
+                : painting.width * uv.width / (painting.height * uv.height);
+            var worldHeight = Mathf.Max(root.rect.height, root.rect.width / groundAspect) * ArenaWorldScale;
+            worldLayer.sizeDelta = new Vector2(worldHeight * groundAspect, worldHeight);
+            worldLayer.anchoredPosition = Vector2.zero;
+            worldLayer.localScale = Vector3.one;
+            // The painted ground spans the whole large world, including its distant perimeter.
             if (painting != null)
             {
                 var bg = new GameObject("Scenery", typeof(RectTransform), typeof(RawImage)).GetComponent<RawImage>();
-                bg.transform.SetParent(root, false);
+                bg.transform.SetParent(worldLayer, false);
                 var r = bg.rectTransform;
-                r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
+                r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one;
+                r.offsetMin = r.offsetMax = Vector2.zero;
                 bg.texture = painting;
                 bg.uvRect = uv;
                 bg.raycastTarget = false;
             }
-            var shade = InkUi.Simple(root, "Vignette", InkUi.Cloud, new Color(.05f, .06f, .08f, .35f), Vector2.zero);
+            var shade = InkUi.Simple(root, "Vignette", InkUi.Cloud, new Color(.05f, .06f, .08f, .12f), Vector2.zero);
             shade.rectTransform.anchorMin = new Vector2(-.3f, -.4f); shade.rectTransform.anchorMax = new Vector2(1.3f, 1.4f);
             shade.rectTransform.offsetMin = shade.rectTransform.offsetMax = Vector2.zero;
-            var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .22f), Vector2.zero);
+            var tint = InkUi.Simple(root, "Tint", InkUi.White, new Color(0, 0, 0, .06f), Vector2.zero);
             tint.rectTransform.anchorMin = Vector2.zero; tint.rectTransform.anchorMax = Vector2.one;
             tint.rectTransform.offsetMin = tint.rectTransform.offsetMax = Vector2.zero;
             // great techniques darken the field under the fighters
@@ -237,10 +251,11 @@ namespace IOSVN.TuTien.Core
             ring.rectTransform.anchorMin = Vector2.zero; ring.rectTransform.anchorMax = Vector2.one;
             ring.rectTransform.offsetMin = ring.rectTransform.offsetMax = Vector2.zero;
             warnCircle.gameObject.SetActive(false);
+            warnCircle.SetParent(worldLayer, false);
             // draw order: effects behind the fighters, the fighters, effects and numbers over them
-            backLayer = BattleFx.Layer(root, "BackEffects");
-            fighterLayer = BattleFx.Layer(root, "Fighters");
-            fxLayer = BattleFx.Layer(root, "Effects");
+            backLayer = BattleFx.Layer(worldLayer, "BackEffects");
+            fighterLayer = BattleFx.Layer(worldLayer, "Fighters");
+            fxLayer = BattleFx.Layer(worldLayer, "Effects");
             BuildFighters(battle, look, auraStrength);
             BuildHud(battle);
             Apply(battle);
@@ -264,7 +279,7 @@ namespace IOSVN.TuTien.Core
             var sub = owner.BattleText(hud, "UyApSub", name + (string.IsNullOrEmpty(realm) ? "" : "  ·  " + realm), ModernUi.SemiBold, 34, new Color32(244, 236, 220, 0), TextAnchor.MiddleCenter,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-600, -40), new Vector2(600, 20));
             sub.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
-            var ring = InkUi.Simple(arena, "Shock", InkUi.Ring, new Color(1f, .35f, .25f, .9f), new Vector2(200, 90));
+            var ring = InkUi.Simple(worldLayer != null ? worldLayer : arena, "Shock", InkUi.Ring, new Color(1f, .35f, .25f, .9f), new Vector2(200, 90));
             ring.rectTransform.anchorMin = ring.rectTransform.anchorMax = new Vector2(.5f, .5f);
             ring.rectTransform.anchoredPosition = monsterPos;
             var t = 0f;
@@ -301,7 +316,7 @@ namespace IOSVN.TuTien.Core
             var cross = new Vector2(-towardPlayer.y, towardPlayer.x);
             for (var i = 0; i < minionCount; i++)
             {
-                var minion = MonsterView.Create(fighterLayer, "Minion" + i, id, still, new Vector2(180, 180));
+                var minion = MonsterView.Create(fighterLayer, "Minion" + i, id, still, new Vector2(64, 64));
                 minions.Add(minion);
                 var progress = (i + 1f) / (minionCount + 1f);
                 var lane = (i - (minionCount - 1) * .5f) * 80f;
@@ -311,9 +326,9 @@ namespace IOSVN.TuTien.Core
                 minionRushStarts.Add(float.PositiveInfinity);
                 minionRushEnds.Add(float.NegativeInfinity);
             }
-            var size = boss ? 500f : m["small"].Bool() ? 320f : 400f;
+            var size = boss ? 124f : m["small"].Bool() ? 76f : 96f;
             monster = MonsterView.Create(fighterLayer, "Monster", id, still, new Vector2(size, size), m["element"].Str("kim"));
-            hero = FighterView.Create(fighterLayer, "Player", look, 2.7f, auraStrength);
+            hero = FighterView.Create(fighterLayer, "Player", look, FighterView.BattleScale, auraStrength);
             fighterDepthOrder.Clear();
             foreach (var minion in minions) fighterDepthOrder.Add(minion.Rect);
             fighterDepthOrder.Add(monster.Rect);
@@ -349,30 +364,31 @@ namespace IOSVN.TuTien.Core
         private void BuildHud(J b)
         {
             var A = (Func<string, Transform, Vector2, Vector2, Vector2, Vector2, RectTransform>)owner.BattleAnchored;
-            // enemy bar (top centre) with the monster's five moves listed under it
-            var enemy = A("EnemyBar", hud, new Vector2(.32f, 1), new Vector2(.8f, 1), new Vector2(0, -150), new Vector2(0, -24));
+            // Keep the opponent status compact and centered at the top of the screen.
+            var enemy = A("EnemyBar", hud, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-300, -88), new Vector2(300, -20));
             var brush = enemy.gameObject.AddComponent<Image>();
             brush.sprite = InkUi.Brush; brush.type = Image.Type.Sliced; brush.raycastTarget = false;
-            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 30, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(40, 0), new Vector2(-40, -12));
-            monsterHp = Bar(enemy, new Vector2(70, 22), new Vector2(-70, 52), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
+            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 22, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(16, 34), new Vector2(-16, -4));
+            monsterHp = Bar(enemy, new Vector2(16, 10), new Vector2(-16, 31), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
             movesText = owner.BattleText(hud, "Moves", "", ModernUi.Regular, 19, new Color32(236, 214, 170, 255), TextAnchor.UpperCenter,
-                new Vector2(.2f, 1), new Vector2(.92f, 1), new Vector2(0, -186), new Vector2(0, -152));
+                new Vector2(.12f, 1), new Vector2(.88f, 1), new Vector2(0, -162), new Vector2(0, -130));
             movesText.supportRichText = true;
             movesText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
-            // player bars (top left)
-            var me = A("MeBar", hud, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -170), new Vector2(490, -24));
+            movesText.gameObject.SetActive(false);
+            // Player health and energy stay at the lower-left edge of the screen.
+            var me = A("MeBar", hud, new Vector2(.18f, 0), new Vector2(.53f, 0), new Vector2(0, 82), new Vector2(0, 180));
             var meBrush = me.gameObject.AddComponent<Image>();
             meBrush.sprite = InkUi.Brush; meBrush.type = Image.Type.Sliced; meBrush.raycastTarget = false;
             owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 26, Gold, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 0), new Vector2(-30, -12));
             playerHp = Bar(me, new Vector2(46, 62), new Vector2(-36, 92), new Color32(196, 62, 54, 255), out playerHpText, out _);
             playerMp = Bar(me, new Vector2(46, 24), new Vector2(-36, 54), new Color32(72, 140, 214, 255), out playerMpText, out _);
-            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 21, Cream, TextAnchor.UpperCenter, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-560, -290), new Vector2(560, -192));
+            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 13, Cream, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -190), new Vector2(318, -108));
             logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
-            comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 50, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
-                new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(70, 20), new Vector2(620, 110));
+            comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 24, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
+                new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -228), new Vector2(260, -190));
             // the pop scales from the left edge, so the number never leaves the screen
             comboText.rectTransform.pivot = new Vector2(0, .5f);
-            comboText.rectTransform.anchoredPosition = new Vector2(70, 65);
+            comboText.rectTransform.anchoredPosition = new Vector2(24, -209);
             comboText.gameObject.AddComponent<Outline>().effectColor = new Color(.35f, .08f, 0, .9f);
             warnLabel = owner.BattleText(hud, "Warn", "", ModernUi.Bold, 36, new Color32(255, 120, 96, 255), TextAnchor.MiddleCenter,
                 new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-640, 150), new Vector2(640, 214));
@@ -382,33 +398,35 @@ namespace IOSVN.TuTien.Core
             var flee = A("Flee", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-250, -110), new Vector2(-24, -24));
             RoundButton(flee, "road", "Rút lui", new Color32(30, 32, 34, 220), () => Send("flee", -1));
             // joystick (bottom left)
-            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(70, 70), new Vector2(390, 390));
+            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(38, 36), new Vector2(204, 202));
             var baseImage = stickBase.gameObject.AddComponent<Image>();
             baseImage.sprite = InkUi.Glow;
             baseImage.color = new Color(0, 0, 0, .35f);
             var baseRing = InkUi.Simple(stickBase, "Ring", InkUi.Ring, new Color(1, 1, 1, .55f), Vector2.zero);
             baseRing.rectTransform.anchorMin = Vector2.zero; baseRing.rectTransform.anchorMax = Vector2.one;
             baseRing.rectTransform.offsetMin = baseRing.rectTransform.offsetMax = Vector2.zero;
-            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(150, 150));
+            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(70, 70));
             knob.rectTransform.anchorMin = knob.rectTransform.anchorMax = new Vector2(.5f, .5f);
             var stick = stickBase.gameObject.AddComponent<BattleStick>();
             stick.Knob = knob.rectTransform;
             stick.OnMove = v => moveInput = v;
             // attack + skills (bottom right)
-            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-370, 60), new Vector2(-110, 320));
-            RoundButton(attack, "swords", "Đánh", new Color32(150, 40, 34, 235), TryAttack, 40);
+            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-158, 44), new Vector2(-28, 174));
+            RoundButton(attack, "swords", "Đánh", new Color32(82, 42, 39, 225), TryAttack, 20);
             attackCooldown = Cooldown(attack);
             var hold = attack.gameObject.AddComponent<BattleHold>();
             hold.OnDown = () => { attackHeld = true; TryAttack(); };
             hold.OnUp = () => attackHeld = false;
-            var center = new Vector2(-240, 190);
-            var angles = new[] { 172f, 140f, 108f, 76f, 205f };
+            var skillCenters = new[]
+            {
+                new Vector2(-330f, 136f), new Vector2(-295f, 236f), new Vector2(-205f, 294f),
+                new Vector2(-106f, 307f), new Vector2(-405f, 253f)
+            };
             var skills = b["skills"];
             for (var i = 0; i < 5; i++)
             {
-                var a = angles[i] * Mathf.Deg2Rad;
-                var pos = center + new Vector2(Mathf.Cos(a), Mathf.Sin(a)) * 255f;
-                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(78, 78), pos + new Vector2(78, 78));
+                var pos = skillCenters[i];
+                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(47, 47), pos + new Vector2(47, 47));
                 var skill = skills[i];
                 var index = i;
                 var locked = skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str());
@@ -420,7 +438,7 @@ namespace IOSVN.TuTien.Core
                 icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
                 icon.preserveAspect = true;
                 var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "\n<color=#8cc8ff>" + skill["mp"].Int() + " LL</color>" : ""),
-                    ModernUi.SemiBold, 17, Cream, TextAnchor.UpperCenter, new Vector2(-.3f, 0), new Vector2(1.3f, 0), new Vector2(0, -50), new Vector2(0, -2));
+                    ModernUi.SemiBold, 13, Cream, TextAnchor.UpperCenter, new Vector2(-.45f, 0), new Vector2(1.45f, 0), new Vector2(0, -40), new Vector2(0, -2));
                 label.supportRichText = true;
                 label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var cd = Cooldown(rect);
@@ -430,18 +448,17 @@ namespace IOSVN.TuTien.Core
                 skillButtons.Add((rect, cd, seconds, icon, i));
             }
             // dodge sits on an outer arc to the left of the skills so it never leaves the screen
-            var dodgeA = 187f * Mathf.Deg2Rad;
-            var dpos = center + new Vector2(Mathf.Cos(dodgeA), Mathf.Sin(dodgeA)) * 415f;
-            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(64, 64), dpos + new Vector2(64, 64));
-            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), PerformDodge, 22);
+            var dpos = new Vector2(-245f, 83f);
+            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(42, 42), dpos + new Vector2(42, 42));
+            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), PerformDodge, 16);
             dodgeCooldown = Cooldown(dodge);
             // quick consumables (bottom centre)
             var items = b["items"];
             var count = Mathf.Max(2, items.Count);
             for (var i = 0; i < count; i++)
             {
-                var x = (i - (count - 1) / 2f) * 150f;
-                var rect = A("Item" + i, hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(x - 62, 24), new Vector2(x + 62, 148));
+                var x = (i - (count - 1) / 2f) * 74f;
+                var rect = A("Item" + i, hud, new Vector2(.48f, 0), new Vector2(.48f, 0), new Vector2(x - 33, 15), new Vector2(x + 33, 81));
                 var index = i;
                 var fill = rect.gameObject.AddComponent<Image>();
                 ModernUi.Fill(fill, 22f);
@@ -573,25 +590,8 @@ namespace IOSVN.TuTien.Core
                 if (staged > 0f) BattleFx.After(this, staged, Land); else Land();
             }
             lastPlayerHp = hp;
-            var skills = m["skills"];
-            if (skills.Count > 0)
-            {
-                var parts = new List<string>();
-                for (var i = 0; i < skills.Count; i++)
-                {
-                    var name = owner.BattleClean(skills[i]["name"].Str());
-                    var cut = name.IndexOf(" · ", StringComparison.Ordinal);
-                    if (cut >= 0) name = name.Substring(cut + 3);
-                    var current = move.IsObject && move["i"].Int(-9) == skills[i]["i"].Int(i);
-                    var text = skills[i]["big"].Bool() ? "Tuyệt kỹ: " + name : name;
-                    parts.Add(current ? "<color=#ffd66e>" + text + "</color>" : skills[i]["big"].Bool() ? "<color=#ff9a7a>" + text + "</color>" : text);
-                }
-                movesText.text = string.Join("   ·   ", parts);
-            }
-            var lines = new List<string>();
             var log = b["log"];
-            for (var i = Mathf.Max(0, log.Count - 3); i < log.Count; i++) lines.Add(owner.BattleClean(log[i]["text"].Str(log[i].Str())));
-            logText.text = string.Join("\n", lines);
+            logText.text = log.Count > 0 ? owner.BattleClean(log[log.Count - 1]["text"].Str(log[log.Count - 1].Str())) : "";
             var items = b["items"];
             foreach (var (rect, qty, index) in itemButtons)
             {
@@ -725,7 +725,7 @@ namespace IOSVN.TuTien.Core
                         if (dmg > 0) pendingDamageQueue.Enqueue(dmg);
                         if (r["crit"].Bool())
                         {
-                            Float(monsterPos + new Vector2(UnityEngine.Random.Range(-30f, 30f), monster.Height * 0.82f), "CHÍ MẠNG −" + Vn(dmg), new Color32(255, 214, 90, 255), 48);
+                    Float(monsterPos + new Vector2(UnityEngine.Random.Range(-30f, 30f), monster.Height * 0.82f), "CHÍ MẠNG −" + Vn(dmg), new Color32(255, 214, 90, 255), 28);
                             Shake(0.35f);
                         }
                     }
@@ -746,11 +746,12 @@ namespace IOSVN.TuTien.Core
             dodgeCooldownUntil = Time.time + 4.0f;
             playerDashUntil = Time.time + 0.30f;
 
-            var bounds = arena.rect;
+            var bounds = worldLayer != null ? worldLayer.rect : arena.rect;
             var dir = moveInput.sqrMagnitude > 0.05f ? moveInput.normalized : (monsterPos.x > playerPos.x ? Vector2.left : Vector2.right);
             playerPos += dir * 260f;
-            playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .44f, bounds.width * .44f);
-            playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .42f, bounds.height * .12f);
+            var view = arena.rect;
+            playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .5f + view.width * .42f, bounds.width * .5f - view.width * .42f);
+            playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .5f + view.height * .42f, bounds.height * .5f - view.height * .42f);
 
             hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.95f));
             BattleFx.After(this, 0.05f, () => { if (hero != null) hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.7f)); });
@@ -830,7 +831,7 @@ namespace IOSVN.TuTien.Core
                 {
                     var msg = owner.BattleClean(r["msg"].Str());
                     var crit = r["crit"].Bool();
-                    Float(monsterPos + new Vector2(UnityEngine.Random.Range(-40f, 40f), monster.Height * .8f), msg, crit ? new Color32(255, 214, 90, 255) : new Color32(255, 246, 230, 255), crit || big ? 50 : 36);
+                    Float(monsterPos + new Vector2(UnityEngine.Random.Range(-40f, 40f), monster.Height * .8f), msg, crit ? new Color32(255, 214, 90, 255) : new Color32(255, 246, 230, 255), crit || big ? 30 : 24);
                 }
                 if (result["state"].IsObject) owner.BattleRefreshHub(result["state"]);
                 if (result["battle"].IsObject) Apply(result["battle"]);
@@ -948,7 +949,7 @@ namespace IOSVN.TuTien.Core
             Hold(BattleFx.OnGround(fxLayer, "giantsword", element, monsterPos + new Vector2(0, 14), 1.25f), 6);
             Hold(BattleFx.Spawn(fxLayer, "slash", element, monsterPos + new Vector2(monsterPos.x > playerPos.x ? -50 : 50, monster.Height * .4f), 1.3f, monsterPos.x > playerPos.x), 4);
             Hold(BattleFx.Spawn(fxLayer, "claw", mEl, playerPos + new Vector2(0, hero.Height * .4f), 1.1f, playerPos.x > monsterPos.x), 4);
-            Float(monsterPos + new Vector2(0, monster.Height * .85f), "Chí mạng −1.280", new Color32(255, 214, 90, 255), 50);
+            Float(monsterPos + new Vector2(0, monster.Height * .85f), "Chí mạng −1.280", new Color32(255, 214, 90, 255), 28);
             var skills = battle["m"]["skills"];
             if (skills.Count > 0) Float(monsterPos + new Vector2(0, monster.Height * 1.0f), "« " + owner.BattleClean(skills[0]["name"].Str()) + " »", new Color32(255, 214, 120, 255), 30);
             combo = 3;
@@ -965,14 +966,15 @@ namespace IOSVN.TuTien.Core
             if (battle.IsNull) return;
             var dt = Mathf.Min(Time.deltaTime, .05f);
             // movement
-            var bounds = arena.rect;
+            var bounds = worldLayer != null ? worldLayer.rect : arena.rect;
             var moving = moveInput.sqrMagnitude > .01f && !over;
             if (moving)
             {
                 var moveSpeed = owner.BattleMoveSpeed();
                 playerPos += moveInput * moveSpeed * dt;
-                playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .44f, bounds.width * .44f);
-                playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .42f, bounds.height * .12f);
+                var view = arena.rect;
+                playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .5f + view.width * .42f, bounds.width * .5f - view.width * .42f);
+                playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .5f + view.height * .42f, bounds.height * .5f - view.height * .42f);
                 if (Mathf.Abs(moveInput.x) > .2f) hero.FaceRight = moveInput.x > 0;
             }
             if (!moving || hero.Busy) hero.FaceRight = monsterPos.x > playerPos.x;
@@ -1026,6 +1028,7 @@ namespace IOSVN.TuTien.Core
                 minions[i].Rect.anchoredPosition = minionPositions[i] + shakeOffset;
                 minions[i].FaceRight = target.x > minionPositions[i].x;
             }
+            UpdateCamera(bounds, dt);
             // Sort the whole pack and player together: lower figures overlap the terrain and actors in front.
             for (var i = 1; i < fighterDepthOrder.Count; i++)
             {
@@ -1093,6 +1096,24 @@ namespace IOSVN.TuTien.Core
                     else if (error == null && b.IsNull) { over = true; owner.BattleFinished(battle); }
                 });
             }
+        }
+
+        private void UpdateCamera(Rect bounds, float dt)
+        {
+            if (worldLayer == null) return;
+            // Keep a broad safe area inside the phone view. Once the player crosses it,
+            // scroll the world smoothly and stop at the actual map boundary.
+            var view = arena.rect;
+            var deadZone = new Vector2(Mathf.Max(1f, view.width * .30f), Mathf.Max(1f, view.height * .12f));
+            var screenPosition = playerPos;
+            var target = new Vector2(
+                screenPosition.x - Mathf.Clamp(screenPosition.x, -deadZone.x, deadZone.x),
+                screenPosition.y - Mathf.Clamp(screenPosition.y, -deadZone.y, deadZone.y));
+            var maxPan = new Vector2(Mathf.Max(0f, (bounds.width - view.width) * .5f), Mathf.Max(0f, (bounds.height - view.height) * .5f));
+            target.x = Mathf.Clamp(target.x, -maxPan.x, maxPan.x);
+            target.y = Mathf.Clamp(target.y, -maxPan.y, maxPan.y);
+            cameraOffset = Vector2.SmoothDamp(cameraOffset, target, ref cameraVelocity, .24f, Mathf.Infinity, dt);
+            worldLayer.anchoredPosition = -cameraOffset;
         }
 
         private static void SetCooldown(Image image, double leftMs, double totalMs)

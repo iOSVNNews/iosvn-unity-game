@@ -54,6 +54,7 @@ namespace IOSVN.TuTien.Core
         {
             var rng = new System.Random(seed?.GetHashCode() ?? 1);
             var look = AvatarComposer.Default(female);
+            look.Set("template", rng.Next(10));
             foreach (var pair in AvatarComposer.Counts)
             {
                 var v = rng.Next(pair.Value);
@@ -101,7 +102,7 @@ namespace IOSVN.TuTien.Core
             var h = FrameH;
             var pixels = AvatarComposer.ComposePixels(look, "w_", w, h, FrameW, 1, 1);
             if (pixels == null) return Fallback();
-            var texture = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Point, wrapMode = TextureWrapMode.Clamp, name = "Hero" };
+            var texture = new Texture2D(w, h, TextureFormat.RGBA32, false) { filterMode = FilterMode.Bilinear, wrapMode = TextureWrapMode.Clamp, name = "Hero" };
             texture.SetPixels32(pixels);
             texture.Apply(false, true);
             var frames = new Sprite[Total];

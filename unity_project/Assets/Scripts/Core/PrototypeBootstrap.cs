@@ -2722,6 +2722,7 @@ namespace IOSVN.TuTien.Core
             fit.aspectMode = AspectRatioFitter.AspectMode.FitInParent;
             fit.aspectRatio = atlasWorld == null || atlasWorld.h <= 0 ? 1.6f : atlasWorld.w / (float)atlasWorld.h;
             atlas.texture = atlasWorld == null ? null : GetPainting(atlasWorld.id);
+            atlas.uvRect = ProvinceWorld.TextureUv(atlas.texture, fit.aspectRatio);
             atlas.color = atlas.texture == null ? new Color32(154, 126, 82, 255) : Color.white;
             atlas.raycastTarget = false;
 

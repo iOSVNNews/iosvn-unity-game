@@ -389,7 +389,11 @@ namespace IOSVN.TuTien.Core
             var (left, right) = Split(body, .42f);
             var portraitArea = Anchored("Portrait", left, new Vector2(0, .22f), Vector2.one, Vector2.zero, Vector2.zero);
             GlassPanel(portraitArea, 26f, new Color32(26, 30, 34, 220), new Color32(14, 18, 20, 220));
-            if (AvatarComposer.Available)
+            if (CultivatorPuppet2D.Available)
+            {
+                CultivatorPuppet2D.Create(portraitArea, LookOf(player));
+            }
+            else if (AvatarComposer.Available)
             {
                 var look = LookOf(player);
                 var artPortrait = look.Int("preset", -1) >= 0;

@@ -27,7 +27,7 @@ async function startServer(t) {
     };
 }
 
-const LOOK = 'g=m;fa=1;ea=2;ey=0;ec=#3a8f7a;br=0;no=1;mo=3;bd=2;ha=0;hc=#1e1a1e;ti=0;tc=#e8e2d4;to=1;oc=#2f5f63;ac=#c8a050;' +
+const LOOK = 'g=m;bo=3;fa=1;ea=2;ey=0;ec=#3a8f7a;br=0;no=1;mo=3;bd=2;ha=0;hc=#1e1a1e;ti=0;tc=#e8e2d4;to=1;oc=#2f5f63;ac=#c8a050;' +
     'pa=0;pc=#303038;sh=1;sc=#2a2a30;be=1;bc=#20242a;hat=1;hac=#c8a050;sk=#f0d2b4;wp=2;au=5;auc=#8fe0ff;evil=1;wp2=9';
 
 test('creator look with aura and accent colours is stored, sanitised and editable', async t => {
@@ -43,6 +43,8 @@ test('creator look with aura and accent colours is stored, sanitised and editabl
     assert.ok(look, 'state exposes the stored look');
     assert.match(look, /^g=f;/, 'gender comes from the character, not the string');
     assert.match(look, /au=5/);
+    assert.match(look, /bo=3/, 'the chosen body shape survives creation');
+    assert.match(look, /sk=#f0d2b4/, 'the chosen skin tone survives creation');
     assert.match(look, /wp=2/);
     assert.match(look, /ac=#c8a050/);
     assert.match(look, /auc=#8fe0ff/);
@@ -51,6 +53,7 @@ test('creator look with aura and accent colours is stored, sanitised and editabl
     const changed = await request('POST', '/api/player/look', { look: LOOK.replace('au=5', 'au=2').replace('auc=#8fe0ff', 'auc=#ff8a3a') }, token);
     assert.ok(changed.status < 300, JSON.stringify(changed.body));
     const after = await request('GET', '/api/state', null, token);
+    assert.match(JSON.stringify(after.body), /bo=3/);
     assert.match(JSON.stringify(after.body), /au=2[^"]*auc=#ff8a3a/);
     const bad = await request('POST', '/api/player/look', { look: 'g=m;au=99' }, token);
     assert.ok(bad.status < 500);
