@@ -268,10 +268,12 @@ namespace IOSVN.TuTien.Core
             // source material, but showing them over the realm map reintroduced baked-in old towns.
             var realmMap = mapId == "world_pham" || mapId == "world_tien";
             var resourceName = "World/" + mapId + (realmMap ? "_map_v2" : "_map");
-            var bytes = Resources.Load<TextAsset>(resourceName);
+            var bytes = realmMap ? Resources.Load<TextAsset>("World/" + mapId + "_terrain") : null;
+            var terrain = bytes != null;
+            if (bytes == null) bytes = Resources.Load<TextAsset>(resourceName);
             if (bytes == null && realmMap) bytes = Resources.Load<TextAsset>("World/" + mapId + "_map");
             if (bytes == null) return null;
-            var texture = new Texture2D(2, 2, TextureFormat.RGB24, true) { name = "Painting_" + mapId };
+            var texture = new Texture2D(2, 2, TextureFormat.RGB24, true) { name = (terrain ? "Terrain_" : "Painting_") + mapId };
             if (!texture.LoadImage(bytes.bytes, true)) { UnityEngine.Object.Destroy(texture); return null; }
             texture.filterMode = FilterMode.Trilinear;
             texture.wrapMode = TextureWrapMode.Clamp;

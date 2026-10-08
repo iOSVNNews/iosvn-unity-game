@@ -575,8 +575,7 @@ namespace IOSVN.TuTien.Core
             {
                 var moveSpeed = owner.BattleMoveSpeed();
                 mePos += moveInput * moveSpeed * dt;
-                mePos.x = Mathf.Clamp(mePos.x, -580f, 580f);
-                mePos.y = Mathf.Clamp(mePos.y, -260f, 60f);
+                mePos = ActionBattle.ClampToBattleGround(mePos, arena.rect.size, me.Height);
                 if (Mathf.Abs(moveInput.x) > .2f) me.FaceRight = moveInput.x > 0;
             }
             me.Moving = moveInput.sqrMagnitude > .01f && !over;

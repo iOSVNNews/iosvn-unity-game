@@ -25,6 +25,24 @@ namespace IOSVN.TuTien.Core
         private FighterAction action = FighterAction.Idle;
         private bool moving, facesRight;
 
+        public static Sprite Portrait(LookSpec look)
+        {
+            var female = look != null && look.Get("g", "m") == "f";
+            var sheet = Resources.Load<Texture2D>("Characters/Puppet" + (female ? "Female" : "Male") + "V3");
+            if (sheet == null) return null;
+            var key = sheet.name + "_portrait";
+            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
+            var size = sheet.height * .30f;
+            var centerX = sheet.width * .5f * (female ? .554f : .595f);
+            var centerY = sheet.height * .84f;
+            var rect = new Rect(Mathf.Clamp(centerX - size * .5f, 0, sheet.width * .5f - size),
+                Mathf.Clamp(centerY - size * .5f, 0, sheet.height - size), size, size);
+            var sprite = Sprite.Create(sheet, rect, new Vector2(.5f, .5f), 100f);
+            sprite.name = key;
+            Sprites[key] = sprite;
+            return sprite;
+        }
+
         public static CultivatorPuppet2D Create(RectTransform parent, LookSpec look)
         {
             var rect = new GameObject("CultivatorPuppet", typeof(RectTransform), typeof(CultivatorPuppet2D)).GetComponent<RectTransform>();

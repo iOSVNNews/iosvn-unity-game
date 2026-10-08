@@ -97,8 +97,16 @@ namespace IOSVN.TuTien.Core
             worldView.transform.SetAsFirstSibling();
             var player = hub["player"];
             var spawn = ResolveWorldSpawn(data, player, town["id"].Str());
-            var me = worldView.AddActor("me", "player", spawn, HeroFramesFor(player), null, HeroSize,
+            var me = worldView.AddActor("me", "player", spawn, QcbhSkinnedActor2D.Available ? null : HeroFramesFor(player), null, HeroSize,
                 Clean(player["name"].Str("Đạo hữu")), new Color32(255, 240, 200, 255));
+            if (QcbhSkinnedActor2D.Available)
+            {
+                me.Rig = QcbhSkinnedActor2D.Create(me.Rect, LookOf(player));
+                me.Body.enabled = false;
+                me.Frames = null;
+                me.TagHeight = HeroSize.y + 18f;
+                if (me.Shadow != null) me.Shadow.rectTransform.sizeDelta = new Vector2(22f, 8f);
+            }
             worldView.WalkSpeed = 3.2f;
             me.Speed = worldView.WalkSpeed;
             worldView.Player = me;
@@ -184,7 +192,7 @@ namespace IOSVN.TuTien.Core
         }
 
         /// <summary>Keep the cultivator readable on an iPhone while cities still dominate the landscape.</summary>
-        private static readonly Vector2 HeroSize = new Vector2(HeroSprites.FrameW * 2f, HeroSprites.FrameH * 2f);
+        private static readonly Vector2 HeroSize = new Vector2(64f, 72f);
 
         /// <summary>The player's layered look (creator look, or one derived from the legacy appearance).</summary>
         private static LookSpec LookOf(J player)
@@ -236,7 +244,11 @@ namespace IOSVN.TuTien.Core
                         var town = data.Town(poi.townId);
                         var cityName = Clean(town?.name ?? poi.label);
                         var cityTag = PlaceTag(cityName, "location", 16, new Color32(255, 239, 192, 255));
-                        worldView.AddLabel(cityTag, new Vector2(poi.x, poi.y - 5.2f), Vector2.zero, .72f);
+                        var gate = town?.gate;
+                        var labelTile = gate != null && gate.Length >= 2
+                            ? new Vector2(gate[0], gate[1] - (town.big ? 23f : 20f))
+                            : new Vector2(poi.x, poi.y - 5.2f);
+                        worldView.AddLabel(cityTag, labelTile, Vector2.zero, .72f);
                         break;
                     case "dungeon":
                         worldView.AddLabel(PlaceTag(poi.label, "co_dong", 18, new Color32(226, 206, 255, 255)), new Vector2(poi.x, poi.y - 3.6f), Vector2.zero, .88f);
@@ -1063,18 +1075,29 @@ namespace IOSVN.TuTien.Core
             maskImage.sprite = InkUi.Glow;
             maskImage.color = new Color(1, 1, 1, .02f);
             portraitMask.gameObject.AddComponent<Mask>().showMaskGraphic = true;
-            var portrait = Anchored("Portrait", portraitMask, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
+            var portraitRect = Anchored("Portrait", portraitMask, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             try
             {
-                portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
+                var face = CultivatorPuppet2D.Portrait(LookOf(player));
+                if (face != null)
+                {
+                    var portrait = portraitRect.gameObject.AddComponent<Image>();
+                    portrait.sprite = face;
+                    portrait.preserveAspect = true;
+                    portrait.raycastTarget = false;
+                }
+                else
+                {
+                    var portrait = portraitRect.gameObject.AddComponent<RawImage>();
+                    portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
+                    portrait.uvRect = new Rect(.28f, .69f, .44f, .2625f);
+                    portrait.raycastTarget = false;
+                }
             }
             catch (Exception ex)
             {
                 Debug.LogWarning("Avatar compose error: " + ex.Message);
-                portrait.texture = null;
             }
-            portrait.uvRect = new Rect(.28f, .69f, .44f, .2625f);   // head and shoulders of the front-view portrait
-            portrait.raycastTarget = false;
             var discButton = disc.gameObject.AddComponent<Button>();
             discButton.onClick.AddListener(OpenCharacterScreen);
             disc.gameObject.AddComponent<UiPressScale>();

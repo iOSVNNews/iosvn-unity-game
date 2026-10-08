@@ -361,6 +361,25 @@ namespace IOSVN.TuTien.Editor
                 {
                     PrepareMap(c);
                     var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
+                    Check(!world.Player.Body.enabled, "World still shows the old composed sprite");
+                    var worldPuppet = world.Player.Rect.Find("SkinnedActor");
+                    Check(worldPuppet != null && worldPuppet.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2"),
+                        "World player must use the new complete full-body asset");
+                    var worldRig = worldPuppet.GetComponent<MonoBehaviour>();
+                    var worldBody = worldPuppet.Find("ContinuousBody").GetComponent<Image>();
+                    var mapPoint = worldBody.GetType().GetMethod("MapPoint");
+                    var legBefore = (Vector2)mapPoint.Invoke(worldBody, new object[] { new Vector2(.43f, .12f) });
+                    world.Player.Moving = true;
+                    world.GetType().GetMethod("StepActor", Flags).Invoke(world, new object[] { world.Player, .05f, true });
+                    var legAfter = (Vector2)mapPoint.Invoke(worldBody, new object[] { new Vector2(.43f, .12f) });
+                    Check((bool)worldRig.GetType().GetField("moving", Flags).GetValue(worldRig) && Vector2.Distance(legBefore, legAfter) > .001f,
+                        "Moving player does not animate the new body");
+                    world.GetType().GetMethod("StepActor", Flags).Invoke(world, new object[] { world.Player, .05f, false });
+                    var avatar = GameObject.Find("PortraitMask/Portrait");
+                    Check(avatar != null && avatar.GetComponent<Image>() != null && avatar.GetComponent<Image>().sprite.name.Contains("V3"),
+                        "HUD avatar still uses the old face");
+                    Check(world.Player.Rect.sizeDelta.y <= 24f * ProvinceWorld.T * .25f,
+                        "World player too large compared with a small town footprint");
                     world.SetZoom(world.MinZoom);
                     var wide = world.VisibleTiles;
                     world.SetZoom(world.MaxZoom);
@@ -379,9 +398,11 @@ namespace IOSVN.TuTien.Editor
                         1f - (target.y + .5f - bounds.y) / bounds.height)) < .001f, "Player marker uses the wrong coordinate space");
                     var uv = map.GetComponent<RawImage>().uvRect;
                     var texture = map.GetComponent<RawImage>().texture;
+                    Check(texture.width >= world.Data.w * 6 && texture.height >= world.Data.h * 6,
+                        "World still magnifies the low resolution overview instead of the terrain bake");
                     Check(Mathf.Abs(texture.width * uv.width / (texture.height * uv.height)
                         - bounds.width / bounds.height) < .001f, "Minimap painting is stretched");
-                    renderLog.AppendLine("zoom, camera, province transition, player marker, UV aspect: ok " + size);
+                    renderLog.AppendLine("FullBodyActorsV2 world player, V3 avatar, human/town scale, zoom, camera, province transition, player marker, UV aspect: ok " + size);
                 }, "qcbh-minimap-transition-" + size.x + ".png", size.x, size.y);
             }
             float pveHeight = 0;
@@ -390,8 +411,17 @@ namespace IOSVN.TuTien.Editor
                 PrepareMap(c);
                 Call(c, "BuildActionBattle", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_battle.json")))["battle"]);
                 pveHeight = GameObject.Find("Player").GetComponent<RectTransform>().sizeDelta.y;
+                Check(GameObject.Find("Player/SkinnedActor/ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2"),
+                    "PvE body uses the old character asset");
                 var ground = GameObject.Find("Battlefield/Scenery").GetComponent<RawImage>();
                 var world = ground.transform.parent.GetComponent<RectTransform>();
+                var clamp = typeof(PrototypeBootstrap).Assembly.GetType("IOSVN.TuTien.Core.ActionBattle")
+                    .GetMethod("ClampToBattleGround", BindingFlags.Static | BindingFlags.NonPublic);
+                var inside = (Vector2)clamp.Invoke(null, new object[] { new Vector2(world.rect.width * .4f, 0f), world.rect.size, pveHeight });
+                Check(inside.x > world.rect.width * .35f, "Camera size incorrectly restricts traversal of the battlefield");
+                var edge = (Vector2)clamp.Invoke(null, new object[] { new Vector2(100000f, 100000f), world.rect.size, pveHeight });
+                Check(edge.x + pveHeight * .35f <= world.rect.width * .5f + .01f
+                    && edge.y + pveHeight <= world.rect.height * .5f + .01f, "Fighter leaves the battlefield bounds");
                 Check(Mathf.Abs(world.rect.width / world.rect.height
                     - ground.texture.width * ground.uvRect.width / (ground.texture.height * ground.uvRect.height)) < .001f,
                     "PvE ground is distorted");

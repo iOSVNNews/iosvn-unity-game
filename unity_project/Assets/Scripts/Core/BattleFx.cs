@@ -960,7 +960,7 @@ namespace IOSVN.TuTien.Core
             var auraBack = Layer(rect, "AuraBack");
             if (QcbhSkinnedActor2D.Available)
             {
-                var actorAtlas = Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
+                var actorAtlas = QcbhSkinnedActor2D.ActorAtlas(look);
                 rect.sizeDelta = new Vector2(characterHeight * actorAtlas.width * .5f / actorAtlas.height, characterHeight);
                 view.rig = QcbhSkinnedActor2D.Create(rect, look);
             }
@@ -1006,6 +1006,7 @@ namespace IOSVN.TuTien.Core
         /// <summary>Leaves a fading afterimage of the figure where it stands now (dashes and lunges).</summary>
         public void Ghost(Color tint, float seconds = .26f)
         {
+            if (rig != null && Application.isPlaying) { rig.Ghost(Rect, tint, seconds); return; }
             if (body == null || body.sprite == null || !Application.isPlaying) return;
             var image = new GameObject("Afterimage", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
             var r = image.rectTransform;

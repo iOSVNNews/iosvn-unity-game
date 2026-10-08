@@ -749,9 +749,7 @@ namespace IOSVN.TuTien.Core
             var bounds = worldLayer != null ? worldLayer.rect : arena.rect;
             var dir = moveInput.sqrMagnitude > 0.05f ? moveInput.normalized : (monsterPos.x > playerPos.x ? Vector2.left : Vector2.right);
             playerPos += dir * 260f;
-            var view = arena.rect;
-            playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .5f + view.width * .42f, bounds.width * .5f - view.width * .42f);
-            playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .5f + view.height * .42f, bounds.height * .5f - view.height * .42f);
+            playerPos = ClampToBattleGround(playerPos, bounds.size, hero.Height);
 
             hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.95f));
             BattleFx.After(this, 0.05f, () => { if (hero != null) hero.Ghost(new Color(0.4f, 0.95f, 1f, 0.7f)); });
@@ -972,9 +970,7 @@ namespace IOSVN.TuTien.Core
             {
                 var moveSpeed = owner.BattleMoveSpeed();
                 playerPos += moveInput * moveSpeed * dt;
-                var view = arena.rect;
-                playerPos.x = Mathf.Clamp(playerPos.x, -bounds.width * .5f + view.width * .42f, bounds.width * .5f - view.width * .42f);
-                playerPos.y = Mathf.Clamp(playerPos.y, -bounds.height * .5f + view.height * .42f, bounds.height * .5f - view.height * .42f);
+                playerPos = ClampToBattleGround(playerPos, bounds.size, hero.Height);
                 if (Mathf.Abs(moveInput.x) > .2f) hero.FaceRight = moveInput.x > 0;
             }
             if (!moving || hero.Busy) hero.FaceRight = monsterPos.x > playerPos.x;
@@ -1096,6 +1092,14 @@ namespace IOSVN.TuTien.Core
                     else if (error == null && b.IsNull) { over = true; owner.BattleFinished(battle); }
                 });
             }
+        }
+
+        internal static Vector2 ClampToBattleGround(Vector2 position, Vector2 size, float actorHeight)
+        {
+            var halfWidth = Mathf.Max(0f, size.x * .5f - actorHeight * .35f);
+            var bottom = -size.y * .5f + actorHeight * .18f;
+            var top = Mathf.Max(bottom, size.y * .5f - actorHeight);
+            return new Vector2(Mathf.Clamp(position.x, -halfWidth, halfWidth), Mathf.Clamp(position.y, bottom, top));
         }
 
         private void UpdateCamera(Rect bounds, float dt)

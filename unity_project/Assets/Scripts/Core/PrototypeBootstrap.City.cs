@@ -562,25 +562,34 @@ namespace IOSVN.TuTien.Core
             }
             picks.Sort((a, b) => a.score.CompareTo(b.score));
             float w = cityLayout.w, h = cityLayout.h;
-            const float frameW = 36f, frameH = 41f;
+            const float frameW = 24f, frameH = 32f;
             for (var i = 0; i < CityNpcSpots.Length && i < picks.Count; i++)
             {
                 var npc = picks[i].npc;
-                var frames = HeroSprites.Get(HeroSprites.RandomLook(npc["id"].Str(), npc["gender"].Str() == "nu"));
-                if (frames == null || frames.Length == 0) continue;
+                var look = HeroSprites.RandomLook(npc["id"].Str(), npc["gender"].Str() == "nu");
+                var frames = QcbhSkinnedActor2D.Available ? null : HeroSprites.Get(look);
+                if (!QcbhSkinnedActor2D.Available && (frames == null || frames.Length == 0)) continue;
                 var spot = CityNpcSpots[i];
                 var rect = Anchored("Npc_" + npc["id"].Str(), view,
                     new Vector2((spot.x - frameW / 2) / w, 1f - spot.y / h), new Vector2((spot.x + frameW / 2) / w, 1f - (spot.y - frameH) / h), Vector2.zero, Vector2.zero);
                 var hit = rect.gameObject.AddComponent<Image>();
                 hit.color = new Color(1, 1, 1, 0);
-                var body = Anchored("Body", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-                body.sprite = frames[Mathf.Min(frames.Length - 1, HeroSprites.FrameIndex(false, 0f))];
-                body.preserveAspect = true;
-                body.raycastTarget = false;
-                if (i % 2 == 1) body.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
-                var idle = body.gameObject.AddComponent<FigureIdle>();
-                idle.Frames = frames;
-                idle.Offset = i * .37f;
+                if (QcbhSkinnedActor2D.Available)
+                {
+                    var figure = QcbhSkinnedActor2D.Create(rect, look);
+                    figure.SetFacing(i % 2 == 1);
+                }
+                else
+                {
+                    var body = Anchored("Body", rect, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+                    body.sprite = frames[Mathf.Min(frames.Length - 1, HeroSprites.FrameIndex(false, 0f))];
+                    body.preserveAspect = true;
+                    body.raycastTarget = false;
+                    if (i % 2 == 1) body.rectTransform.localScale = new Vector3(-1f, 1f, 1f);
+                    var idle = body.gameObject.AddComponent<FigureIdle>();
+                    idle.Frames = frames;
+                    idle.Offset = i * .37f;
+                }
                 var tag = InkUi.Tag(rect, Clean(npc["name"].Str()) + " · " + Clean(npc["realmName"].Str()), 17, new Color32(190, 226, 255, 255), 26f);
                 tag.anchorMin = tag.anchorMax = new Vector2(.5f, 1f);
                 tag.pivot = new Vector2(.5f, 0f);

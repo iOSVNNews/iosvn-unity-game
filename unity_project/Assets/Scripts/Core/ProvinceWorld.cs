@@ -13,6 +13,7 @@ namespace IOSVN.TuTien.Core
         public string Kind;                // player | monster | boss | npc | other
         public RectTransform Rect;
         public Image Body;
+        internal QcbhSkinnedActor2D Rig;
         public Image Aura;
         public Sprite[] Frames;            // 12 hero frames (8 walk + 4 idle, facing left) or null for a static sprite
         public bool FaceRight;             // hero sheets face left; mirrored when walking right
@@ -61,9 +62,9 @@ namespace IOSVN.TuTien.Core
         public RawImage Painting;
         public Image NightTint;
         // Explore one province at a readable scale; the atlas supplies the realm overview.
-        public float Zoom = .52f;
-        public float MinZoom = .28f;
-        public float MaxZoom = .85f;
+        public float Zoom = .78f;
+        public float MinZoom = .42f;
+        public float MaxZoom = 1.25f;
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
@@ -178,6 +179,9 @@ namespace IOSVN.TuTien.Core
             var celestialB = new List<WorldSpriteLayer.SpriteQuad>();
             for (var i = 0; i < Data.towns.Length; i++)
             {
+                // Terrain bakes already integrate the towns into the ground wash, including
+                // the minimap. Avoid a second floating illustration over the same town.
+                if (Painting.texture != null && Painting.texture.name.StartsWith("Terrain_", StringComparison.Ordinal)) break;
                 var town = Data.towns[i];
                 if (town == null) continue;
                 var center = TileToLocal(new Vector2(town.x + town.w * .5f, town.y + town.h * .5f));
@@ -391,9 +395,10 @@ namespace IOSVN.TuTien.Core
                     image.transform.SetSiblingIndex(sibling);
                     return image;
                 }
-                var bodyIndex = actor.Body.transform.GetSiblingIndex();
+                var visual = actor.Rig != null ? actor.Rig.transform : actor.Body.transform;
+                var bodyIndex = visual.GetSiblingIndex();
                 var back = Layer("AuraBack", bodyIndex);
-                var front = Layer("AuraFront", actor.Body.transform.GetSiblingIndex() + 1);
+                var front = Layer("AuraFront", visual.GetSiblingIndex() + 1);
                 actor.AuraFx = actor.Rect.gameObject.AddComponent<AuraAnimator>();
                 actor.AuraFx.Back = back;
                 actor.AuraFx.Front = front;
@@ -418,7 +423,7 @@ namespace IOSVN.TuTien.Core
         private void Place(WorldActor actor)
         {
             var local = TileToLocal(actor.Pos);
-            actor.Rect.anchoredPosition = new Vector2(local.x, local.y - T * .45f + actor.Lift);
+            actor.Rect.anchoredPosition = new Vector2(local.x, local.y + (actor.Rig != null ? 0f : -T * .45f) + actor.Lift);
             if (actor.Shadow != null && (actor.Lift != 0f || actor == Player))
             {
                 // the shadow stays on the ground and thins out as the rider climbs
@@ -715,7 +720,12 @@ namespace IOSVN.TuTien.Core
                 }
             }
             actor.AnimTime += dt;
-            if (actor.Body != null && actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
+            if (actor.Rig != null)
+            {
+                actor.Rig.SetMotion(FighterAction.Idle, 0f, actor.Moving && !(actor == Player && Flying), actor.FaceRight, actor.AnimTime);
+                if (actor.AuraFx != null) actor.AuraFx.Flip = actor.FaceRight;
+            }
+            else if (actor.Body != null && actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
             {
                 actor.Body.sprite = actor.Frames[HeroSprites.FrameIndex(actor.Moving && !(actor == Player && Flying), actor.AnimTime)];
                 actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight ? -1f : 1f, 1f, 1f);
@@ -1083,11 +1093,11 @@ namespace IOSVN.TuTien.Core
             {
                 if (actor.Tag == null) continue;
                 var showAtOverview = actor.Kind == "player";
-                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= .65f);
+                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= 1f);
                 actor.Tag.gameObject.SetActive(tagVisible);
                 if (!tagVisible) continue;
                 var local = TileToLocal(actor.Pos);
-                tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y - T * .45f + actor.TagHeight + actor.Lift))));
+                tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y + (actor.Rig != null ? 0f : -T * .45f) + actor.TagHeight + actor.Lift))));
             }
             tagScratch.Sort((a, b) => a.basePos.y.CompareTo(b.basePos.y));
             for (var i = 0; i < tagScratch.Count; i++)

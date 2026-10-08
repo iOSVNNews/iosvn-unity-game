@@ -8,8 +8,8 @@ namespace IOSVN.TuTien.Core
     // same separation of portrait and battle art, without exposing cut joints.
     internal sealed class QcbhSkinnedActor2D : MonoBehaviour
     {
-        public static bool Available => Resources.Load<Texture2D>("Characters/FullBodyActorsV1") != null;
-        private static readonly Dictionary<bool, Sprite> Sprites = new Dictionary<bool, Sprite>();
+        public static bool Available => Resources.Load<Texture2D>("Characters/FullBodyActorsV2") != null || Resources.Load<Texture2D>("Characters/FullBodyActorsV1") != null;
+        private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
         private static readonly Dictionary<int, Sprite> Weapons = new Dictionary<int, Sprite>();
         private RectTransform root;
         private SkinnedActorImage body;
@@ -27,7 +27,7 @@ namespace IOSVN.TuTien.Core
             rect.SetParent(parent, false);
             rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f);
             rect.pivot = new Vector2(.5f, 0f);
-            var atlas = Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
+            var atlas = ActorAtlas(look);
             rect.sizeDelta = new Vector2(430f * atlas.width * .5f / atlas.height, 430f);
             var actor = rect.GetComponent<QcbhSkinnedActor2D>();
             actor.root = rect;
@@ -49,20 +49,28 @@ namespace IOSVN.TuTien.Core
             return actor;
         }
 
+        internal static Texture2D ActorAtlas(LookSpec look)
+        {
+            return Resources.Load<Texture2D>("Characters/FullBodyActorsV2")
+                ?? Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
+        }
+
         public void SetLook(LookSpec look)
         {
             var female = look != null && look.Get("g", "m") == "f";
-            if (!Sprites.TryGetValue(female, out var sprite) || sprite == null)
+            var texture = ActorAtlas(look);
+            if (texture == null) return;
+            var key = texture.name + (female ? "_female" : "_male");
+            if (!Sprites.TryGetValue(key, out var sprite) || sprite == null)
             {
-                var texture = Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
-                if (texture == null) return;
                 texture.filterMode = FilterMode.Bilinear;
                 var half = texture.width * .5f;
                 sprite = Sprite.Create(texture, new Rect(female ? half : 0, 0, half, texture.height), new Vector2(.5f, .5f), 100f);
-                Sprites[female] = sprite;
+                sprite.name = key;
+                Sprites[key] = sprite;
             }
             body.sprite = sprite;
-            body.CenterX = female ? .46f : .60f;
+            body.CenterX = texture.name == "FullBodyActorsV2" ? .5f : (female ? .46f : .60f);
             bodyColor = Color.Lerp(Color.white, HeroSprites.ParseColor(look != null ? look.Get("oc", "#ffffff") : "#ffffff", Color.white), .10f);
             body.color = bodyColor;
             weaponStyle = look != null ? Mathf.Clamp(look.Int("wp", 0), 0, 10) : 0;
@@ -93,7 +101,32 @@ namespace IOSVN.TuTien.Core
             Apply();
         }
 
+        internal void SetFacing(bool right) => faceRight = right;
+
         public void SetHit(bool hit) => body.color = bodyColor * (hit ? new Color(1f, .62f, .58f, 1f) : Color.white);
+
+        internal void Ghost(RectTransform fighter, Color tint, float seconds)
+        {
+            foreach (var source in new[] { body })
+            {
+                if (!source.enabled || source.sprite == null) continue;
+                var ghost = new GameObject("SkinnedAfterimage", typeof(RectTransform), typeof(SkinnedActorImage)).GetComponent<SkinnedActorImage>();
+                var rect = ghost.rectTransform;
+                rect.SetParent(fighter.parent, false);
+                rect.anchorMin = fighter.anchorMin; rect.anchorMax = fighter.anchorMax; rect.pivot = fighter.pivot;
+                rect.sizeDelta = fighter.sizeDelta;
+                rect.anchoredPosition = fighter.anchoredPosition;
+                rect.localScale = new Vector3(faceRight ? -1f : 1f, 1f, 1f);
+                rect.SetSiblingIndex(fighter.GetSiblingIndex());
+                ghost.sprite = source.sprite;
+                ghost.preserveAspect = true;
+                ghost.raycastTarget = false;
+                ghost.CenterX = source.CenterX;
+                ghost.color = new Color(tint.r, tint.g, tint.b, .42f);
+                ghost.Pose(action == FighterAction.Idle && moving ? FighterAction.Walk : action, progress, clock);
+                ghost.gameObject.AddComponent<FadeAway>().Duration = seconds;
+            }
+        }
 
         private void LateUpdate()
         {
