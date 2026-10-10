@@ -17,8 +17,10 @@ namespace IOSVN.TuTien.Core
             if (shader == null) return;
             if (owner.tint == null) owner.tint = new Material(shader) { name = "Character appearance", hideFlags = HideFlags.DontSave };
             var fullBody = image.sprite.texture.name.StartsWith("FullBodyActors");
+            var inkActor = image.sprite.texture.name == "FullBodyActorsV3";
             var female = look.Get("g", "m") == "f";
             var center = FaceCenter(female, !fullBody);
+            if (inkActor) center = new Vector2(female ? .43f : .51f, female ? .84f : .86f);
             owner.tint.SetVector("_Face", new Vector4(center.x, center.y, fullBody ? .072f : .11f, fullBody ? .060f : .095f));
             owner.tint.SetFloat("_HairStart", fullBody ? .75f : .69f);
             owner.tint.SetFloat("_RobeEnd", fullBody ? .74f : .69f);
@@ -28,7 +30,7 @@ namespace IOSVN.TuTien.Core
             owner.tint.SetColor("_RobeTint", ColorOf(look, "oc", "#2f5f63"));
             owner.tint.SetColor("_SkinTint", ColorOf(look, "sk", "#f0d2b4"));
             owner.tint.SetColor("_EyeTint", ColorOf(look, "ec", "#4d3732"));
-            owner.tint.SetFloat("_EyeY", fullBody ? (female ? .868f : .902f) : (female ? .840f : .824f));
+            owner.tint.SetFloat("_EyeY", inkActor ? (female ? .861f : .889f) : fullBody ? (female ? .868f : .902f) : (female ? .840f : .824f));
             owner.tint.SetFloat("_EyeSpacing", fullBody ? .017f : .034f);
             image.material = owner.tint;
         }

@@ -65,7 +65,12 @@ namespace IOSVN.TuTien.Core
             var halo = InkUi.Simple(doll, "Halo", InkUi.Glow, new Color(.92f, .76f, .46f, .16f), Vector2.zero);
             halo.rectTransform.anchorMin = new Vector2(.1f, .12f); halo.rectTransform.anchorMax = new Vector2(.9f, .92f);
             halo.rectTransform.offsetMin = halo.rectTransform.offsetMax = Vector2.zero;
-            if (AvatarComposer.Available)
+            if (CultivatorFigure2D.Available)
+            {
+                var frame = Anchored("Figure", doll, Vector2.zero, Vector2.one, new Vector2(70, 46), new Vector2(-70, -54));
+                CultivatorFigure2D.Create(frame, LookOf(player));
+            }
+            else if (AvatarComposer.Available)
             {
                 // the figure fits its parent, so a frame keeps it clear of the name above and the realm line below
                 var frame = Anchored("Figure", doll, Vector2.zero, Vector2.one, new Vector2(70, 46), new Vector2(-70, -54));
@@ -266,7 +271,11 @@ namespace IOSVN.TuTien.Core
         {
             try
             {
-                var frames = PixelSkillArt.Frames(skill["id"].Str(), skill["name"].Str(), skill["kind"].Str(), hub["player"]["ascended"].Bool());
+                // the same painted ink icons as the battle skill buttons (the old 32px pixel frames are retired)
+                var name = skill["name"].Str();
+                var painted = BattleInkIcons.Skill(name, BattleFx.ElementOfSkill(name, skill["element"].Str("kim")));
+                if (painted != null) return painted;
+                var frames = PixelSkillArt.Frames(skill["id"].Str(), name, skill["kind"].Str(), hub["player"]["ascended"].Bool());
                 if (frames != null && frames.Length > 0 && frames[0] != null) return frames[0];
             }
             catch (Exception) { }
@@ -390,7 +399,15 @@ namespace IOSVN.TuTien.Core
             GlassPanel(right, 26f, new Color32(22, 28, 34, 248), new Color32(12, 18, 24, 248));
             var portraitArea = Anchored("Portrait", left, new Vector2(0, .22f), Vector2.one, Vector2.zero, Vector2.zero);
             GlassPanel(portraitArea, 26f, new Color32(26, 30, 34, 220), new Color32(14, 18, 20, 220));
-            if (CultivatorPuppet2D.Available)
+            if (CultivatorFigure2D.Available)
+            {
+                // waist-up portrait of the same layered figure, clipped to its panel
+                var portraitClip = Anchored("PortraitClip", portraitArea, Vector2.zero, Vector2.one, new Vector2(6, 6), new Vector2(-6, -6));
+                portraitClip.gameObject.AddComponent<RectMask2D>();
+                var bust = CultivatorFigure2D.Create(portraitClip, LookOf(player), CultivatorFigure2D.Framing.Bust);
+                bust.SetFacing(true);
+            }
+            else if (CultivatorPuppet2D.Available)
             {
                 CultivatorPuppet2D.Create(portraitArea, LookOf(player));
             }

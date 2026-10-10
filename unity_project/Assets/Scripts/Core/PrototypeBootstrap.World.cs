@@ -32,6 +32,7 @@ namespace IOSVN.TuTien.Core
         private RectTransform miniViewport, miniMapFrame, miniMapRoot;
         private Rect miniTileBounds;
         private string miniRegionId;
+        private WorldFog worldFog;
         private WorldHudTicker hudTicker;
         private bool hudActionAuto;
         private WorldPoi promptPoi;
@@ -97,11 +98,11 @@ namespace IOSVN.TuTien.Core
             worldView.transform.SetAsFirstSibling();
             var player = hub["player"];
             var spawn = ResolveWorldSpawn(data, player, town["id"].Str());
-            var me = worldView.AddActor("me", "player", spawn, QcbhSkinnedActor2D.Available ? null : HeroFramesFor(player), null, HeroSize,
+            var me = worldView.AddActor("me", "player", spawn, CultivatorFigure2D.Available ? null : HeroFramesFor(player), null, HeroSize,
                 Clean(player["name"].Str("Đạo hữu")), new Color32(255, 240, 200, 255));
-            if (QcbhSkinnedActor2D.Available)
+            if (CultivatorFigure2D.Available)
             {
-                me.Rig = QcbhSkinnedActor2D.Create(me.Rect, LookOf(player));
+                me.Rig = CultivatorFigure2D.Create(me.Rect, LookOf(player));
                 me.Body.enabled = false;
                 me.Frames = null;
                 me.TagHeight = HeroSize.y + 18f;
@@ -112,6 +113,12 @@ namespace IOSVN.TuTien.Core
             worldView.Player = me;
             worldView.Teleport(me, spawn);
             lastSavedTile = worldView.TileOf(spawn);
+            worldFog = WorldFog.Attach(worldView);
+            worldFog?.Reveal(spawn, WorldFog.RevealRadius * 1.6f);
+            // towns are known places (they are on the big map too): their ground is never under the haze
+            if (worldFog != null)
+                foreach (var t in data.towns)
+                    if (t != null) worldFog.Reveal(new Vector2(t.x + t.w * .5f, t.y + t.h * .5f), Mathf.Max(t.w, t.h) * .5f + WorldFog.TownRevealPad);
             worldView.OnGroundTap = cell =>
             {
                 if (!worldView.WalkTo(cell, SaveWorldTile)) Toast("Không có đường tới đó.", true);
@@ -243,12 +250,12 @@ namespace IOSVN.TuTien.Core
                     case "city":
                         var town = data.Town(poi.townId);
                         var cityName = Clean(town?.name ?? poi.label);
-                        var cityTag = PlaceTag(cityName, "location", 16, new Color32(255, 239, 192, 255));
-                        var gate = town?.gate;
-                        var labelTile = gate != null && gate.Length >= 2
-                            ? new Vector2(gate[0], gate[1] - (town.big ? 23f : 20f))
-                            : new Vector2(poi.x, poi.y - 5.2f);
-                        worldView.AddLabel(cityTag, labelTile, Vector2.zero, .72f);
+                        var cityTag = PlaceTag(cityName, "location", 17, new Color32(255, 239, 192, 255), true);
+                        // the name plate sits centred just under the painted fortress (the art is ~20 tiles tall)
+                        var labelTile = town != null
+                            ? new Vector2(town.x + town.w * .5f - .5f, town.y + town.h * .5f + (town.big ? 12.5f : 10.5f))
+                            : new Vector2(poi.x, poi.y + 2f);
+                        worldView.AddLabel(cityTag, labelTile, Vector2.zero, .5f);
                         break;
                     case "dungeon":
                         worldView.AddLabel(PlaceTag(poi.label, "co_dong", 18, new Color32(226, 206, 255, 255)), new Vector2(poi.x, poi.y - 3.6f), Vector2.zero, .88f);
@@ -279,9 +286,19 @@ namespace IOSVN.TuTien.Core
         }
 
         /// <summary>Map label with an icon in front: caves and hunting grounds must be easy to spot.</summary>
-        private RectTransform PlaceTag(string text, string iconId, int fontSize, Color color)
+        private RectTransform PlaceTag(string text, string iconId, int fontSize, Color color, bool city = false)
         {
             var tag = InkUi.Tag(worldView.LabelLayer, Clean(text), fontSize, color, 46f);
+            // a clean dark plate with a thin gold rim instead of the ragged brush stroke (unreadable on the light map)
+            var plate = tag.GetComponent<Image>();
+            ModernUi.Fill(plate, 12f);
+            plate.color = city ? new Color32(30, 22, 14, 232) : new Color32(18, 20, 24, 222);
+            tag.sizeDelta = new Vector2(tag.sizeDelta.x - 18f, Mathf.Round(fontSize * 1.9f));
+            var rim = Anchored("Rim", tag, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+            ModernUi.Ring(rim, 12f, 1.2f);
+            rim.color = city ? new Color32(232, 196, 120, 230) : new Color32(200, 170, 120, 170);
+            rim.raycastTarget = false;
+            rim.transform.SetAsFirstSibling();
             var icon = Anchored("Icon", tag, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(10, -17), new Vector2(44, 17)).gameObject.AddComponent<Image>();
             icon.sprite = UiPixelIcon(iconId);
             icon.preserveAspect = true;
@@ -333,7 +350,7 @@ namespace IOSVN.TuTien.Core
                 else
                 {
                     var town = worldData.Town(hub["town"]["id"].Str());
-                    var center = town != null ? new Vector2Int(town.gate[0], town.gate[1] + 6) : new Vector2Int(worldData.w / 2, worldData.h / 2);
+                    var center = town != null ? new Vector2Int(town.gate[0], town.gate[1] + 13) : new Vector2Int(worldData.w / 2, worldData.h / 2);
                     tile = center;
                     range = new RectInt(center.x - 8, center.y - 4, 16, 10);
                 }
@@ -1078,7 +1095,14 @@ namespace IOSVN.TuTien.Core
             var portraitRect = Anchored("Portrait", portraitMask, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             try
             {
-                var face = CultivatorPuppet2D.Portrait(LookOf(player));
+                Sprite face = null;
+                if (CultivatorFigure2D.Available)
+                {
+                    // live layered head: blinks and breathes like the full figure
+                    var head = CultivatorFigure2D.Create(portraitRect, LookOf(player), CultivatorFigure2D.Framing.Head);
+                    head.SetFacing(true);
+                }
+                else face = CultivatorPuppet2D.Portrait(LookOf(player));
                 if (face != null)
                 {
                     var portrait = portraitRect.gameObject.AddComponent<Image>();
@@ -1087,7 +1111,7 @@ namespace IOSVN.TuTien.Core
                     portrait.preserveAspect = true;
                     portrait.raycastTarget = false;
                 }
-                else
+                else if (!CultivatorFigure2D.Available)
                 {
                     var portrait = portraitRect.gameObject.AddComponent<RawImage>();
                     portrait.texture = AvatarComposer.Available ? AvatarComposer.Compose(LookOf(player)) : null;
@@ -1131,109 +1155,158 @@ namespace IOSVN.TuTien.Core
             AnchoredText(bar, "Text", $"{label}  {Vn(value)}/{Vn(max)}", ModernUi.SemiBold, 14, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         }
 
+        // ------------------------------------------------------------------ minimap (Quỷ Cốc style)
+        // A square window that follows the traveller: region name on a title strip, cloud over unexplored
+        // land, an icon per kind of place (town, cave, gate), a heading arrow and zoom buttons.
+
+        private static readonly float[] MiniSpans = { 48f, 72f, 110f, 170f };
+        private int miniZoom = 1;
+        private RawImage miniPaint, miniFogImage;
+        private Text miniTitle, miniSubtitle;
+        private RectTransform miniIconLayer;
+        private readonly List<(RectTransform rect, Vector2 tile, bool known)> miniIcons = new List<(RectTransform, Vector2, bool)>();
+        private readonly Dictionary<string, Image> miniMonsterDots = new Dictionary<string, Image>();
+        private RectTransform miniDotLayer;
+        private Vector2 miniLastPos;
+        private float miniHeading;
+
         private void BuildMiniMap(RectTransform root, WorldMapData data)
         {
             if (miniMapFrame != null) { miniMapFrame.gameObject.SetActive(false); Destroy(miniMapFrame.gameObject); }
             miniMapRoot = root;
-            var playerRegion = data.RegionAt(Mathf.FloorToInt(worldView.Player?.Pos.x ?? 0f), Mathf.FloorToInt(worldView.Player?.Pos.y ?? 0f));
-            miniRegionId = playerRegion?.id;
-            miniTileBounds = playerRegion == null ? new Rect(0, 0, data.w, data.h)
-                : new Rect(playerRegion.x, playerRegion.y, playerRegion.w, playerRegion.h);
-            var miniHeight = 240f;
-            var miniWidth = miniHeight * miniTileBounds.width / miniTileBounds.height;
-            var frameWidth = miniWidth + 16f;
-            var frameHeight = miniHeight + 33f;
+            miniIcons.Clear();
+            miniMonsterDots.Clear();
+            miniRegionId = null;
+            miniZoom = Mathf.Clamp(PlayerPrefs.GetInt("tt_minimap_zoom2", 2), 0, MiniSpans.Length - 1);
+            const float side = 250f, titleH = 40f, footH = 34f, pad = 7f;
             var frame = Anchored("MiniMap", root, new Vector2(1, 1), new Vector2(1, 1),
-                new Vector2(-frameWidth - 20f, -frameHeight - 20f), new Vector2(-20, -20));
+                new Vector2(-side - pad * 2 - 18f, -side - titleH - footH - pad * 2 - 18f), new Vector2(-18f, -18f));
             miniMapFrame = frame;
-            var bg = ModernSurface(frame, new Color32(12, 18, 24, 242), 14f, new Color32(232, 196, 120, 165), true);
+            ModernSurface(frame, new Color32(16, 20, 24, 240), 10f, new Color32(214, 178, 108, 200));
 
-            var map = Anchored("Map", frame, Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -25));
-            var texture = worldView.Painting.texture as Texture2D;
+            // title strip: the region the traveller stands in, with the realm map name under it
+            var title = Anchored("Title", frame, new Vector2(0, 1), new Vector2(1, 1), new Vector2(pad, -titleH - pad + 2f), new Vector2(-pad, -pad + 2f));
+            var titleBg = title.gameObject.AddComponent<Image>();
+            titleBg.sprite = InkUi.Glow;
+            titleBg.color = new Color32(122, 86, 44, 120);
+            titleBg.raycastTarget = false;
+            miniTitle = AnchoredText(title, "Region", "", ModernUi.Display, 20, HudCream, TextAnchor.MiddleCenter,
+                new Vector2(0, .36f), Vector2.one, new Vector2(30, 0), new Vector2(-30, 0));
+            miniTitle.resizeTextForBestFit = true; miniTitle.resizeTextMinSize = 13; miniTitle.resizeTextMaxSize = 20;
+            miniTitle.raycastTarget = false;
+            UiGradient.Apply(miniTitle, AuthGoldTop, AuthGoldBottom);
+            miniSubtitle = AnchoredText(title, "World", Clean(data.name), ModernUi.Regular, 11, new Color32(205, 198, 182, 255), TextAnchor.MiddleCenter,
+                Vector2.zero, new Vector2(1, .42f), new Vector2(30, 0), new Vector2(-30, 0));
+            miniSubtitle.raycastTarget = false;
+
+            // the map window
+            var map = Anchored("Map", frame, Vector2.zero, Vector2.one, new Vector2(pad, footH + pad), new Vector2(-pad, -titleH - pad));
             map.gameObject.AddComponent<RectMask2D>();
-            var image = map.gameObject.AddComponent<RawImage>();
-            image.texture = texture;
-            var crop = worldView.Painting.uvRect;
-            image.uvRect = new Rect(crop.x + crop.width * miniTileBounds.x / data.w,
-                crop.y + crop.height * (1f - miniTileBounds.yMax / data.h),
-                crop.width * miniTileBounds.width / data.w, crop.height * miniTileBounds.height / data.h);
-            image.color = Color.white;
-            image.raycastTarget = false;
+            var mapBg = map.gameObject.AddComponent<Image>();
+            mapBg.color = new Color32(214, 206, 188, 255);
+            mapBg.raycastTarget = true;
             miniMapRect = map;
-
-            var realmIndex = offlinePreview ? offlineProgress.realmIndex : hub["realm"]["index"].Int();
-            foreach (var region in data.regions)
+            miniPaint = Anchored("Painting", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
+            miniPaint.texture = worldView.Painting.texture;
+            miniPaint.raycastTarget = false;
+            if (worldFog != null)
             {
-                if (region == null || (playerRegion != null && region.id != playerRegion.id)) continue;
-                var xMin = (region.x - miniTileBounds.x) / miniTileBounds.width;
-                var xMax = (region.x + region.w - miniTileBounds.x) / miniTileBounds.width;
-                var yMin = 1f - (region.y + region.h - miniTileBounds.y) / miniTileBounds.height;
-                var yMax = 1f - (region.y - miniTileBounds.y) / miniTileBounds.height;
-                var area = Anchored("Province_" + region.id, map, new Vector2(xMin, yMin), new Vector2(xMax, yMax), Vector2.zero, Vector2.zero);
-                var isCurrent = playerRegion != null && playerRegion.id == region.id || worldMapId == region.id;
-                var unlocked = region.realmMin <= realmIndex;
-                var border = area.gameObject.AddComponent<Image>();
-                ModernUi.Ring(border, 8f, isCurrent ? 1.5f : .8f);
-                border.color = isCurrent ? new Color32(255, 215, 126, 230)
-                    : unlocked ? new Color32(244, 238, 218, 170) : new Color32(157, 170, 176, 125);
-                border.raycastTarget = false;
+                miniFogImage = Anchored("Fog", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<RawImage>();
+                miniFogImage.texture = worldFog.Texture;
+                miniFogImage.raycastTarget = false;
+            }
+            miniIconLayer = Anchored("Icons", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+
+            miniDotLayer = Anchored("Monsters", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            void Icon(string kind, string iconId, Vector2 tile, float size, Color tint, bool known = false)
+            {
+                var at = Anchored("Icon_" + kind, miniIconLayer, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-size / 2, -size / 2), new Vector2(size / 2, size / 2));
+                var halo = at.gameObject.AddComponent<Image>();
+                halo.sprite = InkUi.Glow;
+                halo.color = new Color32(20, 16, 12, 120);
+                halo.raycastTarget = false;
+                var img = Anchored("Glyph", at, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2)).gameObject.AddComponent<Image>();
+                img.sprite = UiPixelIcon(iconId);
+                img.preserveAspect = true;
+                img.color = tint;
+                img.raycastTarget = false;
+                miniIcons.Add((at, tile, known));
             }
             foreach (var town in data.towns)
             {
-                if (town?.gate == null || !miniTileBounds.Contains(new Vector2(town.gate[0], town.gate[1]))) continue;
-                var townHalf = town.big ? 5.8f : 4.4f;
-                var townAt = MiniMapPoint(new Vector2(town.gate[0] + .5f, town.gate[1] + .5f));
-                var dot = Anchored("Town", map, townAt, townAt, new Vector2(-townHalf, -townHalf), new Vector2(townHalf, townHalf)).gameObject.AddComponent<Image>();
-                dot.sprite = InkUi.Glow;
-                dot.color = HudGold;
-                dot.raycastTarget = false;
+                if (town == null) continue;
+                // the town marker sits on the fortress itself, and towns are always shown (known places)
+                Icon("town", "phuong_thi", new Vector2(town.x + town.w * .5f, town.y + town.h * .5f), town.big ? 26f : 21f, Color.white, true);
             }
-            // Keep gates visible on this compact map. Towns, caves and hunting grounds are
-            // available as individually selectable layers on the full atlas.
             foreach (var poi in data.pois)
             {
-                if (poi == null || (poi.kind != "province_gate" && poi.kind != "ascension_gate")) continue;
-                if (!miniTileBounds.Contains(new Vector2(poi.x, poi.y))) continue;
-                var at = MiniMapPoint(new Vector2(poi.x + .5f, poi.y + .5f));
-                var half = poi.kind == "ascension_gate" ? 6f : 4.5f;
-                var mark = Anchored("Mark_" + poi.kind, map, at, at, new Vector2(-half, -half), new Vector2(half, half)).gameObject.AddComponent<Image>();
-                mark.sprite = InkUi.Glow;
-                mark.color = poi.kind == "ascension_gate" ? new Color32(255, 226, 144, 255)
-                    : new Color32(135, 221, 255, 235);
-                mark.raycastTarget = false;
+                if (poi == null) continue;
+                var tile = new Vector2(poi.x + .5f, poi.y + .5f);
+                switch (poi.kind)
+                {
+                    case "dungeon": Icon("cave", "co_dong", tile, 17f, Color.white); break;
+                    case "province_gate": Icon("gate", "road", tile, 18f, Color.white); break;
+                    case "ascension_gate": Icon("ascend", "teleport", tile, 22f, Color.white); break;
+                    case "portal": Icon("portal", "teleport", tile, 16f, new Color(.8f, .9f, 1f)); break;
+                }
             }
+
             miniViewport = Anchored("CameraViewport", map, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             var viewBorder = miniViewport.gameObject.AddComponent<Image>();
-            ModernUi.Ring(viewBorder, 6f, 1.4f);
+            ModernUi.Ring(viewBorder, 4f, 1.2f);
             viewBorder.fillCenter = false;
-            viewBorder.color = new Color32(255, 250, 224, 210);
+            viewBorder.color = new Color32(255, 250, 224, 150);
             viewBorder.raycastTarget = false;
-            miniPlayerDot = Anchored("Me", map, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-9f, -9f), new Vector2(9f, 9f));
-            var me = miniPlayerDot.gameObject.AddComponent<Image>();
-            ModernUi.Fill(me, 9f);
-            me.color = new Color32(255, 80, 60, 255);
-            me.raycastTarget = false;
+
+            miniPlayerDot = Anchored("Me", map, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-12f, -12f), new Vector2(12f, 12f));
+            var meHalo = miniPlayerDot.gameObject.AddComponent<Image>();
+            meHalo.sprite = InkUi.Glow;
+            meHalo.color = new Color32(255, 214, 120, 150);
+            meHalo.raycastTarget = false;
+            var arrow = Anchored("Arrow", miniPlayerDot, Vector2.zero, Vector2.one, new Vector2(3, 3), new Vector2(-3, -3)).gameObject.AddComponent<Image>();
+            arrow.sprite = ModernUi.Icon("arrowRight");
+            arrow.color = new Color32(214, 44, 36, 255);
+            arrow.raycastTarget = false;
+            miniLastPos = worldView.Player != null ? worldView.Player.Pos : Vector2.zero;
+
+            // compass
+            var north = AnchoredText(map, "North", "BẮC", ModernUi.SemiBold, 11, new Color32(120, 30, 24, 255), TextAnchor.MiddleCenter,
+                new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(-22, -18), new Vector2(22, -2));
+            north.raycastTarget = false;
+
+            // footer: time of day, zoom, open the big map
+            var foot = Anchored("Foot", frame, Vector2.zero, new Vector2(1, 0), new Vector2(pad, pad - 1f), new Vector2(-pad, footH + pad - 3f));
+            var phase = hub["timePhase"];
+            var when = AnchoredText(foot, "When", Clean(phase["name"].Str("Ban ngày")), ModernUi.Regular, 13, HudCream, TextAnchor.MiddleLeft,
+                Vector2.zero, new Vector2(.42f, 1), new Vector2(4, 0), Vector2.zero);
+            when.raycastTarget = false;
+            void FootButton(string name, string label, float x0, float x1, Action click)
+            {
+                var r = Anchored(name, foot, new Vector2(x0, 0), new Vector2(x1, 1), new Vector2(2, 2), new Vector2(-2, -2));
+                var fill = ModernSurface(r, new Color32(46, 40, 32, 255), 7f, new Color32(214, 178, 108, 190), true);
+                var b = r.gameObject.AddComponent<Button>();
+                b.targetGraphic = fill;
+                b.onClick.AddListener(() => click());
+                var t = AnchoredText(r, "Label", label, ModernUi.SemiBold, label.Length > 2 ? 12 : 18, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                t.raycastTarget = false;
+                r.gameObject.AddComponent<UiPressScale>();
+            }
+            FootButton("ZoomIn", "+", .42f, .54f, () => SetMiniZoom(miniZoom - 1));
+            FootButton("ZoomOut", "−", .54f, .66f, () => SetMiniZoom(miniZoom + 1));
+            FootButton("Atlas", "BẢN ĐỒ LỚN", .66f, 1f, () => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
+
+            var open = map.gameObject.AddComponent<Button>();
+            open.transition = Selectable.Transition.None;
+            open.targetGraphic = mapBg;
+            open.onClick.AddListener(() => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
             UpdateMiniPlayer();
-            var button = frame.gameObject.AddComponent<Button>();
-            button.targetGraphic = bg;
-            button.onClick.AddListener(() => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
-            frame.gameObject.AddComponent<UiPressScale>();
+        }
 
-            var northBadge = Anchored("North", frame, new Vector2(0, 1), new Vector2(0, 1), new Vector2(9, -24), new Vector2(53, -5));
-            var nimg = northBadge.gameObject.AddComponent<Image>();
-            ModernSurface(northBadge, new Color32(12, 18, 24, 225), 9f, new Color32(232, 196, 120, 160));
-            nimg.raycastTarget = false;
-            var nText = AnchoredText(northBadge, "N", "↑ BẮC", ModernUi.SemiBold, 11, Gold, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            nText.raycastTarget = false;
-            PixelUiSkin.ApplyTextTreatment(nText);
-
-            var hintPlate = Anchored("HintPlate", frame, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-126, 5), new Vector2(-8, 24));
-            var hintBack = hintPlate.gameObject.AddComponent<Image>();
-            ModernSurface(hintPlate, new Color32(12, 18, 24, 230), 9f, new Color32(232, 196, 120, 160));
-            hintBack.raycastTarget = false;
-            var hint = AnchoredText(hintPlate, "Hint", "BẢN ĐỒ LỚN", ModernUi.SemiBold, 11, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, new Vector2(4, 0), new Vector2(-4, 0));
-            hint.raycastTarget = false;
-            PixelUiSkin.ApplyTextTreatment(hint);
+        private void SetMiniZoom(int zoom)
+        {
+            miniZoom = Mathf.Clamp(zoom, 0, MiniSpans.Length - 1);
+            PlayerPrefs.SetInt("tt_minimap_zoom2", miniZoom);
+            UpdateMiniPlayer();
         }
 
         private void BuildVirtualDpad(RectTransform root)
@@ -1254,7 +1327,7 @@ namespace IOSVN.TuTien.Core
                 var btnRect = Anchored(name, dpad, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
                 var btnImg = btnRect.gameObject.AddComponent<Image>();
                 ModernUi.Fill(btnImg, 14f);
-                btnImg.color = new Color32(34, 38, 46, 200);
+                btnImg.color = new Color32(34, 38, 46, 240);
                 // the game fonts have no arrow glyphs: use the arrow icon, turned
                 var glyph = Anchored("Icon", btnRect, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-17, -17), new Vector2(17, 17)).gameObject.AddComponent<Image>();
                 glyph.sprite = ModernUi.Icon("arrowRight");
@@ -1283,20 +1356,99 @@ namespace IOSVN.TuTien.Core
         {
             if (miniPlayerDot == null || worldView?.Player == null || worldData == null) return;
             var p = worldView.Player.Pos;
-            var region = worldData.RegionAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
-            if (region?.id != miniRegionId && miniMapRoot != null) { BuildMiniMap(miniMapRoot, worldData); return; }
+            worldFog?.Reveal(p);
+            // the window follows the traveller, kept inside the world
+            var span = MiniSpans[Mathf.Clamp(miniZoom, 0, MiniSpans.Length - 1)];
+            var spanX = Mathf.Min(span, worldData.w);
+            var spanY = Mathf.Min(span, worldData.h);
+            var x0 = Mathf.Clamp(p.x - spanX / 2f, 0f, worldData.w - spanX);
+            var y0 = Mathf.Clamp(p.y - spanY / 2f, 0f, worldData.h - spanY);
+            miniTileBounds = new Rect(x0, y0, spanX, spanY);
+            if (miniPaint != null)
+            {
+                var crop = worldView.Painting.uvRect;
+                miniPaint.uvRect = new Rect(crop.x + crop.width * x0 / worldData.w,
+                    crop.y + crop.height * (1f - (y0 + spanY) / worldData.h),
+                    crop.width * spanX / worldData.w, crop.height * spanY / worldData.h);
+            }
+            if (miniFogImage != null)
+                miniFogImage.uvRect = new Rect(x0 / worldData.w, 1f - (y0 + spanY) / worldData.h, spanX / worldData.w, spanY / worldData.h);
+            foreach (var (rect, tile, known) in miniIcons)
+            {
+                if (rect == null) continue;
+                var inside = miniTileBounds.Contains(tile) && (known || worldFog == null || worldFog.IsExplored(Mathf.FloorToInt(tile.x), Mathf.FloorToInt(tile.y)));
+                if (rect.gameObject.activeSelf != inside) rect.gameObject.SetActive(inside);
+                if (inside) rect.anchorMin = rect.anchorMax = MiniMapPoint(tile);
+            }
+            UpdateMiniMonsters();
             miniPlayerDot.anchorMin = miniPlayerDot.anchorMax = MiniMapPoint(p + Vector2.one * .5f);
+            var step = p - miniLastPos;
+            if (step.sqrMagnitude > .0004f)
+            {
+                // screen y runs opposite to tile y
+                miniHeading = Mathf.Atan2(-step.y, step.x) * Mathf.Rad2Deg;
+                miniLastPos = p;
+            }
+            miniPlayerDot.localRotation = Quaternion.Euler(0, 0, miniHeading);
             if (miniViewport != null)
             {
                 var view = worldView.VisibleTiles;
                 miniViewport.anchorMin = MiniMapPoint(new Vector2(view.xMin, view.yMax));
                 miniViewport.anchorMax = MiniMapPoint(new Vector2(view.xMax, view.yMin));
             }
+            if (miniTitle != null)
+            {
+                var region = worldData.RegionAt(Mathf.FloorToInt(p.x), Mathf.FloorToInt(p.y));
+                var name = Clean(region?.name ?? worldData.name);
+                if (miniRegionId != region?.id)
+                {
+                    // crossing into another region: announce it with a brush title over the map
+                    if (miniRegionId != null && region != null && miniMapRoot != null)
+                        RegionBanner.Show(miniMapRoot, Clean(region.name), Clean(worldData.name), ModernUi.Display, ModernUi.Regular);
+                    miniRegionId = region?.id;
+                    miniTitle.text = name;
+                }
+            }
+        }
+
+        /// <summary>Red dots for the beasts and bosses roaming inside the minimap window.</summary>
+        private void UpdateMiniMonsters()
+        {
+            if (miniDotLayer == null) return;
+            foreach (var pair in worldMonsterActors)
+            {
+                var actor = pair.Value;
+                if (!miniMonsterDots.TryGetValue(pair.Key, out var dot) || dot == null)
+                {
+                    var boss = actor.Kind == "boss";
+                    var size = boss ? 13f : 8f;
+                    var r = Anchored("Dot_" + pair.Key, miniDotLayer, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-size / 2, -size / 2), new Vector2(size / 2, size / 2));
+                    dot = r.gameObject.AddComponent<Image>();
+                    ModernUi.Fill(dot, size / 2);
+                    dot.color = boss ? new Color32(236, 52, 40, 255) : new Color32(236, 140, 60, 235);
+                    dot.raycastTarget = false;
+                    var ring = Anchored("Ring", r, Vector2.zero, Vector2.one, new Vector2(-1, -1), new Vector2(1, 1)).gameObject.AddComponent<Image>();
+                    ModernUi.Ring(ring, size / 2 + 1, 1f);
+                    ring.color = new Color32(30, 10, 8, 200);
+                    ring.raycastTarget = false;
+                    miniMonsterDots[pair.Key] = dot;
+                }
+                var t = actor.Pos + Vector2.one * .5f;
+                var show = actor.Rect != null && !actor.Hidden && miniTileBounds.Contains(t);
+                if (dot.gameObject.activeSelf != show) dot.gameObject.SetActive(show);
+                if (show) dot.rectTransform.anchorMin = dot.rectTransform.anchorMax = MiniMapPoint(t);
+            }
+            foreach (var key in new List<string>(miniMonsterDots.Keys))
+            {
+                if (worldMonsterActors.ContainsKey(key)) continue;
+                if (miniMonsterDots[key] != null) Destroy(miniMonsterDots[key].gameObject);
+                miniMonsterDots.Remove(key);
+            }
         }
 
         private Vector2 MiniMapPoint(Vector2 tile) => new Vector2(
-            Mathf.Clamp01((tile.x - miniTileBounds.x) / miniTileBounds.width),
-            Mathf.Clamp01(1f - (tile.y - miniTileBounds.y) / miniTileBounds.height));
+            Mathf.Clamp01((tile.x - miniTileBounds.x) / Mathf.Max(1f, miniTileBounds.width)),
+            Mathf.Clamp01(1f - (tile.y - miniTileBounds.y) / Mathf.Max(1f, miniTileBounds.height)));
 
         private Button WuxiaHudButton(RectTransform rect, string label, string iconId, Action click, Color? bgColor = null, Color? textColor = null)
         {
@@ -1335,7 +1487,7 @@ namespace IOSVN.TuTien.Core
 
         private void BuildMenuColumn(RectTransform root)
         {
-            var button = Anchored("WorldMenuButton", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-204, -347), new Vector2(-20, -291));
+            var button = Anchored("WorldMenuButton", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-204, -430), new Vector2(-20, -374));   // under the minimap (356 px tall)
             WuxiaHudButton(button, "Tiện ích", "compass", OpenWorldMenu);
         }
 

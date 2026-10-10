@@ -928,7 +928,7 @@ namespace IOSVN.TuTien.Core
         private Image body, flash;
         private Sprite[] frames;
         private Sprite paintedBody;
-        private QcbhSkinnedActor2D rig;
+        private CultivatorFigure2D rig;
         private AuraAnimator aura;
         private LookSpec look;
         private FighterAction action = FighterAction.Idle;
@@ -958,11 +958,11 @@ namespace IOSVN.TuTien.Core
             view.paintedBody = painted;
             view.frames = painted == null ? HeroSprites.Get(look) : null;
             var auraBack = Layer(rect, "AuraBack");
-            if (QcbhSkinnedActor2D.Available)
+            if (CultivatorFigure2D.Available)
             {
-                var actorAtlas = QcbhSkinnedActor2D.ActorAtlas(look);
-                rect.sizeDelta = new Vector2(characterHeight * actorAtlas.width * .5f / actorAtlas.height, characterHeight);
-                view.rig = QcbhSkinnedActor2D.Create(rect, look);
+                rect.sizeDelta = new Vector2(characterHeight * CultivatorFigure2D.Width / CultivatorFigure2D.Height, characterHeight);
+                view.rig = CultivatorFigure2D.Create(rect, look);
+                view.rig.Running = true;
             }
             view.body = Layer(rect, "Body", painted != null);
             if (view.rig != null) view.body.enabled = false;

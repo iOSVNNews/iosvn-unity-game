@@ -957,12 +957,14 @@ const THIEN_KIEU_USERS = new Set(['1354709393', '5811879139']);
 const SCROLL_PRICE = { pt: 20, hiem: 200, cuchiem: 2000, tt: 10000, cam: 25000, vang: 50000, docban: 1000000 };
 const SLOT_NAMES = { weapon: 'Vũ khí', armor: 'Giáp', acc1: 'Trang sức 1', acc2: 'Trang sức 2', ring1: 'Nhẫn / Vòng 1', ring2: 'Nhẫn / Vòng 2', phiKiem: 'Phi kiếm / Tọa kỵ', loDinh: 'Lô đỉnh', nhanTruDo: 'Nhẫn Trữ Đồ', nhanNaDi: 'Nhẫn Dịch Chuyển' };
 
-const LOOK_STYLE_KEYS = { preset: 10, bo: 4, fa: 4, ea: 3, ey: 8, br: 5, no: 4, mo: 5, bd: 5, ha: 10, ti: 4, to: 6, tot: 6, pa: 4, sh: 3, be: 3, hat: 6, wp: 11, au: 6 };
-const LOOK_COLOR_KEYS = ['sk', 'hc', 'ec', 'tc', 'oc', 'pc', 'sc', 'bc', 'hac', 'ac', 'auc'];   // 'wc' (weapon colour) only comes from equipment, see wornLook
+const LOOK_STYLE_KEYS = { preset: 10, bo: 4, fa: 4, ea: 3, ey: 8, br: 5, no: 4, mo: 5, bd: 5, ha: 10, ti: 4, to: 6, tot: 6, pa: 4, sh: 3, be: 3, hat: 6, wp: 11, au: 6,
+    // layered figure: forehead mark and feature placement sliders (10 = default position)
+    ma: 6, ez: 21, es: 21, eh: 21, bh: 21, nh: 21, mh: 21 };
+const LOOK_COLOR_KEYS = ['sk', 'hc', 'ec', 'tc', 'oc', 'pc', 'sc', 'bc', 'hac', 'ac', 'auc', 'mc'];   // 'wc' (weapon colour) only comes from equipment, see wornLook
 
 /** Validates the layered-avatar look string ("g=m;fa=0;hc=#1e1a1e;..."). Returns { text, values } or null. */
 function sanitizeLook(text, gender) {
-    if (typeof text !== 'string' || !text || text.length > 400) return null;
+    if (typeof text !== 'string' || !text || text.length > 800) return null;
     const values = {};
     for (const part of text.split(';')) {
         const i = part.indexOf('=');
@@ -1100,7 +1102,7 @@ function itemName(item) {
 }
 
 // What the figure wears follows the equipment: the weapon in hand is the equipped weapon type in its
-// quality colour, armour replaces the outer robe. Style ids match the client's layered-avatar parts.
+// quality colour; the robe stays the creator's. Style ids match the client's layered-avatar parts.
 const WORN_WEAPON_STYLE = { kiem: 4, trongkhi: 5, phapkhi: 6, bua: 7, but: 8, quyensao: 9, dinh: 10 };
 const WORN_TIER_COLOR = { pham: '#a9a391', hoang: '#7fd08a', huyen: '#64b5f0', dia: '#b69cff', thien: '#f0a24e', tien: '#ff6a5c' };
 const WORN_ARMOR_COLORS = {
@@ -1130,18 +1132,8 @@ function wornLook(p) {
         set('wp', WORN_WEAPON_STYLE[weapon.wtype]);
         set('wc', WORN_TIER_COLOR[weapon.tier] || WORN_TIER_COLOR.pham);
     }
-    const armor = equipped('armor');
-    if (armor) {
-        const name = String(armor.name || '');
-        const colors = WORN_ARMOR_COLORS[armor.tier] || WORN_ARMOR_COLORS.pham;
-        let style = null;
-        if (/Giáp|Khải|Thuẫn|Thần Tướng/.test(name)) style = 5;
-        else if (/Bào/.test(name)) style = 3;
-        else if (/ Y$| Y |Động Y|Chiến Y|Kiếm Y|Tráo/.test(name)) style = ['thien', 'tien'].includes(armor.tier) ? 4 : 1;
-        if (style) set('to', style);
-        // mortal-grade clothes keep the colours chosen in the creator; better armour shows its quality
-        if (armor.tier && armor.tier !== 'pham' && (style || Number(values.to) > 0)) { set('oc', colors[0]); set('ac', colors[1]); }
-    }
+    // Armour no longer swaps the robe: the figure in the world, the bag, battles and PvP always wears the
+    // outfit and colours chosen in the creator, so the character stays the same everywhere.
     return order.map(key => `${key}=${values[key]}`).join(';');
 }
 
@@ -6771,6 +6763,7 @@ class Game {
                 fullName: other.fullName || other.name,
                 photoUrl: other.photoUrl || '',
                 gender: other.gender,
+                look: wornLook(other),
                 realmName: r.name,
                 realmIndex: r.index,
                 power: st.power,

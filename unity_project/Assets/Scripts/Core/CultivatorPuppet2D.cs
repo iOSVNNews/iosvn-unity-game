@@ -4,40 +4,32 @@ using UnityEngine.UI;
 
 namespace IOSVN.TuTien.Core
 {
-    /// <summary>
-    /// A continuous body and a separate clothing layer share the same deforming
-    /// mesh. Facial features and hair sit above the body; no limb sockets are
-    /// exposed when the figure moves.
-    /// </summary>
+    // Use the same illustration as the game actor, with a still upper-body crop.
+    // Cropping preserves the complete width, including sleeves and loose hair.
     internal sealed class CultivatorPuppet2D : MonoBehaviour
     {
-        public static bool Available => Resources.Load<Texture2D>("Characters/PuppetMaleV3") != null
-            && Resources.Load<Texture2D>("Characters/PuppetFemaleV3") != null;
-
+        public static bool Available => QcbhSkinnedActor2D.Available;
         private static readonly Dictionary<string, Sprite> Sprites = new Dictionary<string, Sprite>();
+        private const float PortraitBottom = .40f;
         private RectTransform root;
-        private Image aura, leftEye, rightEye, leftBrow, rightBrow, nose, mouth, hat, weapon;
-        private Image[] facialFeatures;
-        private Vector2[] facialPositions;
-        private AnimatedPortraitImage body, clothing;
-        private bool female;
-        private int weaponStyle;
-        private FighterAction action = FighterAction.Idle;
-        private bool moving, facesRight;
+        private AnimatedPortraitImage body;
+        private Image aura, hat, weapon;
+        private bool facesRight;
 
         public static Sprite Portrait(LookSpec look)
         {
+            var texture = QcbhSkinnedActor2D.ActorAtlas(look);
+            if (texture == null) return null;
             var female = look != null && look.Get("g", "m") == "f";
-            var sheet = Resources.Load<Texture2D>("Characters/Puppet" + (female ? "Female" : "Male") + "V3");
-            if (sheet == null) return null;
-            var key = sheet.name + "_portrait";
-            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
-            var size = sheet.height * .30f;
-            var centerX = sheet.width * .5f * (female ? .554f : .595f);
-            var centerY = sheet.height * .84f;
-            var rect = new Rect(Mathf.Clamp(centerX - size * .5f, 0, sheet.width * .5f - size),
-                Mathf.Clamp(centerY - size * .5f, 0, sheet.height - size), size, size);
-            var sprite = Sprite.Create(sheet, rect, new Vector2(.5f, .5f), 100f);
+            var key = texture.name + (female ? "_female_face" : "_male_face");
+            if (Sprites.TryGetValue(key, out var sprite) && sprite != null) return sprite;
+            var half = texture.width * .5f;
+            var center = texture.name == "FullBodyActorsV3"
+                ? new Vector2(female ? .43f : .51f, female ? .84f : .86f)
+                : CharacterAppearance.FaceCenter(female, false);
+            var size = texture.height * .23f;
+            sprite = Sprite.Create(texture, new Rect((female ? half : 0) + half * center.x - size * .5f,
+                texture.height * center.y - size * .5f, size, size), new Vector2(.5f, .5f), 100);
             sprite.name = key;
             Sprites[key] = sprite;
             return sprite;
@@ -47,247 +39,112 @@ namespace IOSVN.TuTien.Core
         {
             var rect = new GameObject("CultivatorPuppet", typeof(RectTransform), typeof(CultivatorPuppet2D)).GetComponent<RectTransform>();
             rect.SetParent(parent, false);
-            rect.anchorMin = rect.anchorMax = new Vector2(.5f, 0f);
-            rect.pivot = new Vector2(.5f, 0f);
-            rect.sizeDelta = new Vector2(400f, 430f);
-            rect.anchoredPosition = Vector2.zero;
+            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(.5f, 0);
             var puppet = rect.GetComponent<CultivatorPuppet2D>();
             puppet.root = rect;
-            puppet.Build();
+            puppet.aura = Layer<Image>("Aura", rect);
+            puppet.body = Layer<AnimatedPortraitImage>("Body", rect);
+            puppet.body.PreservePaintedShape = true;
+            puppet.body.preserveAspect = false;
+            // Accessories are separate from the still painted face.
+            puppet.hat = Layer<Image>("Headwear", rect);
+            puppet.weapon = Layer<Image>("Weapon", rect);
             puppet.SetLook(look);
             return puppet;
-        }
-
-        private void Build()
-        {
-            aura = Layer<Image>("Aura", root);
-            aura.sprite = InkUi.Glow;
-            aura.rectTransform.anchoredPosition = new Vector2(0, 210);
-            aura.rectTransform.sizeDelta = new Vector2(280, 370);
-
-            body = Layer<AnimatedPortraitImage>("Body", root);
-            Fit(body.rectTransform);
-            body.preserveAspect = true;
-            clothing = Layer<AnimatedPortraitImage>("Clothing", root);
-            Fit(clothing.rectTransform);
-            clothing.preserveAspect = true;
-
-            leftEye = Layer<Image>("LeftEye", root);
-            rightEye = Layer<Image>("RightEye", root);
-            leftBrow = Layer<Image>("LeftBrow", root);
-            rightBrow = Layer<Image>("RightBrow", root);
-            nose = Layer<Image>("Nose", root);
-            mouth = Layer<Image>("Mouth", root);
-            facialFeatures = new[] { leftEye, rightEye, leftBrow, rightBrow, nose, mouth };
-            facialPositions = new Vector2[facialFeatures.Length];
-            hat = Layer<Image>("Headwear", root);
-            hat.rectTransform.anchoredPosition = new Vector2(0, 424);
-            hat.rectTransform.sizeDelta = new Vector2(90, 80);
-            weapon = Layer<Image>("Weapon", root);
-            weapon.rectTransform.anchoredPosition = new Vector2(95, 195);
-            weapon.rectTransform.sizeDelta = new Vector2(150, 150);
         }
 
         private static T Layer<T>(string name, RectTransform parent) where T : Image
         {
             var image = new GameObject(name, typeof(RectTransform), typeof(T)).GetComponent<T>();
             image.transform.SetParent(parent, false);
-            image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(.5f, 0f);
-            image.rectTransform.pivot = new Vector2(.5f, .5f);
+            image.rectTransform.anchorMin = Vector2.zero;
+            image.rectTransform.anchorMax = Vector2.one;
+            image.rectTransform.offsetMin = image.rectTransform.offsetMax = Vector2.zero;
             image.raycastTarget = false;
-            image.preserveAspect = false;
+            image.preserveAspect = true;
             return image;
         }
 
-        private static void Fit(RectTransform rect)
+        private static Sprite Equipment(Texture2D texture, int index)
         {
-            rect.anchorMin = Vector2.zero;
-            rect.anchorMax = Vector2.one;
-            rect.offsetMin = rect.offsetMax = Vector2.zero;
-            rect.pivot = new Vector2(.5f, .5f);
-        }
-
-        private static Sprite Half(Texture2D sheet, bool right)
-        {
-            var key = sheet.name + (right ? "_clothes" : "_body");
-            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
-            var half = sheet.width * .5f;
-            var sprite = Sprite.Create(sheet, new Rect(right ? half : 0f, 0f, half, sheet.height),
-                new Vector2(.5f, .5f), 100f);
-            sprite.name = key;
+            var key = texture.name + "_equipment_" + index;
+            if (Sprites.TryGetValue(key, out var sprite) && sprite != null) return sprite;
+            var cell = texture.width * .25f;
+            sprite = Sprite.Create(texture, new Rect(index % 4 * cell, texture.height - (index / 4 + 1) * cell, cell, cell), new Vector2(.5f, .5f), 100);
             Sprites[key] = sprite;
             return sprite;
         }
 
-        private static Sprite Quarter(Texture2D sheet, int index)
+        private void Place(Image image, Vector2 atlasPoint, Vector2 size)
         {
-            var key = sheet.name + "_" + index;
-            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
-            var size = sheet.width * .5f;
-            var sprite = Sprite.Create(sheet,
-                new Rect((index % 2) * size, sheet.height - (index / 2 + 1) * size, size, size),
-                new Vector2(.5f, .5f), 100f);
-            sprite.name = key;
-            Sprites[key] = sprite;
-            return sprite;
-        }
-
-        private static Sprite Equipment(Texture2D sheet, int index)
-        {
-            var key = sheet.name + "_equipment_" + index;
-            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
-            var size = sheet.width * .25f;
-            var sprite = Sprite.Create(sheet,
-                new Rect((index % 4) * size, sheet.height - (index / 4 + 1) * size, size, size),
-                new Vector2(.5f, .5f), 100f);
-            sprite.name = key;
-            Sprites[key] = sprite;
-            return sprite;
-        }
-
-        private static Sprite Feature(Texture2D sheet, string part, int x, int top, int width, int height)
-        {
-            var key = sheet.name + "_" + part;
-            if (Sprites.TryGetValue(key, out var cached) && cached != null) return cached;
-            var sprite = Sprite.Create(sheet, new Rect(x, sheet.height - top - height, width, height),
-                new Vector2(.5f, .5f), 100f);
-            sprite.name = key;
-            Sprites[key] = sprite;
-            return sprite;
-        }
-
-        private static void Place(Image image, Sprite sprite, float x, float y, float width, float height)
-        {
-            image.sprite = sprite;
-            image.rectTransform.anchoredPosition = new Vector2(x, y);
-            image.rectTransform.sizeDelta = new Vector2(width, height);
+            image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(.5f, 0);
+            image.rectTransform.pivot = new Vector2(.5f, .5f);
+            image.rectTransform.sizeDelta = size;
+            image.rectTransform.anchoredPosition = new Vector2((atlasPoint.x - .5f) * root.sizeDelta.x,
+                (atlasPoint.y - PortraitBottom) / (1 - PortraitBottom) * root.sizeDelta.y);
         }
 
         public void SetLook(LookSpec look)
         {
             if (look == null) return;
-            female = look.Get("g", "m") == "f";
-            var sex = female ? "Female" : "Male";
-            var sheet = Resources.Load<Texture2D>("Characters/Puppet" + sex + "V3");
-            var features = Resources.Load<Texture2D>("Characters/Puppet" + sex + "FacePartsV1");
-            if (sheet == null || features == null) return;
-            sheet.filterMode = features.filterMode = FilterMode.Bilinear;
-            body.sprite = Half(sheet, false);
-            clothing.sprite = Half(sheet, true);
+            var texture = QcbhSkinnedActor2D.ActorAtlas(look);
+            if (texture == null) return;
+            var female = look.Get("g", "m") == "f";
+            var half = texture.width * .5f;
+            var height = texture.height * (1 - PortraitBottom);
+            root.sizeDelta = new Vector2(430 * half / height, 430);
+            var key = texture.name + (female ? "_female_portrait" : "_male_portrait");
+            if (!Sprites.TryGetValue(key, out var sprite) || sprite == null)
+            {
+                sprite = Sprite.Create(texture, new Rect(female ? half : 0, texture.height * PortraitBottom, half, height), new Vector2(.5f, .5f), 100);
+                sprite.name = key;
+                Sprites[key] = sprite;
+            }
+            body.sprite = sprite;
+            body.color = Color.white;
             body.SetAppearance(look);
-            body.SetFaceCustomization(look);
-            clothing.SetAppearance(look);
-            // V3 is finished painted art: keep its face and silhouette intact.
-            body.PreservePaintedShape = clothing.PreservePaintedShape = true;
-
-            var skin = HeroSprites.ParseColor(look.Get("sk", "#f0d2b4"), new Color32(240, 210, 180, 255));
-            body.color = new Color(Mathf.Clamp(skin.r / .94f, .48f, 1f),
-                Mathf.Clamp(skin.g / .82f, .46f, 1f), Mathf.Clamp(skin.b / .71f, .44f, 1f), 1f);
-            var cloth = HeroSprites.ParseColor(look.Get("oc", "#e8e2d4"), Color.white);
-            clothing.color = Color.Lerp(Color.white, cloth, .16f);
-            body.color = clothing.color = Color.white;
             CharacterAppearance.Apply(body, look);
-            CharacterAppearance.Apply(clothing, look);
-
-            // The painted head and hair belong to the continuous body. Only the
-            // facial features are attached above it, so no face-shaped patch or
-            // separate hair cap is visible around the jaw and temples.
-            var cx = female ? 14f : 25f;
-            var eyeY = female ? 352f : 350f;
-            var eyeWidth = female ? 22f : 21f;
-            var eyeHeight = female ? 12f : 10f;
-            var spacing = female ? 13f : 12f;
-            Place(leftEye, Feature(features, "eyeL", 15, 275, 315, 200), cx - spacing, eyeY, eyeWidth, eyeHeight);
-            Place(rightEye, Feature(features, "eyeR", 335, 275, 310, 200), cx + spacing, eyeY, eyeWidth, eyeHeight);
-            Place(leftBrow, Feature(features, "browL", 635, 275, 305, 165), cx - spacing, eyeY + 11f, 24f, 7f);
-            Place(rightBrow, Feature(features, "browR", 950, 275, 300, 165), cx + spacing, eyeY + 11f, 24f, 7f);
-            Place(nose, Feature(features, "nose", 180, 675, 320, 470), cx, eyeY - 15f, 16f, 20f);
-            Place(mouth, Feature(features, "mouth", 680, 850, 500, 310), cx, eyeY - 30f, 25f, 11f);
-            for (var i = 0; i < facialFeatures.Length; i++)
+            var equipment = Resources.Load<Texture2D>("Characters/RigEquipment16V1");
+            var hatStyle = Mathf.Clamp(look.Int("hat", 0), 0, 5);
+            hat.enabled = equipment != null && hatStyle > 0;
+            if (hat.enabled)
             {
-                facialPositions[i] = facialFeatures[i].rectTransform.anchoredPosition;
-                // The repaired face is painted into the continuous body texture.
-                // Keep the old patches out of both the portrait and creator.
-                facialFeatures[i].enabled = false;
+                hat.sprite = Equipment(equipment, hatStyle - 1);
+                hat.color = HeroSprites.ParseColor(look.Get("hac", "#e2c57b"), Color.white);
+                Place(hat, new Vector2(female ? .53f : .56f, female ? .94f : .965f), new Vector2(64, 64));
             }
-            var eyeStyle = Mathf.Abs(look.Int("ey", 0));
-            var browStyle = Mathf.Abs(look.Int("br", 0));
-            var noseStyle = Mathf.Abs(look.Int("no", 0));
-            var mouthStyle = Mathf.Abs(look.Int("mo", 0));
-            var eyeScale = .91f + (eyeStyle % 5) * .045f;
-            leftEye.rectTransform.localScale = rightEye.rectTransform.localScale = new Vector3(eyeScale, eyeScale, 1f);
-            leftBrow.rectTransform.localRotation = Quaternion.Euler(0, 0, -4f + browStyle % 5 * 2f);
-            rightBrow.rectTransform.localRotation = Quaternion.Euler(0, 0, 4f - browStyle % 5 * 2f);
-            nose.rectTransform.localScale = new Vector3(.9f + noseStyle % 4 * .055f, 1f, 1f);
-            mouth.rectTransform.localScale = new Vector3(.9f + mouthStyle % 5 * .04f, 1f, 1f);
-            var eyeColor = HeroSprites.ParseColor(look.Get("ec", "#4d3732"), Color.white);
-            leftEye.color = rightEye.color = Color.Lerp(Color.white, eyeColor, .10f);
-
-            var accessories = Resources.Load<Texture2D>("Characters/RigEquipment16V1");
-            if (accessories != null)
+            var weaponStyle = Mathf.Clamp(look.Int("wp", 0), 0, 10);
+            weapon.enabled = equipment != null && weaponStyle > 0;
+            if (weapon.enabled)
             {
-                accessories.filterMode = FilterMode.Bilinear;
-                var headwear = Mathf.Clamp(look.Int("hat", 0), 0, 5);
-                hat.enabled = headwear > 0;
-                if (hat.enabled) hat.sprite = Equipment(accessories, headwear - 1);
-                var hatColor = HeroSprites.ParseColor(look.Get("hac", "#e2c57b"), Color.white);
-                hat.color = Color.Lerp(Color.white, hatColor, .18f);
-                weaponStyle = Mathf.Clamp(look.Int("wp", 0), 0, 10);
-                var item = new[] { -1, 6, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
-                weapon.enabled = item >= 0;
-                if (weapon.enabled) weapon.sprite = Equipment(accessories, item);
-                var weaponColor = HeroSprites.ParseColor(look.Get("wc", "#e2c57b"), Color.white);
-                weapon.color = Color.Lerp(Color.white, weaponColor, .14f);
-                weapon.rectTransform.anchoredPosition = weaponStyle == 1 ? new Vector2(-105, 306) : new Vector2(95, 195);
-                weapon.rectTransform.localRotation = Quaternion.Euler(0, 0, weaponStyle == 1 ? 38f : -16f);
-                weapon.rectTransform.sizeDelta = weaponStyle == 10 ? new Vector2(115, 115) : new Vector2(155, 155);
-                if (weaponStyle == 1) weapon.transform.SetSiblingIndex(2);
-                else weapon.transform.SetAsLastSibling();
+                var index = new[] { 0, 6, 6, 6, 6, 12, 8, 11, 13, 14, 15 }[weaponStyle];
+                weapon.sprite = Equipment(equipment, index);
+                Place(weapon, weaponStyle == 1 ? new Vector2(.39f, .73f) : new Vector2(.72f, .52f), new Vector2(135, 135));
+                weapon.rectTransform.localRotation = Quaternion.Euler(0, 0, weaponStyle == 1 ? 35 : -16);
+                if (weaponStyle == 1) weapon.transform.SetSiblingIndex(1); else weapon.transform.SetAsLastSibling();
             }
-            else hat.enabled = weapon.enabled = false;
-
-            var style = Mathf.Clamp(look.Int("au", 0), 0, 5);
-            aura.enabled = style > 0;
-            var glow = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), new Color32(143, 224, 255, 255));
-            aura.color = new Color(glow.r, glow.g, glow.b, .10f + style * .02f);
+            var auraStyle = Mathf.Clamp(look.Int("au", 0), 0, 5);
+            aura.enabled = auraStyle > 0;
+            aura.sprite = auraStyle == 2 || auraStyle == 4 ? InkUi.Ring : auraStyle == 3 ? InkUi.Cloud : InkUi.Glow;
+            var color = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), Color.white);
+            aura.color = new Color(color.r, color.g, color.b, .10f + auraStyle * .02f);
         }
 
-        public void SetMotion(FighterAction next, float progress, bool isMoving, bool faceRight, float time)
+        public void SetMotion(FighterAction next, float progress, bool moving, bool faceRight, float time)
         {
-            action = next;
-            moving = isMoving;
             facesRight = faceRight;
-            var state = next == FighterAction.Idle && isMoving ? FighterAction.Walk : next;
-            body.SetMotion(state, progress, faceRight);
-            clothing.SetMotion(state, progress, faceRight);
-            var sway = Mathf.Sin(time * 1.1f);
-            var headShift = new Vector2(sway * (isMoving ? 1.8f : .6f), Mathf.Sin(time * 1.4f) * .35f);
-            for (var i = 0; i < facialFeatures.Length; i++)
-                facialFeatures[i].rectTransform.anchoredPosition = facialPositions[i] + headShift;
-            if (weapon.enabled && weaponStyle != 1)
-            {
-                var swing = next == FighterAction.Attack ? Mathf.Sin(Mathf.PI * progress) : 0f;
-                weapon.rectTransform.localRotation = Quaternion.Euler(0, 0, -16f - swing * 45f);
-                weapon.rectTransform.anchoredPosition = new Vector2(95f + swing * 18f, 195f + swing * 28f);
-            }
-            root.localRotation = Quaternion.Euler(0, 0, next == FighterAction.Down ? 70f * progress : 0f);
+            // Portraits keep their original drawing even when the game actor moves.
+            body.SetMotion(FighterAction.Idle, 0, false);
         }
 
-        public void SetHit(bool hit)
-        {
-            var flash = hit ? new Color(1f, .62f, .58f, 1f) : Color.white;
-            body.canvasRenderer.SetColor(flash);
-            clothing.canvasRenderer.SetColor(flash);
-        }
+        public void SetHit(bool hit) => body.color = hit ? new Color(1, .62f, .58f) : Color.white;
 
         private void LateUpdate()
         {
-            if (root == null) return;
             var parent = root.parent as RectTransform;
-            if (parent != null && parent.rect.width > 0f && parent.rect.height > 0f)
-                root.localScale = new Vector3(facesRight ? -1f : 1f, 1f, 1f) * Mathf.Min(parent.rect.width / 400f, parent.rect.height / 430f) * .94f;
-            if (action == FighterAction.Idle && !moving)
-                SetMotion(FighterAction.Idle, 0f, false, facesRight, Time.unscaledTime);
+            if (parent == null || parent.rect.width <= 0 || parent.rect.height <= 0) return;
+            root.localScale = new Vector3(facesRight ? -1 : 1, 1, 1)
+                * Mathf.Min(parent.rect.width / root.sizeDelta.x, parent.rect.height / root.sizeDelta.y) * .94f;
         }
     }
 }

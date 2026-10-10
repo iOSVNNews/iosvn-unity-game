@@ -56,7 +56,17 @@ namespace IOSVN.TuTien.Core
             const string monsters = "PixelArt/Monsters/";
             const string items = "PixelArt/Items/";
             if (resourcePath.StartsWith(monsters, StringComparison.Ordinal)) return Monster(resourcePath.Substring(monsters.Length));
-            if (resourcePath.StartsWith(items, StringComparison.Ordinal)) return Item(resourcePath.Substring(items.Length));
+            if (resourcePath.StartsWith(items, StringComparison.Ordinal))
+            {
+                var id = resourcePath.Substring(items.Length);
+                var painted = Item(id);
+                if (painted != null) return painted;
+                // skill jade slips (ngọc giản) have no painted item art of their own: show the painted scroll icon
+                if (Resources.Load<Texture2D>("CombatPixel/Skills/" + id) != null) return UiIcon("scroll");
+                return null;
+            }
+            const string ui = "PixelArt/UI/";
+            if (resourcePath.StartsWith(ui, StringComparison.Ordinal)) return UiIcon(resourcePath.Substring(ui.Length));
             return null;
         }
 
@@ -94,6 +104,21 @@ namespace IOSVN.TuTien.Core
         {
             if (string.IsNullOrEmpty(id)) return null;
             var path = "Art/Items/" + id;
+            if (Cache.TryGetValue(path, out var cached) && cached != null) return cached;
+            var texture = LoadTexture(path, true, false);
+            if (texture == null) return null;
+            var sprite = Sprite.Create(texture, new Rect(0, 0, texture.width, texture.height), new Vector2(.5f, .5f), 64f);
+            sprite.name = path;
+            Evict(Cache, 320);
+            Cache[path] = sprite;
+            return sprite;
+        }
+
+        /// <summary>Painted interface icon (Art/UI/id) replacing the old 32px pixel icon.</summary>
+        public static Sprite UiIcon(string id)
+        {
+            if (string.IsNullOrEmpty(id)) return null;
+            var path = "Art/UI/" + id;
             if (Cache.TryGetValue(path, out var cached) && cached != null) return cached;
             var texture = LoadTexture(path, true, false);
             if (texture == null) return null;

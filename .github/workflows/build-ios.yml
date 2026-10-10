@@ -404,6 +404,7 @@ jobs:
           APP_NAME="$(basename "$APP_PATH")"
           ditto "$APP_PATH" "$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
           UNSIGNED_APP="$RUNNER_TEMP/unsigned-ipa/Payload/$APP_NAME"
+          printf '%s\n' "$GITHUB_SHA" > "$UNSIGNED_APP/iosvn-source-revision.txt"
           # Unity ships UnityRuntime.framework with its own signature even when
           # Xcode builds the outer app with CODE_SIGNING_ALLOWED=NO. Some
           # on-device signers reject this mixed-signature IPA, so leave every
@@ -456,22 +457,6 @@ jobs:
               --title "$RELEASE_TITLE" \
               --notes "IPA kiểm thử của Tu Tiên Giới. Cần cài qua công cụ ký như ESign; IPA chưa ký không thể cài trực tiếp."
           fi
-
-      - name: Keep only the two newest unsigned test releases
-        if: ${{ (github.event_name == 'workflow_dispatch' && inputs.export_ipa && inputs.publish_release) || (github.event_name == 'push' && github.ref == 'refs/heads/main') }}
-        shell: bash
-        env:
-          GH_TOKEN: ${{ github.token }}
-        run: |
-          set -euo pipefail
-          OLD_TAGS="$(gh api --paginate "repos/$GITHUB_REPOSITORY/releases?per_page=100" \
-            --jq '.[] | select((.tag_name | startswith("tutiengioi-")) or .tag_name == "iosvn-unsigned-test") | [.tag_name, .published_at] | @tsv' \
-            | sort -k2,2r | tail -n +3 | cut -f1)"
-          while IFS= read -r tag; do
-            [[ -z "$tag" ]] && continue
-            echo "Removing superseded unsigned IPA release: $tag"
-            gh release delete "$tag" --repo "$GITHUB_REPOSITORY" --cleanup-tag --yes
-          done <<< "$OLD_TAGS"
 
       - uses: actions/upload-artifact@v4
         if: ${{ github.event_name == 'workflow_dispatch' && inputs.export_signed_ipa }}

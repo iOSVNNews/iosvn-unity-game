@@ -80,3 +80,22 @@ test('illustrated presets and expanded outfit options survive server storage', a
     const after = await request('GET', '/api/state', null, token);
     assert.match(JSON.stringify(after.body), /preset=0[^\"]*tot=1[^\"]*wp=4/);
 });
+
+test('layered figure keys: forehead mark, mark colour and feature sliders', async t => {
+    const request = await startServer(t);
+    const signup = await request('POST', '/api/auth/account/register', { identity: 'look_layered_tester', password });
+    assert.equal(signup.status, 201, JSON.stringify(signup.body));
+    const token = signup.body.accessToken;
+    const look = 'g=m;preset=-1;fa=2;ey=7;br=2;no=1;mo=4;bd=3;ha=8;to=3;hat=2;ma=1;wp=4;au=2;ez=14;es=6;eh=12;bh=9;nh=11;mh=8;' +
+        'hc=#1e1a1e;sk=#f0d2b4;ec=#3a2a24;oc=#7a2a3a;tc=#c8a050;pc=#2a2022;sc=#221a1c;bc=#c8a050;hac=#c8a050;mc=#e0a030;auc=#ff8a3a;ez2=3';
+    const created = await request('POST', '/api/register', { gender: 'nam', mon: 'kiem', he: 'kim', name: 'Xích Viêm',
+        appearance: 'thanh_ngoc', talents: ['dao_the', 'kiem_tam', 'tu_linh'], look }, token);
+    assert.equal(created.status, 200, JSON.stringify(created.body));
+    const state = await request('GET', '/api/state', null, token);
+    const stored = state.body.player?.look || state.body.state?.player?.look || JSON.stringify(state.body).match(/"look":"([^"]+)"/)?.[1];
+    for (const part of ['ma=1', 'ez=14', 'es=6', 'eh=12', 'bh=9', 'nh=11', 'mh=8', 'mc=#e0a030', 'to=3', 'bd=3'])
+        assert.ok(stored.includes(part), part + ' kept in ' + stored);
+    assert.doesNotMatch(stored, /ez2/);
+    const bad = await request('POST', '/api/player/look', { look: 'g=m;ez=99;ma=12' }, token);
+    assert.ok(bad.status < 500);
+});

@@ -11,7 +11,7 @@ namespace IOSVN.TuTien.Editor
             if (assetPath != "Assets/Resources/Brand/LoginLandscapePixel.png") return;
             var importer = (TextureImporter)assetImporter;
             importer.textureType = TextureImporterType.Default;
-            importer.filterMode = FilterMode.Point;
+            importer.filterMode = FilterMode.Bilinear;   // painted backdrop (was pixel art)
             importer.mipmapEnabled = false;
             importer.npotScale = TextureImporterNPOTScale.None;
             importer.maxTextureSize = 2048;

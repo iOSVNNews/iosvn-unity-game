@@ -13,7 +13,7 @@ namespace IOSVN.TuTien.Core
         public string Kind;                // player | monster | boss | npc | other
         public RectTransform Rect;
         public Image Body;
-        internal QcbhSkinnedActor2D Rig;
+        internal CultivatorFigure2D Rig;
         public Image Aura;
         public Sprite[] Frames;            // 12 hero frames (8 walk + 4 idle, facing left) or null for a static sprite
         public bool FaceRight;             // hero sheets face left; mirrored when walking right
@@ -292,9 +292,9 @@ namespace IOSVN.TuTien.Core
                 int fontSize;
                 if (kind == "boss")
                 {
-                    bgCol = new Color32(36, 12, 16, 225);
+                    bgCol = new Color32(36, 12, 16, 230);
                     borderCol = new Color32(245, 76, 60, 235);
-                    fontSize = 21;
+                    fontSize = 18;
                 }
                 else if (kind == "player")
                 {
@@ -310,9 +310,9 @@ namespace IOSVN.TuTien.Core
                 }
                 else
                 {
-                    bgCol = new Color32(20, 16, 14, 200);
-                    borderCol = new Color32(175, 125, 75, 180);
-                    fontSize = 18;
+                    bgCol = new Color32(20, 16, 14, 225);
+                    borderCol = new Color32(175, 125, 75, 190);
+                    fontSize = 16;
                 }
 
                 ModernUi.Fill(pill, 14f);
@@ -341,7 +341,7 @@ namespace IOSVN.TuTien.Core
                 PixelUiSkin.ApplyTextTreatment(text);
 
                 var textWidth = Mathf.Clamp(name.Length * (fontSize * 0.56f) + 22f, 80f, kind == "boss" ? 240f : kind == "monster" ? 190f : 230f);
-                var pillHeight = (kind == "boss" || kind == "monster") ? 38f : 30f;
+                var pillHeight = (kind == "boss" || kind == "monster") ? 32f : 30f;
                 pill.rectTransform.sizeDelta = new Vector2(textWidth, pillHeight);
                 pill.rectTransform.anchoredPosition = new Vector2(0, 14);
                 var textRect = text.rectTransform;
@@ -722,7 +722,9 @@ namespace IOSVN.TuTien.Core
             actor.AnimTime += dt;
             if (actor.Rig != null)
             {
-                actor.Rig.SetMotion(FighterAction.Idle, 0f, actor.Moving && !(actor == Player && Flying), actor.FaceRight, actor.AnimTime);
+                // on a flying sword the figure keeps its riding stance and the robe streams while moving
+                actor.Rig.Airborne = actor == Player && Flying;
+                actor.Rig.SetMotion(FighterAction.Idle, 0f, actor.Moving, actor.FaceRight, actor.AnimTime);
                 if (actor.AuraFx != null) actor.AuraFx.Flip = actor.FaceRight;
             }
             else if (actor.Body != null && actor.Frames != null && actor.Frames.Length >= HeroSprites.Total)
@@ -755,13 +757,29 @@ namespace IOSVN.TuTien.Core
                 var goal = new Vector2Int(
                     Mathf.Clamp(here.x + UnityEngine.Random.Range(-hop, hop + 1), r.xMin, Mathf.Max(r.xMin, r.xMax - 1)),
                     Mathf.Clamp(here.y + UnityEngine.Random.Range(-hop, hop + 1), r.yMin, Mathf.Max(r.yMin, r.yMax - 1)));
-                if (goal == here || Data.IsBlocked(goal.x, goal.y)) continue;
+                if (goal == here || Data.IsBlocked(goal.x, goal.y) || InsideTown(goal)) continue;
                 var path = Data.FindPath(here, goal, hop > 12 ? 5000 : 2500);
                 if (path.Count == 0 || path.Count > hop * 3) continue;
                 actor.Path = path;
                 actor.PathIndex = 0;
                 return;
             }
+        }
+
+        /// <summary>Beasts stroll around the towns, never through the fortress art.</summary>
+        private bool InsideTown(Vector2Int tile)
+        {
+            if (Data?.towns == null) return false;
+            foreach (var town in Data.towns)
+            {
+                if (town == null) continue;
+                var cx = town.x + town.w * .5f;
+                var cy = town.y + town.h * .5f;
+                var hw = (town.big ? 16f : 13.5f) + 1f;
+                var hh = (town.big ? 12f : 10f) + 1f;
+                if (Mathf.Abs(tile.x - cx) < hw && Mathf.Abs(tile.y - cy) < hh) return true;
+            }
+            return false;
         }
 
         // ------------------------------------------------------------------ camera & input
@@ -1093,7 +1111,9 @@ namespace IOSVN.TuTien.Core
             {
                 if (actor.Tag == null) continue;
                 var showAtOverview = actor.Kind == "player";
-                var tagVisible = !actor.Hidden && (showAtOverview || Zoom >= 1f);
+                // beast names only for the ones close to the traveller; far ones stay as figures (and minimap dots)
+                var near = Player == null || actor == Player || Vector2.Distance(actor.Pos, Player.Pos) <= (actor.Kind == "boss" ? 14f : 9f);
+                var tagVisible = !actor.Hidden && near && (showAtOverview || Zoom >= .9f);
                 actor.Tag.gameObject.SetActive(tagVisible);
                 if (!tagVisible) continue;
                 var local = TileToLocal(actor.Pos);
@@ -1108,7 +1128,7 @@ namespace IOSVN.TuTien.Core
                 var tagSize = pillRect != null ? pillRect.sizeDelta : new Vector2(130f, 32f);
                 var tagOffset = pillRect != null ? pillRect.anchoredPosition : Vector2.zero;
                 var cur = tagScratch[i].basePos;
-                for (var j = 0; j < i; j++)
+                for (var j = 0; j < tagResolved.Count; j++)
                 {
                     var prev = tagResolved[j];
                     var center = cur + tagOffset;
@@ -1118,6 +1138,10 @@ namespace IOSVN.TuTien.Core
                         cur.y = prev.center.y + (tagSize.y + prev.size.y) * .5f + 4f - tagOffset.y;
                     }
                 }
+                // a name pushed far from its owner (a crowd) or under the top HUD is hidden instead of stacking up
+                var top = Viewport.rect.height * .5f - 96f;
+                var keep = actor == Player || (cur.y - tagScratch[i].basePos.y <= 46f && cur.y + tagOffset.y + tagSize.y * .5f < top);
+                if (!keep) { actor.Tag.gameObject.SetActive(false); continue; }
                 tagResolved.Add((cur + tagOffset, tagSize));
                 tagRect.anchoredPosition = cur;
             }

@@ -45,10 +45,10 @@ namespace IOSVN.TuTien.Editor
                     Call(c, "SetCreatorGender", female ? "nu" : "nam");
                     var rig = (Component)typeof(PrototypeBootstrap).GetField("creatorRig", Flags).GetValue(c);
                     var body = rig.transform.Find("Body").GetComponent<Image>();
-                    if (!body.sprite.name.Contains("V3")) throw new Exception("Creator does not show the repaired portrait");
+                    if (!body.sprite.name.Contains("FullBodyActorsV3")) throw new Exception("Creator does not show the current ink portrait");
                     if (!(bool)body.GetType().GetProperty("PreservePaintedShape").GetValue(body)) throw new Exception("Creator distorts the painted face");
                     var fullBody = (Component)typeof(PrototypeBootstrap).GetField("creatorActor", Flags).GetValue(c);
-                    if (!fullBody.transform.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2")) throw new Exception("Missing full-body preview");
+                    if (!fullBody.transform.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV3")) throw new Exception("Missing full-body preview");
                     using (var mesh = new VertexHelper())
                     {
                         body.GetType().GetMethod("OnPopulateMesh", Flags, null, new[] { typeof(VertexHelper) }, null).Invoke(body, new object[] { mesh });
@@ -479,7 +479,7 @@ namespace IOSVN.TuTien.Editor
                     var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
                     Check(!world.Player.Body.enabled, "World still shows the old composed sprite");
                     var worldPuppet = world.Player.Rect.Find("SkinnedActor");
-                    Check(worldPuppet != null && worldPuppet.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2"),
+                    Check(worldPuppet != null && worldPuppet.Find("ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV3"),
                         "World player must use the new complete full-body asset");
                     var worldRig = worldPuppet.GetComponent<MonoBehaviour>();
                     var worldBody = worldPuppet.Find("ContinuousBody").GetComponent<Image>();
@@ -518,7 +518,7 @@ namespace IOSVN.TuTien.Editor
                         "World still magnifies the low resolution overview instead of the terrain bake");
                     Check(Mathf.Abs(texture.width * uv.width / (texture.height * uv.height)
                         - bounds.width / bounds.height) < .001f, "Minimap painting is stretched");
-                    renderLog.AppendLine("FullBodyActorsV2 world player, V3 avatar, human/town scale, zoom, camera, province transition, player marker, UV aspect: ok " + size);
+                    renderLog.AppendLine("FullBodyActorsV3 world player, matching ink avatar, human/town scale, zoom, camera, province transition, player marker, UV aspect: ok " + size);
                 }, "qcbh-minimap-transition-" + size.x + ".png", size.x, size.y);
             }
             float pveHeight = 0;
@@ -527,7 +527,7 @@ namespace IOSVN.TuTien.Editor
                 PrepareMap(c);
                 Call(c, "BuildActionBattle", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_battle.json")))["battle"]);
                 pveHeight = GameObject.Find("Player").GetComponent<RectTransform>().sizeDelta.y;
-                Check(GameObject.Find("Player/SkinnedActor/ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV2"),
+                Check(GameObject.Find("Player/SkinnedActor/ContinuousBody").GetComponent<Image>().sprite.name.Contains("FullBodyActorsV3"),
                     "PvE body uses the old character asset");
                 var ground = GameObject.Find("Battlefield/Scenery").GetComponent<RawImage>();
                 var world = ground.transform.parent.GetComponent<RectTransform>();

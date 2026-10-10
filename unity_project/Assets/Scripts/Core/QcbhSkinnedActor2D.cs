@@ -4,8 +4,7 @@ using UnityEngine.UI;
 
 namespace IOSVN.TuTien.Core
 {
-    // QCBH's Human sample keeps the robe as a weighted sprite mesh. Keep the
-    // same separation of portrait and battle art, without exposing cut joints.
+    // Portraits stay still; the smaller game actor is animated around limb joints.
     internal sealed class QcbhSkinnedActor2D : MonoBehaviour
     {
         public static bool Available => Resources.Load<Texture2D>("Characters/FullBodyActorsV2") != null || Resources.Load<Texture2D>("Characters/FullBodyActorsV1") != null;
@@ -65,7 +64,8 @@ namespace IOSVN.TuTien.Core
 
         internal static Texture2D ActorAtlas(LookSpec look)
         {
-            return Resources.Load<Texture2D>("Characters/FullBodyActorsV2")
+            return Resources.Load<Texture2D>("Characters/FullBodyActorsV3")
+                ?? Resources.Load<Texture2D>("Characters/FullBodyActorsV2")
                 ?? Resources.Load<Texture2D>("Characters/FullBodyActorsV1");
         }
 
@@ -75,6 +75,8 @@ namespace IOSVN.TuTien.Core
             headPosition = CharacterAppearance.FaceCenter(female, false) + new Vector2(.02f, .085f);
             var texture = ActorAtlas(look);
             if (texture == null) return;
+            if (texture.name == "FullBodyActorsV3")
+                headPosition = new Vector2(female ? .53f : .56f, female ? .94f : .965f);
             var key = texture.name + (female ? "_female" : "_male");
             if (!Sprites.TryGetValue(key, out var sprite) || sprite == null)
             {
@@ -85,7 +87,8 @@ namespace IOSVN.TuTien.Core
                 Sprites[key] = sprite;
             }
             body.sprite = sprite;
-            body.CenterX = texture.name == "FullBodyActorsV2" ? .5f : (female ? .46f : .60f);
+            body.CenterX = texture.name == "FullBodyActorsV3" ? (female ? .51f : .52f)
+                : texture.name == "FullBodyActorsV2" ? .5f : (female ? .46f : .60f);
             body.SetAppearance(look);
             CharacterAppearance.Apply(body, look);
             bodyColor = Color.white;
@@ -140,6 +143,14 @@ namespace IOSVN.TuTien.Core
 
         internal void SetFacing(bool right) => faceRight = right;
 
+        internal void SetPreviewMotion(FighterAction next)
+        {
+            externallyDriven = false;
+            action = next;
+            moving = next == FighterAction.Walk;
+            faceRight = false;
+        }
+
         public void SetHit(bool hit) => body.color = bodyColor * (hit ? new Color(1f, .62f, .58f, 1f) : Color.white);
 
         internal void Ghost(RectTransform fighter, Color tint, float seconds)
@@ -172,7 +183,12 @@ namespace IOSVN.TuTien.Core
             var parent = root.parent as RectTransform;
             if (parent != null && parent.rect.width > 0 && parent.rect.height > 0)
                 root.localScale = new Vector3(faceRight ? -1f : 1f, 1f, 1f) * Mathf.Min(parent.rect.width / root.sizeDelta.x, parent.rect.height / root.sizeDelta.y);
-            if (!externallyDriven) { clock = Time.unscaledTime; Apply(); }
+            if (!externallyDriven)
+            {
+                clock = Time.unscaledTime;
+                progress = Mathf.Repeat(clock, 1.2f) / 1.2f;
+                Apply();
+            }
         }
 
         private void Apply()

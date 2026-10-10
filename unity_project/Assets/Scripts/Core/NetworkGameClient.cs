@@ -54,7 +54,7 @@ namespace IOSVN.TuTien.Core
     [Serializable] public class BattleActionResult { public BattleActionOutcome result; public BattleView battle; public GameState state; }
     [Serializable] public class DungeonChoice { public string dungeonId; }
     [Serializable] public class DungeonEnvelope { public bool success; public bool completed; public BattleView battle; public string message; }
-    [Serializable] public class PvpOpponent { public string userId; public string name; public string fullName; public string realmName; public string town; public string townName; public long power; public int points; public int wins; public int losses; public bool isSameTown; public bool isDemon; }
+    [Serializable] public class PvpOpponent { public string userId; public string name; public string look; public string gender; public string fullName; public string realmName; public string town; public string townName; public long power; public int points; public int wins; public int losses; public bool isSameTown; public bool isDemon; }
     [Serializable] public class PvpChallenge { public string id; public string fromId; public string fromName; public string toName; public long challengedAt; }
     [Serializable] public class PvpChallengeGroup { public PvpChallenge[] received; public PvpChallenge[] sent; }
     [Serializable] public class PvpMe { public int points; public int wins; public int losses; public int dailyPvpRemaining; public string townName; }

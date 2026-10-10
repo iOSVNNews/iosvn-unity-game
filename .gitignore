@@ -31,3 +31,7 @@ unity_project/Build/
 unity_project/Builds/
 unity_project/Logs/
 unity_project/UserSettings/
+
+# raw art sources and caches for the character art pipeline (large, kept locally)
+unity_project/ArtSource/
+__pycache__/

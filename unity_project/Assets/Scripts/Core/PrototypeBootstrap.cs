@@ -1102,9 +1102,22 @@ namespace IOSVN.TuTien.Core
             portrait.transform.SetParent(profile.transform, false);
             Place(portrait.GetComponent<RectTransform>(), new Vector2(.275f, .425f), new Vector2(.725f, .915f));
             Texture2D composedPortrait = null;
-            try { if (AvatarComposer.Available) composedPortrait = AvatarComposer.Compose(LookOf(hub["player"])); }
+            var liveBust = false;
+            try
+            {
+                // the same layered figure as the creator and the world, framed from the chest up
+                if (CultivatorFigure2D.Available)
+                {
+                    portrait.AddComponent<RectMask2D>();
+                    var bust = CultivatorFigure2D.Create(portrait.GetComponent<RectTransform>(), LookOf(hub["player"]), CultivatorFigure2D.Framing.Bust);
+                    bust.SetFacing(true);
+                    liveBust = true;
+                }
+                else if (AvatarComposer.Available) composedPortrait = AvatarComposer.Compose(LookOf(hub["player"]));
+            }
             catch (Exception ex) { Debug.LogWarning("Home portrait fallback: " + ex.Message); }
-            if (composedPortrait != null)
+            if (liveBust) { }
+            else if (composedPortrait != null)
             {
                 var portraitImage = portrait.AddComponent<RawImage>();
                 portraitImage.texture = composedPortrait;
@@ -2706,7 +2719,7 @@ namespace IOSVN.TuTien.Core
         {
             if (atlasMapRoot != null) Destroy(atlasMapRoot);
             ClearContent();
-            statusMin = new Vector2(0.40f, 0.01f); statusMax = new Vector2(0.60f, 0.045f);
+            statusMin = new Vector2(0.39f, 0.008f); statusMax = new Vector2(0.61f, 0.048f);
 
             atlasMapRoot = PanelObject("AtlasFullscreenRoot", backgroundRoot, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero, Color.clear);
             atlasMapRoot.transform.SetAsFirstSibling();
@@ -2805,7 +2818,7 @@ namespace IOSVN.TuTien.Core
 
             if (atlasInfoExpanded && atlasSelectedTown != null)
             {
-                var info = PanelObject("AtlasSelectionPanel", content.transform, new Vector2(0.015f, 0.055f), new Vector2(0.34f, 0.30f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 224));
+                var info = PanelObject("AtlasSelectionPanel", content.transform, new Vector2(0.015f, 0.055f), new Vector2(0.34f, 0.30f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 250));
                 Label(AtlasSelectionText(state), 17, Cream, TextAnchor.UpperLeft, new Vector2(0.06f, 0.32f), new Vector2(0.94f, 0.91f), info.transform);
                 Button("×", new Vector2(0.86f, 0.82f), new Vector2(0.97f, 0.98f), Panel, () => { atlasInfoExpanded = false; RenderWorldAtlas(state); }, info.transform);
                 if (atlasSelectionKind == "dungeon" && atlasSelectedDungeon != null)
@@ -2834,7 +2847,7 @@ namespace IOSVN.TuTien.Core
             var townCount = towns.Length;
             var caveCount = CountAtlasDungeons(towns);
             var monsterZoneCount = CountAtlasMonsterZones(towns);
-            var top = PanelObject("AtlasTopBar", content.transform, new Vector2(0.008f, 0.91f), new Vector2(0.992f, 0.99f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 208));
+            var top = PanelObject("AtlasTopBar", content.transform, new Vector2(0.008f, 0.91f), new Vector2(0.992f, 0.99f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 255));
             Button("×", new Vector2(0.008f, 0.08f), new Vector2(0.065f, 0.92f), Panel, () => ReturnFromWorldAtlas(state), top.transform);
             Label("THIÊN HẠ", 20, Gold, TextAnchor.MiddleCenter, new Vector2(0.07f, 0.08f), new Vector2(0.17f, 0.92f), top.transform);
             Button((atlasShowTowns ? "● " : "○ ") + "Thành " + townCount, new Vector2(0.18f, 0.08f), new Vector2(0.31f, 0.92f), atlasShowTowns ? Panel : Ink,
@@ -2874,6 +2887,8 @@ namespace IOSVN.TuTien.Core
             Button("+", new Vector2(0.955f, 0.045f), new Vector2(0.995f, 0.105f), Panel,
                 () => { if (atlasZoomSlider != null) atlasZoomSlider.value = Mathf.Min(3f, atlasZoomSlider.value + 0.15f); });
 
+            // the summary line sits on a solid plate instead of floating over the busy map
+            PanelObject("AtlasStatusBack", content.transform, new Vector2(0.385f, 0.006f), new Vector2(0.615f, 0.05f), Vector2.zero, Vector2.zero, new Color32(15, 20, 27, 245)).GetComponent<Image>().raycastTarget = false;
             ShowStatus(atlas.texture == null ? "Thiếu tranh bản đồ trong Resources/Maps." : $"{maps.Length} châu · {townCount} thành · {caveCount} cổ động · {monsterZoneCount} bãi tiểu yêu.");
         }
 

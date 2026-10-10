@@ -365,23 +365,23 @@ namespace IOSVN.TuTien.Core
         {
             var A = (Func<string, Transform, Vector2, Vector2, Vector2, Vector2, RectTransform>)owner.BattleAnchored;
             // Keep the opponent status compact and centered at the top of the screen.
-            var enemy = A("EnemyBar", hud, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-300, -88), new Vector2(300, -20));
-            var brush = enemy.gameObject.AddComponent<Image>();
-            brush.sprite = InkUi.Brush; brush.type = Image.Type.Sliced; brush.raycastTarget = false;
-            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 22, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(16, 34), new Vector2(-16, -4));
-            monsterHp = Bar(enemy, new Vector2(16, 10), new Vector2(-16, 31), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
+            var enemy = A("EnemyBar", hud, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-430, -88), new Vector2(430, -20));
+            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 21, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(16, 36), new Vector2(-16, -2));
+            monsterName.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
+            monsterHp = Bar(enemy, new Vector2(0, 4), new Vector2(0, 36), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
             movesText = owner.BattleText(hud, "Moves", "", ModernUi.Regular, 19, new Color32(236, 214, 170, 255), TextAnchor.UpperCenter,
                 new Vector2(.12f, 1), new Vector2(.88f, 1), new Vector2(0, -162), new Vector2(0, -130));
             movesText.supportRichText = true;
             movesText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
             movesText.gameObject.SetActive(false);
-            // Player health and energy stay at the lower-left edge of the screen.
-            var me = A("MeBar", hud, new Vector2(.18f, 0), new Vector2(.53f, 0), new Vector2(0, 82), new Vector2(0, 180));
-            var meBrush = me.gameObject.AddComponent<Image>();
-            meBrush.sprite = InkUi.Brush; meBrush.type = Image.Type.Sliced; meBrush.raycastTarget = false;
-            owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 26, Gold, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 0), new Vector2(-30, -12));
-            playerHp = Bar(me, new Vector2(46, 62), new Vector2(-36, 92), new Color32(196, 62, 54, 255), out playerHpText, out _);
-            playerMp = Bar(me, new Vector2(46, 24), new Vector2(-36, 54), new Color32(72, 140, 214, 255), out playerMpText, out _);
+            // Player status sits at the bottom centre as in Quỷ Cốc: name, a long framed health bar, a slimmer
+            // energy bar and the five quick item slots right under them.
+            var me = A("MeBar", hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-310, 96), new Vector2(310, 200));
+            var nameText = owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 19, Gold, TextAnchor.LowerLeft,
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(26, -30), new Vector2(-26, 0));
+            nameText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
+            playerHp = Bar(me, new Vector2(0, 32), new Vector2(0, 68), new Color32(204, 58, 50, 255), out playerHpText, out _);
+            playerMp = Bar(me, new Vector2(16, 4), new Vector2(-16, 30), new Color32(70, 142, 220, 255), out playerMpText, out _);
             logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 13, Cream, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -190), new Vector2(318, -108));
             logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 24, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
@@ -395,80 +395,106 @@ namespace IOSVN.TuTien.Core
             warnLabel.gameObject.AddComponent<Outline>().effectColor = new Color(.25f, 0, 0, .95f);
             warnLabel.gameObject.SetActive(false);
             // flee (top right)
-            var flee = A("Flee", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-250, -110), new Vector2(-24, -24));
-            RoundButton(flee, "road", "Rút lui", new Color32(30, 32, 34, 220), () => Send("flee", -1));
-            // joystick (bottom left)
-            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(38, 36), new Vector2(204, 202));
+            var flee = A("Flee", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-122, -122), new Vector2(-34, -34));
+            RoundButton(flee, "road", "Rút lui", new Color32(26, 30, 32, 210), () => Send("flee", -1), 15, null, BattleHudArt.SkillRing);
+            // joystick (bottom left): painted bronze ring on a soft dark disc, jade knob
+            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(44, 34), new Vector2(244, 234));
             var baseImage = stickBase.gameObject.AddComponent<Image>();
             baseImage.sprite = InkUi.Glow;
-            baseImage.color = new Color(0, 0, 0, .35f);
-            var baseRing = InkUi.Simple(stickBase, "Ring", InkUi.Ring, new Color(1, 1, 1, .55f), Vector2.zero);
-            baseRing.rectTransform.anchorMin = Vector2.zero; baseRing.rectTransform.anchorMax = Vector2.one;
+            baseImage.color = new Color(0, 0, 0, .28f);
+            var ringSprite = BattleHudArt.StickBase;
+            var baseRing = InkUi.Simple(stickBase, "Ring", ringSprite != null ? ringSprite : InkUi.Ring, ringSprite != null ? new Color(1, 1, 1, .92f) : new Color(1, 1, 1, .55f), Vector2.zero);
+            baseRing.rectTransform.anchorMin = new Vector2(-.04f, -.04f); baseRing.rectTransform.anchorMax = new Vector2(1.04f, 1.04f);
             baseRing.rectTransform.offsetMin = baseRing.rectTransform.offsetMax = Vector2.zero;
-            var knob = InkUi.Simple(stickBase, "Knob", InkUi.Glow, new Color32(232, 214, 170, 230), new Vector2(70, 70));
+            baseRing.raycastTarget = false;
+            var knobSprite = BattleHudArt.StickKnob;
+            var knob = InkUi.Simple(stickBase, "Knob", knobSprite != null ? knobSprite : InkUi.Glow, knobSprite != null ? Color.white : (Color)new Color32(232, 214, 170, 230), new Vector2(88, 88));
             knob.rectTransform.anchorMin = knob.rectTransform.anchorMax = new Vector2(.5f, .5f);
+            knob.raycastTarget = false;
             var stick = stickBase.gameObject.AddComponent<BattleStick>();
             stick.Knob = knob.rectTransform;
             stick.OnMove = v => moveInput = v;
-            // attack + skills (bottom right)
-            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-158, 44), new Vector2(-28, 174));
-            RoundButton(attack, "swords", "Đánh", new Color32(82, 42, 39, 225), TryAttack, 20);
+            // attack + skills (bottom right): slim painted rings, the icon fills the opening, a small name underneath
+            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-176, 54), new Vector2(-60, 170));
+            RoundButton(attack, "swords", null, new Color32(70, 34, 30, 235), TryAttack, 18, null, BattleHudArt.AttackRing);
             attackCooldown = Cooldown(attack);
             var hold = attack.gameObject.AddComponent<BattleHold>();
             hold.OnDown = () => { attackHeld = true; TryAttack(); };
             hold.OnUp = () => attackHeld = false;
             var skillCenters = new[]
             {
-                new Vector2(-330f, 136f), new Vector2(-295f, 236f), new Vector2(-205f, 294f),
-                new Vector2(-106f, 307f), new Vector2(-405f, 253f)
+                // an inner arc of three around the attack button and two further out, ~120 units apart
+                new Vector2(-297f, 128f), new Vector2(-245f, 239f), new Vector2(-134f, 291f),
+                new Vector2(-228f, 372f), new Vector2(-366f, 256f)
             };
             var skills = b["skills"];
             for (var i = 0; i < 5; i++)
             {
                 var pos = skillCenters[i];
-                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(47, 47), pos + new Vector2(47, 47));
+                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(40, 40), pos + new Vector2(40, 40));
                 var skill = skills[i];
                 var index = i;
                 var locked = skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str());
                 var skillElement = BattleFx.ElementOfSkill(skill["name"].Str(), element);
-                RoundButton(rect, null, null, new Color32(24, 30, 34, 225), locked ? (Action)null : () => PerformSkill(index), 20,
-                    locked ? (Color?)null : Color.Lerp(BattleFx.ElementColor(skillElement), Color.white, .15f));
+                RoundButton(rect, null, null, new Color32(20, 26, 30, 230), locked ? (Action)null : () => PerformSkill(index), 18,
+                    locked ? (Color?)new Color(.7f, .7f, .7f, .7f) : Color.Lerp(BattleFx.ElementColor(skillElement), Color.white, .55f), BattleHudArt.SkillRing);
                 var icon = InkUi.Simple(rect, "Icon", locked ? owner.BattleUiIcon("lock") : owner.BattleSkillIcon(skill), locked ? new Color(1, 1, 1, .4f) : Color.white, Vector2.zero);
                 icon.rectTransform.anchorMin = new Vector2(.2f, .2f); icon.rectTransform.anchorMax = new Vector2(.8f, .8f);
                 icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
                 icon.preserveAspect = true;
-                var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "\n<color=#8cc8ff>" + skill["mp"].Int() + " LL</color>" : ""),
-                    ModernUi.SemiBold, 13, Cream, TextAnchor.UpperCenter, new Vector2(-.45f, 0), new Vector2(1.45f, 0), new Vector2(0, -40), new Vector2(0, -2));
+                icon.raycastTarget = false;
+                icon.transform.SetSiblingIndex(1);
+                var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "  <color=#8cc8ff>" + skill["mp"].Int() + "</color>" : ""),
+                    ModernUi.SemiBold, 12, Cream, TextAnchor.UpperCenter, new Vector2(-.6f, 0), new Vector2(1.6f, 0), new Vector2(0, -34), new Vector2(0, -14));
                 label.supportRichText = true;
+                label.raycastTarget = false;
                 label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var cd = Cooldown(rect);
-                var seconds = owner.BattleText(rect, "Seconds", "", ModernUi.Bold, 34, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                var seconds = owner.BattleText(rect, "Seconds", "", ModernUi.Bold, 30, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 seconds.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 seconds.raycastTarget = false;
                 skillButtons.Add((rect, cd, seconds, icon, i));
             }
-            // dodge sits on an outer arc to the left of the skills so it never leaves the screen
-            var dpos = new Vector2(-245f, 83f);
-            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(42, 42), dpos + new Vector2(42, 42));
-            RoundButton(dodge, "spd", "Né", new Color32(40, 70, 90, 225), PerformDodge, 16);
+            // dodge sits low between the attack button and the skills
+            var dpos = new Vector2(-232f, 44f);
+            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(30, 30), dpos + new Vector2(30, 30));
+            RoundButton(dodge, "spd", null, new Color32(30, 56, 72, 230), PerformDodge, 14, null, BattleHudArt.SkillRing);
             dodgeCooldown = Cooldown(dodge);
-            // quick consumables (bottom centre)
-            var items = b["items"];
-            var count = Mathf.Max(2, items.Count);
-            for (var i = 0; i < count; i++)
+            // five quick item slots under the status bars (empty slots stay as frames)
+            for (var i = 0; i < 5; i++)
             {
-                var x = (i - (count - 1) / 2f) * 74f;
-                var rect = A("Item" + i, hud, new Vector2(.48f, 0), new Vector2(.48f, 0), new Vector2(x - 33, 15), new Vector2(x + 33, 81));
+                var x = (i - 2f) * 80f;
+                var rect = A("Item" + i, hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(x - 34, 14), new Vector2(x + 34, 82));
                 var index = i;
                 var fill = rect.gameObject.AddComponent<Image>();
-                ModernUi.Fill(fill, 22f);
-                fill.color = new Color32(20, 24, 28, 220);
+                fill.sprite = InkUi.White;
+                fill.color = new Color32(14, 18, 20, 200);
+                var slotSprite = BattleHudArt.ItemSlot;
+                if (slotSprite != null)
+                {
+                    var frame = InkUi.Simple(rect, "Frame", slotSprite, Color.white, Vector2.zero);
+                    frame.rectTransform.anchorMin = new Vector2(-.04f, -.04f); frame.rectTransform.anchorMax = new Vector2(1.04f, 1.04f);
+                    frame.rectTransform.offsetMin = frame.rectTransform.offsetMax = Vector2.zero;
+                    frame.raycastTarget = false;
+                    // the dark bed sits inside the frame's opening; the slot itself stays an invisible hit area
+                    fill.color = new Color(0, 0, 0, 0);
+                    var bed = InkUi.Simple(rect, "Bed", InkUi.White, new Color32(14, 18, 20, 210), Vector2.zero);
+                    bed.rectTransform.anchorMin = new Vector2(.08f, .08f); bed.rectTransform.anchorMax = new Vector2(.92f, .92f);
+                    bed.rectTransform.offsetMin = bed.rectTransform.offsetMax = Vector2.zero;
+                    bed.raycastTarget = false;
+                    bed.transform.SetAsFirstSibling();
+                }
+                else ModernUi.Fill(fill, 14f);
                 var icon = InkUi.Simple(rect, "Icon", InkUi.White, new Color(1, 1, 1, 0), Vector2.zero);
-                icon.rectTransform.anchorMin = new Vector2(.1f, .1f); icon.rectTransform.anchorMax = new Vector2(.9f, .9f);
+                icon.rectTransform.anchorMin = new Vector2(.17f, .17f); icon.rectTransform.anchorMax = new Vector2(.83f, .83f);
                 icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
                 icon.preserveAspect = true;
-                var qty = owner.BattleText(rect, "Qty", "", ModernUi.Bold, 24, Cream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(4, 4), new Vector2(-10, -4));
+                icon.raycastTarget = false;
+                var key = owner.BattleText(rect, "Key", (i + 1).ToString(), ModernUi.SemiBold, 12, new Color32(236, 214, 170, 200), TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(9, 0), new Vector2(0, -6));
+                key.raycastTarget = false;
+                var qty = owner.BattleText(rect, "Qty", "", ModernUi.Bold, 17, Cream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(4, 6), new Vector2(-9, -4));
                 qty.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
+                qty.raycastTarget = false;
                 var button = rect.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
                 button.onClick.AddListener(() => PerformItem(index));
@@ -480,45 +506,93 @@ namespace IOSVN.TuTien.Core
         private Image Bar(RectTransform parent, Vector2 offMin, Vector2 offMax, Color color, out Text text, out Image trail)
         {
             var track = owner.BattleAnchored("Bar", parent, new Vector2(0, 0), new Vector2(1, 0), offMin, offMax);
-            var t = track.gameObject.AddComponent<Image>();
-            ModernUi.Fill(t, 12f);
-            t.color = new Color(0, 0, 0, .6f);
-            t.raycastTarget = false;
+            var frameSprite = BattleHudArt.BarFrame;
+            var h = Mathf.Max(8f, offMax.y - offMin.y);
+            // the painted frame's end caps are ~88 texels wide and its rim ~24 texels: inset the fill to its opening
+            var k = BattleHudArt.BarTexHeight / h;
+            var inX = frameSprite != null ? 90f / k : 2f;
+            var inY = frameSprite != null ? 25f / k : 2f;
+            var bed = owner.BattleAnchored("Bed", track, Vector2.zero, Vector2.one, new Vector2(inX - 2, inY - 1), new Vector2(-inX + 2, -inY + 1)).gameObject.AddComponent<Image>();
+            bed.sprite = InkUi.White;
+            bed.color = new Color(.03f, .04f, .05f, .82f);
+            bed.raycastTarget = false;
             // the pale trail shows how much the last blows took before it drains away
-            trail = owner.BattleAnchored("Trail", track, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2)).gameObject.AddComponent<Image>();
+            trail = owner.BattleAnchored("Trail", track, Vector2.zero, Vector2.one, new Vector2(inX, inY), new Vector2(-inX, -inY)).gameObject.AddComponent<Image>();
             trail.sprite = InkUi.White;
             trail.type = Image.Type.Filled;
             trail.fillMethod = Image.FillMethod.Horizontal;
             trail.color = new Color(1f, .92f, .78f, .85f);
             trail.raycastTarget = false;
-            var fill = owner.BattleAnchored("Fill", track, Vector2.zero, Vector2.one, new Vector2(2, 2), new Vector2(-2, -2)).gameObject.AddComponent<Image>();
+            var fill = owner.BattleAnchored("Fill", track, Vector2.zero, Vector2.one, new Vector2(inX, inY), new Vector2(-inX, -inY)).gameObject.AddComponent<Image>();
             fill.sprite = InkUi.White;
             fill.type = Image.Type.Filled;
             fill.fillMethod = Image.FillMethod.Horizontal;
             fill.color = color;
             fill.raycastTarget = false;
-            text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, 18, Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            // a soft highlight along the top half of the fill
+            var sheen = owner.BattleAnchored("Sheen", fill.rectTransform, new Vector2(0, .55f), Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+            sheen.sprite = InkUi.White;
+            sheen.color = new Color(1, 1, 1, .16f);
+            sheen.raycastTarget = false;
+            if (frameSprite != null)
+            {
+                var frame = owner.BattleAnchored("Frame", track, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
+                frame.sprite = frameSprite;
+                frame.type = Image.Type.Sliced;
+                frame.pixelsPerUnitMultiplier = k;
+                frame.raycastTarget = false;
+            }
+            else
+            {
+                var t = track.gameObject.AddComponent<Image>();
+                ModernUi.Fill(t, 12f);
+                t.color = new Color(0, 0, 0, .6f);
+                t.raycastTarget = false;
+                t.transform.SetAsFirstSibling();
+            }
+            text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, Mathf.Clamp(Mathf.RoundToInt(h * .5f), 12, 18), Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            text.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             return fill;
         }
 
-        private void RoundButton(RectTransform rect, string iconId, string label, Color color, Action click, int fontSize = 20, Color? ringColor = null)
+        private void RoundButton(RectTransform rect, string iconId, string label, Color color, Action click, int fontSize = 20, Color? ringColor = null, Sprite ringSprite = null)
         {
             var disc = rect.gameObject.AddComponent<Image>();
             disc.sprite = InkUi.Glow;
             disc.color = color;
-            var ring = InkUi.Simple(rect, "Ring", InkUi.Ring, ringColor ?? (Color)new Color32(232, 196, 120, 200), Vector2.zero);
-            ring.rectTransform.anchorMin = new Vector2(.04f, .04f); ring.rectTransform.anchorMax = new Vector2(.96f, .96f);
-            ring.rectTransform.offsetMin = ring.rectTransform.offsetMax = Vector2.zero;
+            if (ringSprite != null)
+            {
+                // the painted ring is wider than the button: its opening (half the sprite) frames the button face
+                var glow = InkUi.Simple(rect, "Tint", InkUi.Glow, ringColor.HasValue ? new Color(ringColor.Value.r, ringColor.Value.g, ringColor.Value.b, .22f) : new Color(1, .9f, .6f, .12f), Vector2.zero);
+                glow.rectTransform.anchorMin = new Vector2(.08f, .08f); glow.rectTransform.anchorMax = new Vector2(.92f, .92f);
+                glow.rectTransform.offsetMin = glow.rectTransform.offsetMax = Vector2.zero;
+                glow.raycastTarget = false;
+                var painted = InkUi.Simple(rect, "Ring", ringSprite, ringColor.HasValue && ringColor.Value.a < .8f ? new Color(.75f, .75f, .75f, 1) : Color.white, Vector2.zero);
+                painted.rectTransform.anchorMin = new Vector2(-.2f, -.2f); painted.rectTransform.anchorMax = new Vector2(1.2f, 1.2f);
+                painted.rectTransform.offsetMin = painted.rectTransform.offsetMax = Vector2.zero;
+                painted.raycastTarget = false;
+            }
+            else
+            {
+                var ring = InkUi.Simple(rect, "Ring", InkUi.Ring, ringColor ?? (Color)new Color32(232, 196, 120, 200), Vector2.zero);
+                ring.rectTransform.anchorMin = new Vector2(.04f, .04f); ring.rectTransform.anchorMax = new Vector2(.96f, .96f);
+                ring.rectTransform.offsetMin = ring.rectTransform.offsetMax = Vector2.zero;
+            }
             if (!string.IsNullOrEmpty(iconId))
             {
                 var icon = InkUi.Simple(rect, "Icon", owner.BattleUiIcon(iconId), Color.white, Vector2.zero);
-                icon.rectTransform.anchorMin = new Vector2(.28f, .34f); icon.rectTransform.anchorMax = new Vector2(.72f, .8f);
+                if (ringSprite != null) { icon.rectTransform.anchorMin = new Vector2(.22f, .22f); icon.rectTransform.anchorMax = new Vector2(.78f, .78f); }
+                else { icon.rectTransform.anchorMin = new Vector2(.28f, .34f); icon.rectTransform.anchorMax = new Vector2(.72f, .8f); }
+                icon.raycastTarget = false;
                 icon.rectTransform.offsetMin = icon.rectTransform.offsetMax = Vector2.zero;
                 icon.preserveAspect = true;
             }
             if (!string.IsNullOrEmpty(label))
             {
-                var text = owner.BattleText(rect, "Label", label, ModernUi.Bold, fontSize, Cream, TextAnchor.LowerCenter, Vector2.zero, Vector2.one, new Vector2(0, 14), Vector2.zero);
+                var text = ringSprite != null
+                    ? owner.BattleText(rect, "Label", label, ModernUi.SemiBold, fontSize, Cream, TextAnchor.UpperCenter, new Vector2(-.6f, 0), new Vector2(1.6f, 0), new Vector2(0, -34), new Vector2(0, -14))
+                    : owner.BattleText(rect, "Label", label, ModernUi.Bold, fontSize, Cream, TextAnchor.LowerCenter, Vector2.zero, Vector2.one, new Vector2(0, 14), Vector2.zero);
+                text.raycastTarget = false;
                 text.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
             }
             if (click != null)
@@ -839,6 +913,7 @@ namespace IOSVN.TuTien.Core
         private void PerformItem(int index)
         {
             if (over || battle.IsNull) return;
+            if (string.IsNullOrEmpty(battle["items"][index]["uid"].Str())) return;   // an empty quick slot
             BattleFx.OnGround(fxLayer, "heal", "moc", playerPos + new Vector2(0, 14), 1.1f, false, 0, .8f);
             GameAudioController.Instance?.PlaySkillEffect();
             client.Post("/battle/act", new Dictionary<string, object> { { "a", "item" }, { "i", index } }, (result, error) =>
