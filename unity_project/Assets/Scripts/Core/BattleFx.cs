@@ -767,7 +767,7 @@ namespace IOSVN.TuTien.Core
     internal sealed class MonsterView : MonoBehaviour
     {
         public RectTransform Rect { get; private set; }
-        private Image glow, back, backNext, body, bodyNext, front, frontNext, flash;
+        private Image glow, back, backNext, body, bodyNext, front, frontNext, flash, shadow;
         private ArtSprites.MonsterSet set;
         private Sprite still;
         private string monsterId;
@@ -789,12 +789,10 @@ namespace IOSVN.TuTien.Core
             view.phase = (BattleFx.Hash(name) % 100) / 100f;
             view.set = ArtSprites.MonsterFrames(monsterId);
             view.still = fallback;
-            if (view.set == null || !view.set.Alive)
-            {
-                var sh = InkUi.Simple(rect, "Shadow", InkUi.Shadow, Color.white, new Vector2(size.x * .8f, size.x * .26f));
-                sh.rectTransform.anchorMin = sh.rectTransform.anchorMax = new Vector2(.5f, 0f);
-                sh.rectTransform.anchoredPosition = new Vector2(0, 6);
-            }
+            view.shadow = InkUi.Simple(rect, "Shadow", InkUi.Shadow, Color.white, new Vector2(size.x * .72f, size.x * .16f));
+            view.shadow.rectTransform.anchorMin = view.shadow.rectTransform.anchorMax = new Vector2(.5f, 0f);
+            view.shadow.rectTransform.anchoredPosition = new Vector2(0, 3);
+            view.shadow.raycastTarget = false;
             if (!string.IsNullOrEmpty(element))
             {
                 // a soft light of the monster's element behind it, breathing with its aura
@@ -824,6 +822,7 @@ namespace IOSVN.TuTien.Core
             image.transform.SetParent(parent, false);
             var r = image.rectTransform;
             r.anchorMin = Vector2.zero; r.anchorMax = Vector2.one; r.offsetMin = r.offsetMax = Vector2.zero;
+            r.pivot = new Vector2(.5f, 0f);
             image.preserveAspect = true;
             image.raycastTarget = false;
             return image;
@@ -869,12 +868,13 @@ namespace IOSVN.TuTien.Core
                 fade = 1f - d;
                 squash = 1f - d * .35f;
             }
-            else if (!alive) squash = 1f + Mathf.Sin(t * 2.4f) * .02f;          // still art: breathe by scale
+            else squash = 1f + Mathf.Sin(t * 2.4f) * .012f;
             var scale = new Vector3(sx, squash, 1f);
             Sprite bodySprite;
             if (alive)
             {
-                // body frames are opaque, so the next one simply fades in over the current one
+                // Discrete painted frames keep one clean silhouette instead of a
+                // translucent second body around moving legs and horns.
                 var position = t * 5f;
                 var n = set.Body.Length;
                 var i = (int)position % n;
@@ -882,7 +882,7 @@ namespace IOSVN.TuTien.Core
                 bodySprite = set.Body[i];
                 body.sprite = bodySprite;
                 bodyNext.sprite = set.Body[(i + 1) % n];
-                bodyNext.enabled = n > 1 && bodyNext.sprite != null && f > .01f && dieAt < 0;
+                bodyNext.enabled = false;
                 bodyNext.color = new Color(1, 1, 1, f);
                 bodyNext.rectTransform.localScale = scale;
             }
@@ -895,6 +895,7 @@ namespace IOSVN.TuTien.Core
             body.enabled = bodySprite != null;
             body.rectTransform.localScale = scale;
             flash.rectTransform.localScale = scale;
+            shadow.color = new Color(1, 1, 1, fade * .85f);
             var aura = alive && set.Back != null && set.Back.Length > 0;
             if (aura)
             {
@@ -902,7 +903,7 @@ namespace IOSVN.TuTien.Core
                 Pair(front, frontNext, set.Front, t * 9f, dieAt >= 0 ? 0f : 1f, scale);
             }
             else { back.enabled = backNext.enabled = front.enabled = frontNext.enabled = false; }
-            if (glow != null) glow.color = new Color(glowColor.r, glowColor.g, glowColor.b, (.2f + .07f * Mathf.Sin(t * 2.6f)) * fade);
+            if (glow != null) glow.color = new Color(glowColor.r, glowColor.g, glowColor.b, (.075f + .025f * Mathf.Sin(t * 2.6f)) * fade);
             var hit = Time.unscaledTime < flashUntil;
             var hasFlash = flash.material != null && flash.material == BattleFx.Flash;
             body.color = dieAt >= 0 ? new Color(.7f, .7f, .8f, fade) : (hit && !hasFlash ? new Color(1f, .55f, .5f) : Color.white);

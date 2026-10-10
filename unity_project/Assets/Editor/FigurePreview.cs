@@ -242,10 +242,19 @@ namespace IOSVN.TuTien.Editor
             log.AppendLine("number pad: input, clamp, delete, done, outside tap and cleanup OK");
         }
 
+        public static void RenderCombat()
+        {
+            var log = new System.Text.StringBuilder();
+            RenderBattleHud(log);
+            File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/figure-captures/combat-log.txt")), log.ToString());
+        }
+
         private static void RenderBattleHud(System.Text.StringBuilder log)
         {
+            foreach (var regular in new[] { false, true })
             foreach (var result in new[] { false, true })
             {
+                if (regular && result) continue;
                 EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
                 var controller = new GameObject("BattleHudPreview").AddComponent<PrototypeBootstrap>();
                 Invoke(controller, "BuildCanvas");
@@ -264,13 +273,19 @@ namespace IOSVN.TuTien.Editor
                 Set(controller, "hub", hub);
                 var typed = NetworkGameClient.ToGameState(hub);
                 Set(controller, "latestState", typed); Set(controller, "currentCatalog", typed.catalog);
-                Invoke(controller, "BuildActionBattle", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_battle.json")))["battle"]);
+                var source = File.ReadAllText(Path.Combine(samples, "qcbh_battle.json"));
+                if (regular) source = source.Replace("\"kind\":\"boss\"", "\"kind\":\"pve\"").Replace("\"packSize\":5", "\"packSize\":1").Replace("\"minionCount\":4", "\"minionCount\":0");
+                Invoke(controller, "BuildActionBattle", J.Parse(source)["battle"]);
                 var battle = controller.GetType().GetField("actionBattle", Flags).GetValue(controller);
                 if (result) Invoke(battle, "Finish", J.Parse("{\"result\":\"win\",\"summary\":{\"exp\":1234,\"stones\":520,\"drops\":[],\"notes\":[\"Trang bị sau chiến đấu: độ bền giảm nhẹ.\"]}}"));
                 else Invoke(battle, "PreviewMoment");
                 Canvas.ForceUpdateCanvases();
+                Set(battle, "nextPoll", float.PositiveInfinity);
+                Invoke(battle, "Update");
                 foreach (var figure in canvas.GetComponentsInChildren<CultivatorFigure2D>()) Invoke(figure, "LateUpdate");
-                Save(camera, target, width, height, result ? "battle_result_large.png" : "battle_hud_large.png");
+                foreach (var actor in canvas.GetComponentsInChildren<MonoBehaviour>())
+                    if (actor.GetType().Name == "MonsterView") Invoke(actor, "Show");
+                Save(camera, target, width, height, result ? "battle_result_large.png" : regular ? "battle_regular.png" : "battle_hud_large.png");
                 log.AppendLine(result ? "battle result: OK" : "battle HUD: OK");
             }
         }

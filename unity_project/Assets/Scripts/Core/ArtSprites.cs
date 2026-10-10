@@ -172,12 +172,26 @@ namespace IOSVN.TuTien.Core
         {
             if (string.IsNullOrEmpty(id)) return null;
             if (Monsters.TryGetValue(id, out var cached) && cached != null && cached.Alive) return cached;
-            var body = LoadTexture("Art/Monsters/" + id, false, false);
+            var body = LoadTexture("Art/Monsters/" + id, false, true);
             if (body == null) return null;
             if (string.Equals(id, "da_lang", StringComparison.Ordinal)) body.filterMode = FilterMode.Bilinear;
             const int n = MonsterSize;
             var set = new MonsterSet { Body = new Sprite[Mathf.Max(1, Mathf.Min(BodyFrames, body.width / n))] };
-            for (var i = 0; i < set.Body.Length; i++) set.Body[i] = Sprite.Create(body, new Rect(i * n, 0, n, n), new Vector2(.5f, 0f), 64f);
+            // Share one crop across the animation so transparent padding cannot shrink
+            // the creature, and the feet stay in the same place between frames.
+            var pixels = body.GetPixels32();
+            var left = n - 1; var right = 0; var bottom = n - 1; var top = 0;
+            for (var frame = 0; frame < set.Body.Length; frame++)
+                for (var y = 0; y < Mathf.Min(n, body.height); y++)
+                    for (var x = 0; x < n; x++)
+                        if (pixels[y * body.width + frame * n + x].a > 24)
+                        { left = Mathf.Min(left, x); right = Mathf.Max(right, x); bottom = Mathf.Min(bottom, y); top = Mathf.Max(top, y); }
+            if (right <= left || top <= bottom) { left = bottom = 0; right = top = n - 1; }
+            left = Mathf.Max(0, left - 2); right = Mathf.Min(n - 1, right + 2);
+            top = Mathf.Min(n - 1, top + 2);
+            for (var i = 0; i < set.Body.Length; i++)
+                set.Body[i] = Sprite.Create(body, new Rect(i * n + left, bottom, right - left + 1, top - bottom + 1), new Vector2(.5f, 0f), 64f);
+            body.Apply(false, true);
             Evict(Monsters, 4);        // each set is ~4 MB of pixels
             Monsters[id] = set;
             return set;
