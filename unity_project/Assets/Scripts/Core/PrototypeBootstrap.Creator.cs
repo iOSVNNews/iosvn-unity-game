@@ -32,6 +32,12 @@ namespace IOSVN.TuTien.Core
         private RectTransform creatorTalentArea;
         private Text creatorTalentCount;
         private bool creatorEditingExisting;
+        private static readonly string[][] CreatorGroups =
+        {
+            new[] { "preset" }, new[] { "fa", "ey", "br", "no", "mo", "bd", "ma" },
+            new[] { "ha", "to", "hat" }, new[] { "wp", "au" }
+        };
+        private static readonly string[] CreatorGroupNames = { "Phong cách", "Gương mặt", "Tóc & y phục", "Binh khí & khí tức" };
 
         private sealed class CreatorCategory
         {
@@ -171,6 +177,7 @@ namespace IOSVN.TuTien.Core
             view.gameObject.AddComponent<RectMask2D>();
             creatorZoom = Anchored("Zoom", view, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             creatorFigure = CultivatorFigure2D.Create(creatorZoom, creatorLook);
+            creatorFigure.SafePreview = true;
             creatorMotionControls = Anchored("MotionControls", col, Vector2.zero, new Vector2(1, .11f), new Vector2(10, 8), new Vector2(-10, -2));
 
             var nameRoot = Anchored("NameField", inner, new Vector2(0, .075f), new Vector2(.34f, .145f), new Vector2(4, 0), new Vector2(-4, 0));
@@ -202,20 +209,20 @@ namespace IOSVN.TuTien.Core
             var area = Anchored("RightArea", inner, new Vector2(.355f, .16f), new Vector2(1, .90f), Vector2.zero, Vector2.zero);
             creatorStepTabs = Anchored("StepTabs", inner, new Vector2(.52f, .915f), new Vector2(1, 1), Vector2.zero, new Vector2(0, -2));
             creatorAppearancePane = Anchored("Appearance", area, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
-            var listPanel = Anchored("CategoryPanel", creatorAppearancePane, Vector2.zero, new Vector2(.205f, 1), Vector2.zero, new Vector2(-6, 0));
+            var listPanel = Anchored("CategoryPanel", creatorAppearancePane, new Vector2(0, .78f), Vector2.one, Vector2.zero, Vector2.zero);
             var listFill = listPanel.gameObject.AddComponent<Image>();
             ModernUi.Fill(listFill, 20f);
             listFill.color = new Color32(14, 30, 34, 235);
             listFill.raycastTarget = false;
             creatorCategoryList = Anchored("Categories", listPanel, Vector2.zero, Vector2.one, new Vector2(8, 8), new Vector2(-8, -8));
-            var optionPanel = Anchored("OptionPanel", creatorAppearancePane, new Vector2(.215f, 0), Vector2.one, Vector2.zero, Vector2.zero);
+            var optionPanel = Anchored("OptionPanel", creatorAppearancePane, Vector2.zero, new Vector2(1, .76f), Vector2.zero, Vector2.zero);
             var optionFill = optionPanel.gameObject.AddComponent<Image>();
             ModernUi.Fill(optionFill, 22f);
             optionFill.color = new Color32(251, 248, 239, 236);
             optionFill.raycastTarget = false;
             CreatorPanelBorder(optionPanel);
-            creatorOptions = Anchored("Options", optionPanel, new Vector2(0, .37f), Vector2.one, new Vector2(14, 0), new Vector2(-14, -14));
-            creatorControls = Anchored("Controls", optionPanel, Vector2.zero, new Vector2(1, .37f), new Vector2(18, 12), new Vector2(-18, -4));
+            creatorOptions = Anchored("Options", optionPanel, new Vector2(0, .24f), Vector2.one, new Vector2(14, 0), new Vector2(-14, -14));
+            creatorControls = Anchored("Controls", optionPanel, Vector2.zero, new Vector2(1, .24f), new Vector2(18, 12), new Vector2(-18, -4));
             creatorDestinyPane = Anchored("Destiny", area, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             BuildCreatorDestiny(creatorDestinyPane);
         }
@@ -422,7 +429,7 @@ namespace IOSVN.TuTien.Core
             var cat = CurrentCategory();
             if (cat.MaleOnly && CreatorFemale) { creatorCategory = "fa"; cat = CurrentCategory(); }
             creatorFigure.SetLook(creatorLook);
-            creatorFigure.SetFraming(creatorStep == 0 ? cat.Preview : CultivatorFigure2D.Framing.Full);
+            creatorFigure.SetFraming(creatorStep == 0 && creatorMotion == "idle" ? cat.Preview : CultivatorFigure2D.Framing.Full);
             creatorFigure.SetFacing(creatorFacesRight);
             switch (creatorMotion)
             {
@@ -435,14 +442,16 @@ namespace IOSVN.TuTien.Core
             }
             // motion chips
             ClearCreatorChildren(creatorMotionControls);
-            var motions = new[] { ("idle", "Đứng"), ("walk", "Đi"), ("run", "Chạy"), ("attack", "Đánh"), ("cast", "Thi pháp"), ("fly", "Ngự kiếm") };
-            for (var i = 0; i < motions.Length; i++)
-            {
-                var m = motions[i];
-                CreatorChip(creatorMotionControls, m.Item2, new Vector2(i / 7f, 0), new Vector2((i + 1) / 7f, 1), creatorMotion == m.Item1,
-                    () => { creatorMotion = m.Item1; RefreshCreator(); });
-            }
-            CreatorChip(creatorMotionControls, "Quay ⇄", new Vector2(6 / 7f, 0), Vector2.one, false, () => { creatorFacesRight = !creatorFacesRight; RefreshCreator(); });
+            var motions = new[] { "idle", "walk", "run", "attack", "cast", "fly" };
+            var motionNames = new[] { "Đứng", "Đi bộ", "Chạy", "Đánh", "Thi pháp", "Ngự kiếm" };
+            var motionIndex = Mathf.Max(0, Array.IndexOf(motions, creatorMotion));
+            CreatorChip(creatorMotionControls, "‹", Vector2.zero, new Vector2(.16f, 1), false,
+                () => { creatorMotion = motions[(motionIndex + motions.Length - 1) % motions.Length]; RefreshCreator(); });
+            CreatorChip(creatorMotionControls, motionNames[motionIndex], new Vector2(.16f, 0), new Vector2(.64f, 1), true,
+                () => { creatorMotion = motions[(motionIndex + 1) % motions.Length]; RefreshCreator(); });
+            CreatorChip(creatorMotionControls, "›", new Vector2(.64f, 0), new Vector2(.8f, 1), false,
+                () => { creatorMotion = motions[(motionIndex + 1) % motions.Length]; RefreshCreator(); });
+            CreatorChip(creatorMotionControls, "⇄", new Vector2(.8f, 0), Vector2.one, false, () => { creatorFacesRight = !creatorFacesRight; RefreshCreator(); });
             // gender / random
             ClearCreatorChildren(creatorGender);
             if (!editing)
@@ -471,12 +480,20 @@ namespace IOSVN.TuTien.Core
         {
             // category list
             ClearCreatorChildren(creatorCategoryList);
+            var group = 0;
+            for (var g = 0; g < CreatorGroups.Length; g++) if (Array.IndexOf(CreatorGroups[g], cat.Key) >= 0) group = g;
+            for (var g = 0; g < CreatorGroups.Length; g++)
+            {
+                var index = g;
+                CreatorChip(creatorCategoryList, CreatorGroupNames[g], new Vector2(g / 4f, .5f), new Vector2((g + 1) / 4f, 1), group == g,
+                    () => { creatorCategory = CreatorGroups[index][0]; RefreshCreator(); }, true);
+            }
             var visible = new List<CreatorCategory>();
-            foreach (var c in CreatorCategoriesV2) if (!(c.MaleOnly && CreatorFemale)) visible.Add(c);
+            foreach (var c in CreatorCategoriesV2) if (Array.IndexOf(CreatorGroups[group], c.Key) >= 0 && !(c.MaleOnly && CreatorFemale)) visible.Add(c);
             for (var i = 0; i < visible.Count; i++)
             {
                 var c = visible[i];
-                CreatorChip(creatorCategoryList, c.Label, new Vector2(0, 1f - (i + 1f) / visible.Count), new Vector2(1, 1f - i / (float)visible.Count),
+                CreatorChip(creatorCategoryList, c.Label, new Vector2(i / (float)visible.Count, 0), new Vector2((i + 1f) / visible.Count, .48f),
                     c.Key == creatorCategory, () => { creatorCategory = c.Key; RefreshCreator(); }, true);
             }
             // option grid with live thumbnails
@@ -487,18 +504,16 @@ namespace IOSVN.TuTien.Core
             var columns = count <= 4 ? 4 : count <= 6 ? 3 : 5;
             if (cat.Key == "wp" || cat.Key == "au") columns = 3;
             var rows = Mathf.CeilToInt(count / (float)columns);
-            var withFigure = cat.Key != "wp" && cat.Key != "au";
+            var controlRows = (cat.Sliders?.Length ?? 0) + (cat.Colors?.Length ?? 0);
+            var controlHeight = controlRows == 0 ? .13f : controlRows == 1 ? .22f : Mathf.Min(.48f, .14f * controlRows);
+            creatorOptions.anchorMin = new Vector2(0, controlHeight);
+            creatorControls.anchorMax = new Vector2(1, controlHeight);
             for (var i = 0; i < count; i++)
             {
                 var x = i % columns; var y = i / columns;
                 var min = new Vector2(x / (float)columns, 1f - (y + 1f) / rows);
                 var max = new Vector2((x + 1f) / columns, 1f - y / (float)rows);
                 var index = i;
-                if (!withFigure)
-                {
-                    CreatorChip(creatorOptions, names[i], min, max, index == selected, () => ChooseOption(cat.Key, index));
-                    continue;
-                }
                 var cell = Anchored("Option" + i, creatorOptions, min, max, new Vector2(5, 5), new Vector2(-5, -5));
                 var fill = cell.gameObject.AddComponent<Image>();
                 ModernUi.Fill(fill, 14f);
@@ -510,8 +525,9 @@ namespace IOSVN.TuTien.Core
                 var frame = Anchored("Thumb", cell, new Vector2(0, .22f), Vector2.one, new Vector2(4, 0), new Vector2(-4, -4));
                 frame.gameObject.AddComponent<RectMask2D>();
                 var look = cat.Key == "preset" ? BuildCreatorPreset(CreatorFemale, index) : LookSpec.Parse(creatorLook.ToString());
-                if (cat.Key != "preset") look.Set(cat.Key, index);
+                if (cat.Key != "preset") look.Set(cat.Key, cat.Key == "wp" ? CreatorWeaponStyles[index] : index);
                 var thumb = CultivatorFigure2D.Create(frame, look, cat.Thumb);
+                thumb.SafePreview = cat.Thumb == CultivatorFigure2D.Framing.Full;
                 thumb.SetMotion(FighterAction.Idle, 0, false, true, .4f);
                 var label = AnchoredText(cell, "Label", names[i], ModernUi.SemiBold, 18, new Color32(40, 34, 32, 255), TextAnchor.MiddleCenter,
                     Vector2.zero, new Vector2(1, .22f), new Vector2(4, 0), new Vector2(-4, 0));
@@ -577,7 +593,7 @@ namespace IOSVN.TuTien.Core
             for (var i = 0; i < count; i++)
             {
                 var hex = palette[i];
-                var rect = Anchored("Swatch" + i, area, new Vector2(i / (float)count, .12f), new Vector2((i + 1f) / count, .88f), new Vector2(3, 0), new Vector2(-3, 0));
+                var rect = Anchored("Swatch" + i, area, new Vector2(i / (float)count, .5f), new Vector2((i + 1f) / count, .5f), new Vector2(3, -18), new Vector2(-3, 18));
                 var fill = rect.gameObject.AddComponent<Image>();
                 ModernUi.Fill(fill, 10f);
                 fill.color = HeroSprites.ParseColor(hex, Color.gray);
@@ -590,7 +606,7 @@ namespace IOSVN.TuTien.Core
                 }
                 var button = rect.gameObject.AddComponent<Button>();
                 button.targetGraphic = fill;
-                button.onClick.AddListener(() => { creatorLook.Set(key, hex); creatorLook.Set("preset", -1); RefreshCreator(); });
+                button.onClick.AddListener(() => { creatorLook.Set(key, hex); if (key == "auc" && creatorLook.Int("au") == 0) creatorLook.Set("au", 1); creatorLook.Set("preset", -1); RefreshCreator(); });
             }
         }
 

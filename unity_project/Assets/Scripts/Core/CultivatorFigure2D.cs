@@ -165,6 +165,10 @@ namespace IOSVN.TuTien.Core
         private Rig rig;
         private Slot[] slots = new Slot[0];
         private Image weapon, aura;
+        private Image auraRing;
+        private readonly List<Image> auraMotes = new List<Image>();
+        private Color auraTint;
+        private static Material hairTintMaterial;
         private int weaponStyle, auraStyle;
         private LookSpec look;
         private Framing framing = Framing.Full;
@@ -189,6 +193,7 @@ namespace IOSVN.TuTien.Core
         public bool Airborne { get; set; }
         /// <summary>Extra zoom in the creator (1 = framing default).</summary>
         public float Zoom { get; set; } = 1f;
+        public bool SafePreview { get; set; }
         public bool FacesRight => faceRight;
 
         public static CultivatorFigure2D Create(RectTransform parent, LookSpec look, Framing framing = Framing.Full)
@@ -208,6 +213,8 @@ namespace IOSVN.TuTien.Core
             ar.sizeDelta = new Vector2(Width * 1.3f, Height * .95f);
             ar.anchoredPosition = new Vector2(0, Height * .47f);
             figure.aura.raycastTarget = false;
+            figure.auraRing = figure.CreateAuraImage("AuraRing", InkUi.Ring);
+            for (var i = 0; i < 10; i++) figure.auraMotes.Add(figure.CreateAuraImage("AuraMote" + i, InkUi.Glow));
             figure.layerRoot = new GameObject("Layers", typeof(RectTransform)).GetComponent<RectTransform>();
             figure.layerRoot.SetParent(rect, false);
             figure.layerRoot.anchorMin = figure.layerRoot.anchorMax = new Vector2(.5f, 0f);
@@ -217,6 +224,29 @@ namespace IOSVN.TuTien.Core
             figure.SetLook(look);
             figure.Apply();
             return figure;
+        }
+
+        private Image CreateAuraImage(string name, Sprite sprite)
+        {
+            var image = new GameObject(name, typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+            image.transform.SetParent(root, false);
+            image.rectTransform.anchorMin = image.rectTransform.anchorMax = new Vector2(.5f, 0);
+            image.sprite = sprite;
+            image.raycastTarget = false;
+            return image;
+        }
+
+        private static Material HairTintMaterial
+        {
+            get
+            {
+                if (hairTintMaterial == null)
+                {
+                    var shader = Resources.Load<Shader>("CharacterHairTint");
+                    if (shader != null) hairTintMaterial = new Material(shader) { hideFlags = HideFlags.HideAndDontSave };
+                }
+                return hairTintMaterial;
+            }
         }
 
         public void SetFraming(Framing value) { framing = value; Fit(); }
@@ -247,6 +277,7 @@ namespace IOSVN.TuTien.Core
                 var go = new GameObject(def.Id, typeof(RectTransform), def.Flex ? typeof(FlexImage) : typeof(Image));
                 go.transform.SetParent(layerRoot, false);
                 var image = go.GetComponent<Image>();
+                if (def.Tint == "hc") image.material = HairTintMaterial;
                 image.raycastTarget = false;
                 var r = image.rectTransform;
                 r.anchorMin = r.anchorMax = new Vector2(.5f, 0f);
@@ -268,6 +299,7 @@ namespace IOSVN.TuTien.Core
         private int Bone(string name) => rig != null && rig.BoneIndex.TryGetValue(name, out var i) ? i : -1;
 
         private static readonly string[] StyleKeys = { "to", "ha", "fa", "ey", "br", "no", "mo", "bd", "ma", "hat" };
+        private static readonly string[] WalkSeamJoints = { "torso", "armN_up", "armN_lo", "armF_up", "armF_lo" };
         private static readonly Dictionary<string, int> StyleCounts = new Dictionary<string, int>
         {
             { "to", 6 }, { "ha", 10 }, { "fa", 4 }, { "ey", 8 }, { "br", 5 }, { "no", 4 }, { "mo", 5 }, { "bd", 5 }, { "ma", 6 }, { "hat", 6 },
@@ -306,13 +338,8 @@ namespace IOSVN.TuTien.Core
                 default: fallback = "#ffffff"; break;
             }
             var c = HeroSprites.ParseColor(look.Get(key, fallback), Color.white);
-            // painted hair is multiplied by its colour; a near-black colour would flatten the painted
-            // highlights to nothing, so dark hair colours are lifted (the dark strands stay dark)
-            if (key == "hc") c = new Color(c.r + (1f - c.r) * HairLift, c.g + (1f - c.g) * HairLift, c.b + (1f - c.b) * HairLift, 1f);
             return c;
         }
-
-        private const float HairLift = .16f;
 
         private void Dress()
         {
@@ -378,8 +405,8 @@ namespace IOSVN.TuTien.Core
             auraStyle = Mathf.Clamp(look.Int("au", 0), 0, 5);
             aura.enabled = auraStyle > 0;
             aura.sprite = auraStyle == 2 || auraStyle == 4 ? InkUi.Ring : auraStyle == 3 ? InkUi.Cloud : InkUi.Glow;
-            var auraColor = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), Color.white);
-            aura.color = new Color(auraColor.r, auraColor.g, auraColor.b, .12f + auraStyle * .035f);
+            auraTint = HeroSprites.ParseColor(look.Get("auc", "#8fe0ff"), Color.white);
+            AnimateAura();
             ApplyColors();
         }
 
@@ -479,7 +506,8 @@ namespace IOSVN.TuTien.Core
                     y = -(rig != null && boneHead >= 0 ? boneWorld[boneHead].y + 70f : 840f) * scale + parent.rect.height * .5f;
                     break;
                 default:
-                    scale = Mathf.Min(parent.rect.width / Width, parent.rect.height / Height) * Zoom;
+                    scale = Mathf.Min(parent.rect.width / (Width * (SafePreview ? 1.5f : 1f)), parent.rect.height / (Height * (SafePreview ? 1.18f : 1f))) * Zoom;
+                    if (SafePreview) y = Height * .09f * scale;
                     break;
             }
             root.anchorMin = root.anchorMax = new Vector2(.5f, 0f);
@@ -546,16 +574,19 @@ namespace IOSVN.TuTien.Core
                 Pose("legF_up", -amp * s);
                 Pose("legN_lo", -(run ? 34f : 20f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f)));
                 Pose("legF_lo", -(run ? 34f : 20f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f + Mathf.PI)));
-                Pose("hips", 0, 0, (run ? -10f : -7f) * Mathf.Abs(s) + 3f);
-                Pose("torso", (run ? -9f : -3f) + s * 1f);
+                Pose("hips", run ? -4f : -1f, 0, (run ? -10f : -7f) * Mathf.Abs(s) + 3f);
+                // The painted robe has cut edges, rather than a deformable shared mesh. Keep its
+                // torso and sleeve joints in the bind pose while the whole body leans and bobs.
+                // Legs and flexible cloth still animate; the cut edges can no longer pull apart.
+                foreach (var joint in WalkSeamJoints)
+                {
+                    var bone = Bone(joint);
+                    if (bone >= 0) poseAngle[bone] = 0;
+                }
                 Pose("head", run ? 5f : 2f);
-                Pose("armN_up", -(run ? 32f : 18f) * s);
-                Pose("armN_lo", (run ? 28f : 8f) + 6f * Mathf.Max(0f, -s));
-                Pose("armF_up", (run ? 32f : 18f) * s);
-                Pose("armF_lo", (run ? 28f : 8f) + 6f * Mathf.Max(0f, s));
                 bendHair = (run ? -30f : -12f) - 4f * Mathf.Sin(2 * p);
                 bendSkirt = (run ? -26f : -10f) - 6f * Mathf.Abs(s);
-                bendSleeve = (run ? -22f : -8f) + 4f * s;
+                bendSleeve = (run ? -8f : -4f) + 2f * s;
                 bendCape = (run ? -50f : -22f) - 6f * Mathf.Abs(s);
             }
 
@@ -616,6 +647,7 @@ namespace IOSVN.TuTien.Core
         private void Apply()
         {
             if (rig == null || slots.Length == 0) return;
+            AnimateAura();
             BuildPose();
             var n = rig.BoneNames.Length;
             for (var i = 0; i < n; i++)
@@ -689,6 +721,33 @@ namespace IOSVN.TuTien.Core
                     wr.localRotation = Quaternion.Euler(0, 0, a - 8f);
                     wr.localScale = new Vector3(-1f, 1f, 1f);
                 }
+            }
+        }
+
+        private void AnimateAura()
+        {
+            if (aura == null || auraRing == null) return;
+            var visible = auraStyle > 0;
+            aura.enabled = visible;
+            auraRing.enabled = visible;
+            var t = clock;
+            var pulse = 1f + Mathf.Sin(t * 2.8f) * .06f;
+            aura.rectTransform.sizeDelta = new Vector2(Width * 1.25f, Height * .82f) * pulse;
+            aura.rectTransform.anchoredPosition = new Vector2(0, Height * .44f);
+            aura.color = new Color(auraTint.r, auraTint.g, auraTint.b, auraStyle >= 4 ? .65f : .42f);
+            auraRing.rectTransform.sizeDelta = new Vector2(Width * 1.15f, Height * .60f) * pulse;
+            auraRing.rectTransform.anchoredPosition = new Vector2(0, Height * .39f);
+            auraRing.rectTransform.localRotation = Quaternion.Euler(0, 0, Mathf.Sin(t) * 9f);
+            auraRing.color = new Color(auraTint.r, auraTint.g, auraTint.b, auraStyle == 2 || auraStyle == 4 ? .8f : .25f);
+            for (var i = 0; i < auraMotes.Count; i++)
+            {
+                var mote = auraMotes[i];
+                mote.enabled = visible;
+                var phase = Mathf.Repeat(t * (auraStyle == 3 ? .22f : .35f) + i / (float)auraMotes.Count, 1f);
+                var angle = i * 2.39996f + t * .8f;
+                mote.rectTransform.anchoredPosition = new Vector2(Mathf.Sin(angle) * Width * .54f, Height * (.12f + .68f * phase));
+                mote.rectTransform.sizeDelta = Vector2.one * (auraStyle == 3 ? 75f : 30f);
+                mote.color = new Color(auraTint.r, auraTint.g, auraTint.b, Mathf.Sin(phase * Mathf.PI) * .95f);
             }
         }
     }

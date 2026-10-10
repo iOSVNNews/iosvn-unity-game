@@ -736,6 +736,7 @@ namespace IOSVN.TuTien.Core
             field.contentType = InputField.ContentType.IntegerNumber;
             field.keyboardType = TouchScreenKeyboardType.NumberPad;
             field.text = initial.ToString(CultureInfo.InvariantCulture);
+            NumberPad.Attach(field, card, canvas, min, max);
             var glyph = field.transform.Find("Icon")?.GetComponent<Image>();
             if (glyph != null) glyph.sprite = UiPixelIcon("coin");
             long Value() => long.TryParse(field.text, NumberStyles.Integer, CultureInfo.InvariantCulture, out var v) ? Math.Max(min, Math.Min(max, v)) : initial;

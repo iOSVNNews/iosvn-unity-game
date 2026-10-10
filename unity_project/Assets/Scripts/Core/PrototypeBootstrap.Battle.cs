@@ -398,7 +398,7 @@ namespace IOSVN.TuTien.Core
             var flee = A("Flee", hud, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-122, -122), new Vector2(-34, -34));
             RoundButton(flee, "road", "Rút lui", new Color32(26, 30, 32, 210), () => Send("flee", -1), 15, null, BattleHudArt.SkillRing);
             // joystick (bottom left): painted bronze ring on a soft dark disc, jade knob
-            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(44, 34), new Vector2(244, 234));
+            var stickBase = A("Stick", hud, Vector2.zero, Vector2.zero, new Vector2(44, 40), new Vector2(304, 300));
             var baseImage = stickBase.gameObject.AddComponent<Image>();
             baseImage.sprite = InkUi.Glow;
             baseImage.color = new Color(0, 0, 0, .28f);
@@ -415,7 +415,7 @@ namespace IOSVN.TuTien.Core
             stick.Knob = knob.rectTransform;
             stick.OnMove = v => moveInput = v;
             // attack + skills (bottom right): slim painted rings, the icon fills the opening, a small name underneath
-            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-176, 54), new Vector2(-60, 170));
+            var attack = A("Attack", hud, new Vector2(1, 0), new Vector2(1, 0), new Vector2(-224, 52), new Vector2(-44, 232));
             RoundButton(attack, "swords", null, new Color32(70, 34, 30, 235), TryAttack, 18, null, BattleHudArt.AttackRing);
             attackCooldown = Cooldown(attack);
             var hold = attack.gameObject.AddComponent<BattleHold>();
@@ -423,15 +423,15 @@ namespace IOSVN.TuTien.Core
             hold.OnUp = () => attackHeld = false;
             var skillCenters = new[]
             {
-                // an inner arc of three around the attack button and two further out, ~120 units apart
-                new Vector2(-297f, 128f), new Vector2(-245f, 239f), new Vector2(-134f, 291f),
-                new Vector2(-228f, 372f), new Vector2(-366f, 256f)
+                // Larger touch targets with room below each ring for a readable two-line name.
+                new Vector2(-360f, 210f), new Vector2(-360f, 470f), new Vector2(-145f, 450f),
+                new Vector2(-570f, 570f), new Vector2(-570f, 300f)
             };
             var skills = b["skills"];
             for (var i = 0; i < 5; i++)
             {
                 var pos = skillCenters[i];
-                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(40, 40), pos + new Vector2(40, 40));
+                var rect = A("Skill" + i, hud, new Vector2(1, 0), new Vector2(1, 0), pos - new Vector2(64, 64), pos + new Vector2(64, 64));
                 var skill = skills[i];
                 var index = i;
                 var locked = skill["locked"].Bool() || string.IsNullOrEmpty(skill["id"].Str());
@@ -444,9 +444,21 @@ namespace IOSVN.TuTien.Core
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
                 icon.transform.SetSiblingIndex(1);
-                var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()) + (skill["mp"].Int() > 0 ? "  <color=#8cc8ff>" + skill["mp"].Int() + "</color>" : ""),
-                    ModernUi.SemiBold, 12, Cream, TextAnchor.UpperCenter, new Vector2(-.6f, 0), new Vector2(1.6f, 0), new Vector2(0, -34), new Vector2(0, -14));
+                var label = owner.BattleText(rect, "Name", locked ? "" : owner.BattleClean(skill["name"].Str()),
+                    ModernUi.SemiBold, 28, Cream, TextAnchor.UpperCenter, new Vector2(-.28f, 0), new Vector2(1.28f, 0), new Vector2(0, -92), new Vector2(0, -22));
                 label.supportRichText = true;
+                label.horizontalOverflow = HorizontalWrapMode.Wrap;
+                label.lineSpacing = 1.05f;
+                var labelBed = A("NameBackground", rect, new Vector2(-.28f, 0), new Vector2(1.28f, 0), new Vector2(-4, -94), new Vector2(4, -20)).gameObject.AddComponent<Image>();
+                ModernUi.Fill(labelBed, 8f);
+                labelBed.color = new Color(0, 0, 0, .55f);
+                labelBed.raycastTarget = false;
+                labelBed.transform.SetSiblingIndex(label.transform.GetSiblingIndex());
+                labelBed.gameObject.SetActive(!locked);
+                var mpCost = owner.BattleText(rect, "ManaCost", !locked && skill["mp"].Int() > 0 ? skill["mp"].Int().ToString() : "",
+                    ModernUi.Bold, 24, new Color32(144, 204, 255, 255), TextAnchor.LowerCenter, Vector2.zero, Vector2.one, new Vector2(0, 8), new Vector2(0, 0));
+                mpCost.raycastTarget = false;
+                mpCost.gameObject.AddComponent<Outline>().effectColor = Color.black;
                 label.raycastTarget = false;
                 label.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 var cd = Cooldown(rect);
@@ -456,15 +468,15 @@ namespace IOSVN.TuTien.Core
                 skillButtons.Add((rect, cd, seconds, icon, i));
             }
             // dodge sits low between the attack button and the skills
-            var dpos = new Vector2(-232f, 44f);
-            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(30, 30), dpos + new Vector2(30, 30));
-            RoundButton(dodge, "spd", null, new Color32(30, 56, 72, 230), PerformDodge, 14, null, BattleHudArt.SkillRing);
+            var dpos = new Vector2(-130f, 650f);
+            var dodge = A("Dodge", hud, new Vector2(1, 0), new Vector2(1, 0), dpos - new Vector2(50, 50), dpos + new Vector2(50, 50));
+            RoundButton(dodge, "spd", "Né", new Color32(30, 56, 72, 230), PerformDodge, 28, null, BattleHudArt.SkillRing);
             dodgeCooldown = Cooldown(dodge);
             // five quick item slots under the status bars (empty slots stay as frames)
             for (var i = 0; i < 5; i++)
             {
-                var x = (i - 2f) * 80f;
-                var rect = A("Item" + i, hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(x - 34, 14), new Vector2(x + 34, 82));
+                var x = (i - 2f) * 100f;
+                var rect = A("Item" + i, hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(x - 44, 8), new Vector2(x + 44, 96));
                 var index = i;
                 var fill = rect.gameObject.AddComponent<Image>();
                 fill.sprite = InkUi.White;
@@ -492,7 +504,7 @@ namespace IOSVN.TuTien.Core
                 icon.raycastTarget = false;
                 var key = owner.BattleText(rect, "Key", (i + 1).ToString(), ModernUi.SemiBold, 12, new Color32(236, 214, 170, 200), TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(9, 0), new Vector2(0, -6));
                 key.raycastTarget = false;
-                var qty = owner.BattleText(rect, "Qty", "", ModernUi.Bold, 17, Cream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(4, 6), new Vector2(-9, -4));
+                var qty = owner.BattleText(rect, "Qty", "", ModernUi.Bold, 25, Cream, TextAnchor.LowerRight, Vector2.zero, Vector2.one, new Vector2(4, 6), new Vector2(-9, -4));
                 qty.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .9f);
                 qty.raycastTarget = false;
                 var button = rect.gameObject.AddComponent<Button>();
@@ -550,7 +562,7 @@ namespace IOSVN.TuTien.Core
                 t.raycastTarget = false;
                 t.transform.SetAsFirstSibling();
             }
-            text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, Mathf.Clamp(Mathf.RoundToInt(h * .5f), 12, 18), Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, Mathf.Clamp(Mathf.RoundToInt(h * .7f), 20, 26), Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             text.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             return fill;
         }
@@ -973,7 +985,7 @@ namespace IOSVN.TuTien.Core
             else if (result != "fled") hero.Play(FighterAction.Down);
             warnCircle.gameObject.SetActive(false);
             warnLabel.gameObject.SetActive(false);
-            resultPanel = owner.BattleAnchored("Result", hud, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-520, -300), new Vector2(520, 300));
+            resultPanel = owner.BattleAnchored("Result", hud, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-600, -340), new Vector2(600, 340));
             var bg = resultPanel.gameObject.AddComponent<Image>();
             ModernUi.Fill(bg, 30f);
             bg.color = new Color32(16, 20, 24, 240);
@@ -982,12 +994,15 @@ namespace IOSVN.TuTien.Core
             UiGradient.Apply(title, won ? new Color32(255, 230, 160, 255) : new Color32(240, 150, 140, 255), won ? new Color32(206, 150, 60, 255) : new Color32(170, 70, 60, 255));
             var summary = b["summary"];
             var text = "";
-            if (summary.IsObject)
-                foreach (var pair in summary.Pairs)
-                    if (!pair.Value.IsObject && !pair.Value.IsArray && !string.IsNullOrEmpty(pair.Value.Str())) text += owner.BattleClean(pair.Value.Str()) + "\n";
-            var log = b["log"];
-            for (var i = Mathf.Max(0, log.Count - 5); i < log.Count; i++) text += owner.BattleClean(log[i]["text"].Str(log[i].Str())) + "\n";
-            owner.BattleText(resultPanel, "Body", text.Trim(), ModernUi.Regular, 24, Cream, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 130), new Vector2(-46, -120));
+            if (summary["exp"].Num() > 0) text += $"Tu vi: +{summary["exp"].Num():N0}\n";
+            if (summary["stones"].Num() > 0) text += $"Linh thạch: +{summary["stones"].Num():N0}\n";
+            if (summary["expLost"].Num() > 0) text += $"Tu vi mất: {summary["expLost"].Num():N0}\n";
+            if (summary["levelUps"].Int() > 0) text += $"Tăng {summary["levelUps"].Int()} tầng tu vi\n";
+            if (summary["drops"].Count > 0) text += $"Nhận {summary["drops"].Count} vật phẩm\n";
+            var notes = summary["notes"];
+            for (var i = 0; i < Mathf.Min(2, notes.Count); i++) text += owner.BattleClean(notes[i].Str()) + "\n";
+            if (string.IsNullOrWhiteSpace(text)) text = won ? "Đã đánh bại yêu thú." : "Trận chiến đã kết thúc.";
+            owner.BattleText(resultPanel, "Body", text.Trim(), ModernUi.Regular, 32, Cream, TextAnchor.UpperLeft, Vector2.zero, Vector2.one, new Vector2(46, 130), new Vector2(-46, -120));
             var go = owner.BattleAnchored("Continue", resultPanel, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-220, 24), new Vector2(220, 112));
             var fill = go.gameObject.AddComponent<Image>();
             ModernUi.Fill(fill, 26f);

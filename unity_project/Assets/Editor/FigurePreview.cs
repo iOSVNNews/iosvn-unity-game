@@ -46,6 +46,8 @@ namespace IOSVN.TuTien.Editor
             Directory.CreateDirectory(OutDir);
             try { RenderMotionSheets(log); } catch (Exception ex) { log.AppendLine("motion: FAIL " + ex); Debug.LogException(ex); }
             try { RenderCreator(log); } catch (Exception ex) { log.AppendLine("creator: FAIL " + ex); Debug.LogException(ex); }
+            try { RenderNumberPad(log); } catch (Exception ex) { log.AppendLine("number pad: FAIL " + ex); Debug.LogException(ex); }
+            try { RenderBattleHud(log); } catch (Exception ex) { log.AppendLine("battle HUD: FAIL " + ex); Debug.LogException(ex); }
             File.WriteAllText(Path.Combine(OutDir, "log.txt"), log.ToString());
             Debug.Log("FIGURE_PREVIEW_DONE\n" + log);
         }
@@ -129,7 +131,7 @@ namespace IOSVN.TuTien.Editor
                     var t = f / (float)frames;
                     var clock = mo.moving ? t * (mo.run ? .57f : .83f) : t * 2.5f;
                     figure.SetMotion(mo.action, t, mo.moving, true, clock);
-                    figure.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+                    Invoke(figure, "LateUpdate");
                 }
                 Save(camera, target, width, height, "motion_" + (female ? "female" : "male") + ".png");
                 log.AppendLine("motion " + (female ? "female" : "male") + ": OK");
@@ -141,7 +143,7 @@ namespace IOSVN.TuTien.Editor
             var samples = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples/qcbh_state.json"));
             var state = File.Exists(samples) ? File.ReadAllText(samples) : null;
             foreach (var female in new[] { false, true })
-            foreach (var category in new[] { "preset", "ey", "ha", "to" })
+            foreach (var category in new[] { "preset", "ey", "ha", "br", "to", "au", "wp", "walk", "run" })
             {
                 var name = "creator_" + (female ? "female" : "male") + "_" + category + ".png";
                 try
@@ -161,7 +163,7 @@ namespace IOSVN.TuTien.Editor
                     canvas.renderMode = RenderMode.ScreenSpaceCamera;
                     canvas.worldCamera = camera;
                     canvas.planeDistance = 100f;
-                    canvas.GetComponent<CanvasScaler>().SendMessage("Handle", SendMessageOptions.DontRequireReceiver);
+                    Invoke(canvas.GetComponent<CanvasScaler>(), "Handle");
                     if (state != null)
                     {
                         var hub = J.Parse(state);
@@ -173,10 +175,14 @@ namespace IOSVN.TuTien.Editor
                     Set(controller, "gender", female ? "nu" : "nam");
                     Set(controller, "creatorLook", null);
                     Invoke(controller, "ShowCreator", false);
-                    Set(controller, "creatorCategory", category);
+                    Set(controller, "creatorCategory", category == "walk" || category == "run" ? "ha" : category);
+                    if (category == "walk" || category == "run") Set(controller, "creatorMotion", category);
+                    var look = (LookSpec)controller.GetType().GetField("creatorLook", Flags).GetValue(controller);
+                    if (category == "ha" || category == "br") look.Set("hc", "#dfc9a9");
+                    if (category == "au") { look.Set("au", 4); look.Set("auc", "#ff5050"); }
                     Invoke(controller, "RefreshCreator");
                     Canvas.ForceUpdateCanvases();
-                    foreach (var figure in canvas.GetComponentsInChildren<CultivatorFigure2D>()) figure.SendMessage("LateUpdate", SendMessageOptions.DontRequireReceiver);
+                    foreach (var figure in canvas.GetComponentsInChildren<CultivatorFigure2D>()) Invoke(figure, "LateUpdate");
                     Save(camera, target, width, height, name);
                     log.AppendLine(name + ": OK");
                 }
@@ -193,6 +199,80 @@ namespace IOSVN.TuTien.Editor
             if (f != null) { f.SetValue(target, value); return; }
             var p = target.GetType().GetProperty(field, Flags);
             p?.SetValue(target, value);
+        }
+
+        private static void RenderNumberPad(System.Text.StringBuilder log)
+        {
+            EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+            var controller = new GameObject("NumberPadPreview").AddComponent<PrototypeBootstrap>();
+            Invoke(controller, "BuildCanvas");
+            var canvas = GameObject.Find("GameCanvas").GetComponent<Canvas>();
+            const int width = 1280, height = 590;
+            var camera = new GameObject("PreviewCamera").AddComponent<Camera>();
+            camera.orthographic = true; camera.orthographicSize = height * .5f;
+            camera.transform.position = new Vector3(0, 0, -1000);
+            camera.nearClipPlane = .1f; camera.farClipPlane = 2000;
+            var target = new RenderTexture(width, height, 24);
+            camera.targetTexture = target;
+            canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 100;
+            Invoke(canvas.GetComponent<CanvasScaler>(), "Handle");
+            Invoke(controller, "PromptNumber", "Mua Hồi Xuân Đan", "Giá 800 linh thạch mỗi cái. Bạn có 42.000.", 1L, 52L, 7L, "Mua", new Action<long>(_ => { }));
+            Canvas.ForceUpdateCanvases();
+            var field = canvas.GetComponentInChildren<InputField>();
+            var pad = field.GetComponent<NumberPad>();
+            var card = field.transform.parent.GetComponent<RectTransform>();
+            var original = card.position;
+            pad.Open(); pad.Press("3"); pad.Press("0");
+            if (field.text != "30" || field.enabled) throw new Exception("Custom keypad input / native keyboard suppression failed");
+            Save(camera, target, width, height, "quantity_keyboard.png");
+            pad.Press("9");
+            if (field.text != "52") throw new Exception("Maximum quantity clamp failed");
+            pad.Press("⌫"); pad.Press("0");
+            if (field.text != "50") throw new Exception("Backspace failed");
+            pad.Press("Xong");
+            if (canvas.transform.Find("QuantityKeyboard") != null || Vector3.Distance(card.position, original) > .01f) throw new Exception("Done did not dismiss / restore the modal");
+            pad.Open(); pad.Press("0"); pad.Close();
+            if (field.text != "1") throw new Exception("Minimum quantity clamp failed");
+            pad.Open();
+            canvas.transform.Find("QuantityKeyboard").GetComponent<Button>().onClick.Invoke();
+            if (canvas.transform.Find("QuantityKeyboard") != null) throw new Exception("Outside tap did not dismiss");
+            pad.Open();
+            UnityEngine.Object.DestroyImmediate(field.gameObject);
+            if (canvas.transform.Find("QuantityKeyboard") != null) throw new Exception("Modal lifetime cleanup failed");
+            log.AppendLine("number pad: input, clamp, delete, done, outside tap and cleanup OK");
+        }
+
+        private static void RenderBattleHud(System.Text.StringBuilder log)
+        {
+            foreach (var result in new[] { false, true })
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                var controller = new GameObject("BattleHudPreview").AddComponent<PrototypeBootstrap>();
+                Invoke(controller, "BuildCanvas");
+                var canvas = GameObject.Find("GameCanvas").GetComponent<Canvas>();
+                const int width = 1280, height = 590;
+                var camera = new GameObject("PreviewCamera").AddComponent<Camera>();
+                camera.orthographic = true; camera.orthographicSize = height * .5f;
+                camera.transform.position = new Vector3(0, 0, -1000);
+                camera.nearClipPlane = .1f; camera.farClipPlane = 2000;
+                var target = new RenderTexture(width, height, 24);
+                camera.targetTexture = target;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 100;
+                Invoke(canvas.GetComponent<CanvasScaler>(), "Handle");
+                var samples = Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples"));
+                var hub = J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_state.json")));
+                Set(controller, "hub", hub);
+                var typed = NetworkGameClient.ToGameState(hub);
+                Set(controller, "latestState", typed); Set(controller, "currentCatalog", typed.catalog);
+                Invoke(controller, "BuildActionBattle", J.Parse(File.ReadAllText(Path.Combine(samples, "qcbh_battle.json")))["battle"]);
+                var battle = controller.GetType().GetField("actionBattle", Flags).GetValue(controller);
+                if (result) Invoke(battle, "Finish", J.Parse("{\"result\":\"win\",\"summary\":{\"exp\":1234,\"stones\":520,\"drops\":[],\"notes\":[\"Trang bị sau chiến đấu: độ bền giảm nhẹ.\"]}}"));
+                else Invoke(battle, "PreviewMoment");
+                Canvas.ForceUpdateCanvases();
+                foreach (var figure in canvas.GetComponentsInChildren<CultivatorFigure2D>()) Invoke(figure, "LateUpdate");
+                Save(camera, target, width, height, result ? "battle_result_large.png" : "battle_hud_large.png");
+                log.AppendLine(result ? "battle result: OK" : "battle HUD: OK");
+            }
         }
 
         private static void Invoke(object target, string method, params object[] args)
