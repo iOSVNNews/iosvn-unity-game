@@ -13,6 +13,22 @@ namespace IOSVN.TuTien.Core
     {
         public const int PoseIdle = 0, PoseRun = 1, PoseAttack = 2, PosePounce = 3;
         private const int Cell = 256;
+
+        // Idle bodies are alpha-trimmed by ArtSprites; action poses keep their full
+        // 256 px canvas. Match the same pixel scale and feet when swapping sprites.
+        public static float PoseCanvasScale(Sprite idleBody, Vector2 displaySize)
+        {
+            if (idleBody == null) return 1f;
+            var pixelsToScreen = Mathf.Min(displaySize.x / idleBody.rect.width, displaySize.y / idleBody.rect.height);
+            return pixelsToScreen * Cell / Mathf.Max(1f, Mathf.Min(displaySize.x, displaySize.y));
+        }
+
+        public static float PoseFeetOffset(Sprite idleBody, Vector2 displaySize)
+        {
+            if (idleBody == null) return 0f;
+            var pixelsToScreen = Mathf.Min(displaySize.x / idleBody.rect.width, displaySize.y / idleBody.rect.height);
+            return -idleBody.rect.y * pixelsToScreen;
+        }
         private static readonly Dictionary<string, Sprite> Skills = new Dictionary<string, Sprite>(StringComparer.Ordinal);
         private static readonly Dictionary<string, Sprite[]> Poses = new Dictionary<string, Sprite[]>(StringComparer.Ordinal);
         private static readonly HashSet<string> Missing = new HashSet<string>(StringComparer.Ordinal);

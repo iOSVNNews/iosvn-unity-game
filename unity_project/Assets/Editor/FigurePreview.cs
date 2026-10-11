@@ -91,6 +91,7 @@ namespace IOSVN.TuTien.Editor
             File.WriteAllBytes(Path.Combine(OutDir, file), texture.EncodeToPNG());
             RenderTexture.active = old;
             UnityEngine.Object.DestroyImmediate(texture);
+            camera.targetTexture = null;
             UnityEngine.Object.DestroyImmediate(target);
         }
 

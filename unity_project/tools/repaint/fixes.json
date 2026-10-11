@@ -1,0 +1,36 @@
+[
+  {
+    "sheet": "thien_ma",
+    "kind": "monster",
+    "cols": 4,
+    "rows": 1,
+    "replaces": "monster_05",
+    "items": [
+      {
+        "id": "thien_ma",
+        "name": "Hư Không Thiên Ma",
+        "el": "loi",
+        "boss": true,
+        "small": false,
+        "realm": 20
+      }
+    ]
+  },
+  {
+    "sheet": "thai_at_kim_long",
+    "kind": "monster",
+    "cols": 4,
+    "rows": 1,
+    "replaces": "monster_35",
+    "items": [
+      {
+        "id": "thai_at_kim_long",
+        "name": "Thái Ất Chân Kim Long",
+        "el": "kim",
+        "boss": true,
+        "small": false,
+        "realm": 22
+      }
+    ]
+  }
+]

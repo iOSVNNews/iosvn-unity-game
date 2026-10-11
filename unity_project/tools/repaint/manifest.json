@@ -1,0 +1,9236 @@
+[
+ {
+  "sheet": "skill_00",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thu_an_tran",
+    "name": "Ngự Thú Ấn",
+    "mon": "thu",
+    "kind": "buff",
+    "el": "",
+    "desc": "Ấn quyết khống thú, tăng chiến ý cho linh thú đang trợ chiến.",
+    "rarity": "pt"
+   },
+   {
+    "id": "trieu_hoan_linh_thu",
+    "name": "Triệu Hoán Linh Thú",
+    "mon": "thu",
+    "kind": "atk",
+    "el": "",
+    "desc": "Triệu hồi linh thú đã thu phục hợp kích cùng một đòn.",
+    "rarity": "pt"
+   },
+   {
+    "id": "ngu_kiem",
+    "name": "Ngự Kiếm Thuật",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "kiem_khi_tram",
+    "name": "Kiếm Khí Trảm",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "kiem_tam",
+    "name": "Kiếm Tâm Thông Minh",
+    "mon": "kiem",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "kiem_don",
+    "name": "Kiếm Độn Vạn Lý",
+    "mon": "kiem",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "phi_kiem_lien_tram",
+    "name": "Thanh Trúc Kiếm Trận",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kiem_khi_ho_the",
+    "name": "Kiếm Khí Ngân Hà",
+    "mon": "kiem",
+    "kind": "reflect",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "nhat_kiem_pha_khong",
+    "name": "Trảm Tiên Kiếm Quyết",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "kiem_vuc",
+    "name": "Vạn Kiếm Quy Tông",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "tt"
+   },
+   {
+    "id": "hoa_cau",
+    "name": "Xích Diễm Chân Hỏa",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "huyen_quy_thuan",
+    "name": "Huyền Quy Hộ Thuẫn",
+    "mon": "phap",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "ngung_linh_tien",
+    "name": "Tích Tà Thần Lôi",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "thuan_di",
+    "name": "Phong Lôi Độn",
+    "mon": "phap",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "dinh_than",
+    "name": "Định Thân Thuật",
+    "mon": "phap",
+    "kind": "stun",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "hoa_long",
+    "name": "Đại Diễn Thần Quyết",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_01",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ngu_hanh_luan_chuyen",
+    "name": "Chân Ngôn Hóa Thần Luân",
+    "mon": "phap",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "tt"
+   },
+   {
+    "id": "khai_son_chuong",
+    "name": "Phạn Thánh Chân Ma Công",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "thiet_bi",
+    "name": "Bách Mạch Luyện Thể",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "chan_dia_kich",
+    "name": "Bát Cực Ma Thể",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "ba_the",
+    "name": "Cổ Thần Nhục Thân",
+    "mon": "the",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "huyet_khi_cuong_bao",
+    "name": "Cổ Thần Toàn Phong",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kim_cang_bat_hoai",
+    "name": "Bát Tinh Bất Hoại Thể",
+    "mon": "the",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "phap_tuong",
+    "name": "Chân Ma Pháp Tướng",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "tt"
+   },
+   {
+    "id": "pha_son_quyen",
+    "name": "Sơn Nhạc Trọng Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "tam_lien_quyen",
+    "name": "Thần Đao Bạt Lực",
+    "mon": "quyen",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "thiet_quyen_the",
+    "name": "Bất Bại Quyền Ý",
+    "mon": "quyen",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "chan_khi",
+    "name": "Lục Cực Chấn Địa",
+    "mon": "quyen",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "bat_hoang_pha",
+    "name": "Cửu Trọng Quyền Cương",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "phan_chan",
+    "name": "Trảm Nhân Quả Quyền",
+    "mon": "quyen",
+    "kind": "reflect",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "lien_hoan_quyen",
+    "name": "Vạn Lý Sơn Hà Quyền",
+    "mon": "quyen",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "quyen_y_hop_nhat",
+    "name": "Thập Cảnh Vô Địch Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "tt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_02",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hoi_xuan_thuat",
+    "name": "Thảo Mộc Dưỡng Sinh",
+    "mon": "dan",
+    "kind": "heal",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "doc_vu",
+    "name": "Cửu U Độc Hỏa",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "linh_cham",
+    "name": "Vạn Thảo Linh Châm",
+    "mon": "dan",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "thanh_tam_chu",
+    "name": "Thanh Tâm Linh Chú",
+    "mon": "dan",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "dan_hoa",
+    "name": "Thiên Địa Đan Hỏa",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "khoi_loi",
+    "name": "Đại Diễn Khôi Lỗi",
+    "mon": "dan",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "phu_loi_hoa",
+    "name": "Lôi Hỏa Phù",
+    "mon": "phu",
+    "kind": "atk",
+    "el": "",
+    "desc": "Ném ra lôi hỏa đạo phù bộc phá linh lực thiêu đốt đối thủ.",
+    "rarity": "pt"
+   },
+   {
+    "id": "phu_ho_than",
+    "name": "Kim Quang Hộ Phù",
+    "mon": "phu",
+    "kind": "shield",
+    "el": "",
+    "desc": "Triệu hoán kim quang phù văn hộ thể, chống đỡ 25% sát thương.",
+    "rarity": "pt"
+   },
+   {
+    "id": "phu_dinh_than_chu",
+    "name": "Định Thân Phù Chú",
+    "mon": "phu",
+    "kind": "stun",
+    "el": "",
+    "desc": "Dán phù phong tỏa kinh mạch mục tiêu trong 1.5 giây.",
+    "rarity": "pt"
+   },
+   {
+    "id": "phu_don_quyet",
+    "name": "Vạn Dặm Thần Hành Phù",
+    "mon": "phu",
+    "kind": "escape",
+    "el": "",
+    "desc": "Đốt phù thần hành dịch chuyển né tránh công kích chí tử.",
+    "rarity": "pt"
+   },
+   {
+    "id": "phu_chu_sa_tran",
+    "name": "Bát Quái Phù Trận",
+    "mon": "phu",
+    "kind": "multi",
+    "el": "",
+    "desc": "Bố trí phù trận bát quái giáng lôi hỏa cuồng bạo lên quân địch.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "phu_tram_tien_dai_phap",
+    "name": "Trảm Tiên Đạo Phù",
+    "mon": "phu",
+    "kind": "atk",
+    "el": "",
+    "desc": "Thiêu đốt tinh huyết thúc giục Trảm Tiên Đạo Phù cái thế trảm diệt thiên kiêu.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "chuy_phong_tram",
+    "name": "Lò Luyện Không Thiên",
+    "mon": "ren",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "luyen_khi_cuong_the",
+    "name": "Khí Linh Phụ Thể",
+    "mon": "ren",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "bach_binh_pha_giap",
+    "name": "Bách Luyện Thần Binh",
+    "mon": "ren",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lo_luyen_kim_than",
+    "name": "Thiên Hỏa Đúc Thể",
+    "mon": "ren",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_03",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thien_hoa_luyen_khi",
+    "name": "Chân Kim Hóa Khí",
+    "mon": "ren",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "van_binh_trieu_tong",
+    "name": "Thiên Địa Vạn Khí Trận",
+    "mon": "ren",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "kiem_kiem_vu_phan_quang",
+    "name": "Kiếm Vũ Phân Quang",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kiem_kiem_tam_nhat_niem",
+    "name": "Kiếm Tâm Nhất Niệm",
+    "mon": "kiem",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "phap_ngu_linh_luan",
+    "name": "Ngũ Linh Luân Chuyển",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "phap_thien_linh_bao_y",
+    "name": "Thiên Linh Bảo Y",
+    "mon": "phap",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "the_long_tuong_bo_sat",
+    "name": "Long Tượng Bộ Sát",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "the_bat_hoang_kim_than",
+    "name": "Bát Hoang Kim Thân",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "quyen_phuc_hai_quyen",
+    "name": "Phục Hải Liên Hoàn Quyền",
+    "mon": "quyen",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "quyen_pha_gioi_kinh",
+    "name": "Phá Giới Kình",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "dan_van_moc_huan_duong",
+    "name": "Vạn Mộc Hoàn Xuân",
+    "mon": "dan",
+    "kind": "heal",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "dan_bach_doc_an",
+    "name": "Bách Độc Thực Tâm",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "phu_lien_tam_phong_an",
+    "name": "Liên Tâm Phong Ấn",
+    "mon": "phu",
+    "kind": "stun",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "phu_thien_luo_van_phu",
+    "name": "Thiên La Vạn Phù",
+    "mon": "phu",
+    "kind": "multi",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ren_bach_luyen_khi",
+    "name": "Bách Luyện Khí Cương",
+    "mon": "ren",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ren_van_binh_quy_nhat",
+    "name": "Vạn Binh Quy Nhất",
+    "mon": "ren",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_04",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tu_linh_quyet",
+    "name": "Tụ Linh Quyết",
+    "mon": "chung",
+    "kind": "mana",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "cuu_chuyen_an",
+    "name": "Cửu Chuyển Luân Hồi Ấn",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "docban"
+   },
+   {
+    "id": "lt_thiet_cot",
+    "name": "Kim Cương Quyết",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lt_bang_son",
+    "name": "Băng Sơn Kích",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lt_luyen_bi",
+    "name": "Luyện Bì Thuật",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lt_ho_khieu",
+    "name": "Hổ Khiếu Sơn Lâm",
+    "mon": "chung",
+    "kind": "stun",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "lk_dan_khi",
+    "name": "Dẫn Khí Quyết",
+    "mon": "chung",
+    "kind": "mana",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lk_khi_nhan",
+    "name": "Khí Nhận",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lk_cuong_khi",
+    "name": "Hộ Thể Cương Khí",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "lk_ngu_khi",
+    "name": "Ngự Khí Phi Hành",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tc_dao_the",
+    "name": "Trúc Cơ Đạo Thể",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "tc_hoi_nguyen",
+    "name": "Hồi Nguyên Thuật",
+    "mon": "chung",
+    "kind": "heal",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "tc_linh_ap",
+    "name": "Linh Áp",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kd_ho_the",
+    "name": "Kim Đan Hộ Thể",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "",
+    "rarity": "pt"
+   },
+   {
+    "id": "kd_dan_hoa",
+    "name": "Đan Hỏa Phần Thiên",
+    "mon": "chung",
+    "kind": "dot",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kd_kim_quang",
+    "name": "Kim Quang Trảm",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_05",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "na_xuat_khieu",
+    "name": "Nguyên Anh Xuất Khiếu",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "na_linh_vu",
+    "name": "Thiên Địa Linh Vũ",
+    "mon": "chung",
+    "kind": "heal",
+    "el": "",
+    "desc": "",
+    "rarity": "hiem"
+   },
+   {
+    "id": "na_tam_muoi",
+    "name": "Tam Muội Chân Hỏa",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ht_y_canh",
+    "name": "Sinh Tử Ý Cảnh",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ht_quy_nguyen",
+    "name": "Vạn Vật Quy Nguyên",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_sat_luc",
+    "name": "Sát Lục Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Vương Lâm sát lục ý cảnh, ngưng tụ huyết vụ ngút trời đồ sát địch thủ.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_hoa_huyet",
+    "name": "Hóa Huyết Thần Công",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Ma công hút cạn tinh huyết đối phương, chuyển hóa thành khí huyết bản thân.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_cuu_u",
+    "name": "Cửu U Ma Diễm",
+    "mon": "chung",
+    "kind": "dot",
+    "el": "",
+    "desc": "Ma diễm U Minh thiêu đốt linh lực và kinh mạch kẻ địch liên tục.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_thien_ma_don",
+    "name": "Thiên Ma Độn Pháp",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "Hóa thành huyết quang hư ảo né tránh toàn bộ công kích trong chớp mắt.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_nghich_chi",
+    "name": "Nghịch Ma Chỉ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Một chỉ nghịch thiên phá toái hư không, gây sát thương hủy diệt và gây choáng.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_phe_hon",
+    "name": "Vạn Hồn Phệ Cắn",
+    "mon": "chung",
+    "kind": "multi",
+    "el": "",
+    "desc": "Triệu hoán ức vạn lệ quỷ từ Hồn Phiên lao vào cắn xé linh hồn đối phương.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_thac_thien",
+    "name": "Thác Thiên Ma Công",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "Hóa thân Ma Tổ viễn cổ, dựng lên ma giáp bất khả xâm phạm.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_huyet_anh",
+    "name": "Huyết Anh Tán Thân",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "Phân tách huyết anh đào thoát, hồi phục 20% sinh lực.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_tuyet_tinh",
+    "name": "Tuyệt Tình Ý Cảnh",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Dứt bỏ thất tình lục dục, công kích cuồng bạo tăng vọt chí mạng.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_am_sat",
+    "name": "Ma Đạo Ám Sát Thuật",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Ám kích từ bóng tối, xuyên thấu 40% phòng ngự kẻ địch.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_hoang_tuyen",
+    "name": "Hoàng Tuyền Huyết Hải",
+    "mon": "chung",
+    "kind": "multi",
+    "el": "",
+    "desc": "Biển máu Hoàng Tuyền dâng trào nuốt chửng vạn vật.",
+    "rarity": "tt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_06",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ma_van_cot_chuong",
+    "name": "Vạn Cốt U Hồn Chưởng",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Chưởng lực bạch cốt mang theo hàn khí u hồn làm tê liệt đối phương.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_luyen_thi",
+    "name": "Luyện Thi Phụ Thể",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "Mượn thi khí đồng giáp thi bảo hộ thân thể kiên cố.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_huyet_loi",
+    "name": "Ma Huyết Thần Lôi",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Sét máu tà dị bộc phát uy lực hủy diệt thần thức.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_u_minh_kiem",
+    "name": "U Minh Ma Kiếm",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm khí U Minh bỏ qua hoàn toàn hộ thuẫn của đối thủ.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_quy_vuong_an",
+    "name": "Quỷ Vương Phá Thiên Ấn",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Đại ấn Quỷ Vương nghiền ép thân xác đối phương.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_thao_thiet",
+    "name": "Thao Thiết Thôn Phệ Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Thôn phệ sinh mệnh đối phương, hồi phục 35% HP bản thân.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_tu_khi_quyet",
+    "name": "Cửu U Tụ Khí Quyết",
+    "mon": "chung",
+    "kind": "mana",
+    "el": "",
+    "desc": "Hút ma khí thiên địa hồi phục 45% Linh lực trong trận.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_hon_bien",
+    "name": "Tụ Hồn Luyện Ma Biến",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Hấp thu tàn hồn tăng 30% lực công kích bạo phát.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_am_phong",
+    "name": "U Minh Hắc Phong",
+    "mon": "phap",
+    "kind": "dot",
+    "el": "",
+    "desc": "Gió đen U Minh bào mòn kinh mạch gây độc liên tục.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_huyet_don",
+    "name": "Huyết Độn Đại Pháp",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "Đốt cháy tinh huyết đào tẩu cực nhanh trong nguy hiểm.",
+    "rarity": "pt"
+   },
+   {
+    "id": "ma_doc_sat",
+    "name": "Ma Độc Thực Cốt",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "Kịch độc tà tu ngấm vào xương tủy thiêu đốt sinh mạng.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_bat_diet",
+    "name": "Thiên Ma Bất Diệt Thể",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Nhục thân ma đạo cứng cáp giảm 30% toàn bộ sát thương gánh chịu.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_sat_linh",
+    "name": "Sát Khí Thấu Cốt Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "Nắm đấm cuồn cuộn sát khí thấu xương xuyên phá phòng thủ.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_thien_quy_trao",
+    "name": "Thiên Quỷ Liệt Không Trảo",
+    "mon": "the",
+    "kind": "multi",
+    "el": "",
+    "desc": "Móng vuốt quỷ xé rách không gian cào cấu đối phương.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_co_ma_chu",
+    "name": "Cổ Ma Chú Thuật",
+    "mon": "phap",
+    "kind": "stun",
+    "el": "",
+    "desc": "Lời nguyền Cổ Ma giam hãm hành động kẻ địch trong 2.2 giây.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_nghich_huyet",
+    "name": "Nghịch Huyết Phần Ma Quyết",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Đốt cháy toàn bộ huyết mạch hóa thành cuồng ma hủy diệt.",
+    "rarity": "tt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_07",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ma_vong_linh",
+    "name": "Vong Linh Thiên Quân Trận",
+    "mon": "phap",
+    "kind": "multi",
+    "el": "",
+    "desc": "Triệu hồi quân đoàn vong linh thiên binh áp đảo chiến trường.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_hoa_linh",
+    "name": "Đoạt Linh Hóa Ma Thuật",
+    "mon": "chung",
+    "kind": "mana",
+    "el": "",
+    "desc": "Cưỡng đoạt linh khí đối phương chuyển hóa thành ma năng.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_hac_nhat",
+    "name": "Hắc Nhật Ma Quang",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tia sáng mặt trời đen tối tăm xuyên thấu vạn vật.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_ta_long",
+    "name": "Tà Long Phệ Thiên",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Triệu hoán rồng tà viễn cổ giáng lâm cắn xé đối thủ.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_van_quy",
+    "name": "Vạn Quỷ Triều Tông",
+    "mon": "chung",
+    "kind": "multi",
+    "el": "",
+    "desc": "Muôn vàn ác quỷ gào thét triều bái, oanh kích liên hoàn.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_huyet_ha_tran",
+    "name": "Huyết Hải Tru Tiên Trận",
+    "mon": "chung",
+    "kind": "reflect",
+    "el": "",
+    "desc": "Trận pháp huyết hải phản kích 35% sát thương nhận vào.",
+    "rarity": "cam"
+   },
+   {
+    "id": "ma_chu_tuoc_ta",
+    "name": "Chu Tước Tà Ma Biến",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Chu Tước hóa tà ma, tốc độ và công kích đạt cảnh giới tột cùng.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_loan_tam",
+    "name": "Loạn Tâm Huyễn Ma Âm",
+    "mon": "phap",
+    "kind": "stun",
+    "el": "",
+    "desc": "Âm thanh mê hoặc làm rối loạn tâm can khiến đối thủ bất động.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_sinh_tu_y",
+    "name": "Sinh Tử Tịch Diệt Ma Chỉ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Một chỉ phân định sinh tử, hủy diệt sinh cơ địch nhân.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ma_cuc_am",
+    "name": "Cực Âm Ma Hỏa",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "Lửa ma Cực Âm thiêu rụi cả sinh lực lẫn linh lực.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_luc_duc",
+    "name": "Lục Dục Mê Hồn Quyết",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Dùng lục dục mê hoặc làm suy giảm ý chí chiến đấu đối phương.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_huyet_te",
+    "name": "Huyết Tế Đại Pháp",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "Hiến tế huyết nhục bộc phát đòn đánh cuồng bạo chí mạng.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_cot_giap",
+    "name": "Bạch Cốt Huyền Giáp",
+    "mon": "the",
+    "kind": "shield",
+    "el": "",
+    "desc": "Áo giáp xương trắng ngưng tụ che chở 45% HP sát thương.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_thien_tai",
+    "name": "Thiên Ma Giáng Lâm",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Thiên Ma hạ giới nhập thể, chiến lực tăng tiến kinh thiên.",
+    "rarity": "cam"
+   },
+   {
+    "id": "ma_am_anh",
+    "name": "Ám Ảnh Quỷ Độn",
+    "mon": "chung",
+    "kind": "escape",
+    "el": "",
+    "desc": "Biến vào bóng tối trốn thoát khỏi vòng vây hiểm nghèo.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "ma_huyet_ngoc",
+    "name": "Huyết Ngọc Toái Hồn Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "Quyền ý ngưng huyết ngọc đập nát linh hồn quân thù.",
+    "rarity": "cuchiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_08",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ma_u_hon_chuyen",
+    "name": "U Hồn Chuyển Sinh Quyết",
+    "mon": "chung",
+    "kind": "heal",
+    "el": "",
+    "desc": "Dùng oán khí u hồn tái sinh thân xác, hồi phục 45% HP.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ma_hon_phi_phach_tan",
+    "name": "Hồn Phi Phách Tán Quyết",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Thần thông ma đạo tối thượng đánh cho địch thủ hồn bay phách tán.",
+    "rarity": "cam"
+   },
+   {
+    "id": "ma_do_ty",
+    "name": "Đồ Ty Cổ Ma Thần Lực",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Sức mạnh Cổ Ma Đồ Ty tái hiện trong huyết mạch.",
+    "rarity": "cam"
+   },
+   {
+    "id": "ma_hoang_tuyen_lo",
+    "name": "Hoàng Tuyền Lạc Hồn Lộ",
+    "mon": "chung",
+    "kind": "multi",
+    "el": "",
+    "desc": "Mở ra con đường Hoàng Tuyền kéo linh hồn đối phương vào luân hồi vĩnh cửu.",
+    "rarity": "vang"
+   },
+   {
+    "id": "ma_thai_so_ta",
+    "name": "Thái Sơ Tà Thần Ấn",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Đại ấn Tà Thần viễn cổ phá toái thiên địa càn khôn.",
+    "rarity": "docban"
+   },
+   {
+    "id": "ma_nghich_thien_sat",
+    "name": "Nghịch Thiên Sát Lục Vực",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Mở ra lĩnh vực sát lục nghịch thiên bất diệt, vạn ma triều bái.",
+    "rarity": "docban"
+   },
+   {
+    "id": "ma_thien_ma_to",
+    "name": "Vạn Cổ Thiên Ma Tổ Thể",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Thần thông chí cao của Ma Tu, hóa thân Thiên Ma Thủy Tổ vạn cổ bất diệt.",
+    "rarity": "docban"
+   },
+   {
+    "id": "kiem_khi_truong_thanh_kiem",
+    "name": "Kiếm Khí Vạn Dặm",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm khí ngút trời của Kiếm Khí Trường Thành chấn nhiếp đại yêu man hoang.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "van_thoa_phi_kiem",
+    "name": "Vạn Thoa Thần Kiếm",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "Mười ngàn phi kiếm ảo ảnh đan xen như mắc cửi giáng xuống đầu địch.",
+    "rarity": "tt"
+   },
+   {
+    "id": "ngu_long_quyet",
+    "name": "Ngự Long Kiếm Quyết",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm khí hóa rồng vàng gầm thét xé tan hộ giáp đối phương.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "to_phu_kiem_y",
+    "name": "Tổ Phu Kiếm Ý",
+    "mon": "kiem",
+    "kind": "buff",
+    "el": "",
+    "desc": "Ý cảnh kiếm đạo thủy tổ sơ khai chấn cổ thước kim.",
+    "rarity": "cam"
+   },
+   {
+    "id": "truong_sinh_kiem",
+    "name": "Trường Sinh Kiếm Pháp",
+    "mon": "kiem",
+    "kind": "heal",
+    "el": "",
+    "desc": "Kiếm ý mộc linh lưu chuyển, sinh cơ dạt dào hồi phục thương thế.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "luc_chau_kiem_khi",
+    "name": "Lục Châu Kiếm Khí",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm khí lưu chuyển như sóng xanh sông Lục Châu.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tram_long_thuc",
+    "name": "Trảm Long Tam Thức",
+    "mon": "quyen",
+    "kind": "multi",
+    "el": "",
+    "desc": "Ba đòn quyền thế trảm long hủy thiên diệt địa của thuần túy võ phu.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "vo_dich_quyen_y",
+    "name": "Vô Địch Quyền Ý",
+    "mon": "quyen",
+    "kind": "buff",
+    "el": "",
+    "desc": "Quyền ý chí tôn vô địch một cõi, không gì ngăn cản nổi.",
+    "rarity": "tt"
+   },
+   {
+    "id": "son_thuy_y_canh",
+    "name": "Sơn Thủy Ý Cảnh",
+    "mon": "chung",
+    "kind": "shield",
+    "el": "",
+    "desc": "Ngưng tụ khí tượng non sông đất trời thành hộ thuẫn phòng hộ.",
+    "rarity": "hiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_09",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "dang_son_quyen",
+    "name": "Đăng Sơn Bát Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "Bộ quyền pháp căn cơ của võ phu Trần Bình An.",
+    "rarity": "pt"
+   },
+   {
+    "id": "tich_ta_than_loi_tran",
+    "name": "Tích Tà Thần Lôi Trận",
+    "mon": "phap",
+    "kind": "multi",
+    "el": "",
+    "desc": "Lôi trận Kim Lôi Trúc khắc chế tuyệt đối mọi loại ma khí và u hồn.",
+    "rarity": "tt"
+   },
+   {
+    "id": "xuan_hoang_nhat_khi",
+    "name": "Huyền Hoàng Nhất Khí Quyết",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Huyền hoàng chi khí tôi luyện cơ thể vững chắc như bàn thạch.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "can_khon_ngu_hanh",
+    "name": "Càn Khôn Ngũ Hành Quyết",
+    "mon": "phap",
+    "kind": "buff",
+    "el": "",
+    "desc": "Vận hành ngũ hành sinh khắc áp chế thuộc tính đối thủ.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "thanh_truc_kiem_vuc",
+    "name": "Thanh Trúc Kiếm Vực",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "Lĩnh vực kiếm đạo tối thượng của Hàn Lập xưng bá Linh Giới.",
+    "rarity": "docban"
+   },
+   {
+    "id": "chan_ma_kim_than",
+    "name": "Phạn Thánh Kim Thân",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Ba đầu sáu tay Pháp tướng Kim Thân uy chấn chư thiên.",
+    "rarity": "cam"
+   },
+   {
+    "id": "minh_vuong_quyet",
+    "name": "Minh Vương Quyết",
+    "mon": "the",
+    "kind": "shield",
+    "el": "",
+    "desc": "Công pháp thể tu ma đạo tối cao dung hợp phật môn phòng ngự.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "hoa_nguyen_chan_quyet",
+    "name": "Hóa Nguyên Chân Quyết",
+    "mon": "phap",
+    "kind": "mana",
+    "el": "",
+    "desc": "Chuyển hóa thiên địa nguyên khí hồi phục linh lực tức thời.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "dai_dien_phan_than",
+    "name": "Đại Diễn Phân Thần Thuật",
+    "mon": "phap",
+    "kind": "escape",
+    "el": "",
+    "desc": "Phân tách thần thức hóa hư vô né tránh đòn công kích hiểm ác.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "kim_quang_chuong",
+    "name": "Kim Quang Diệt Ma Chưởng",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "Chưởng pháp kim quang rực rỡ trừng trị yêu ma.",
+    "rarity": "pt"
+   },
+   {
+    "id": "ngu_loi_chinh_phap",
+    "name": "Ngũ Lôi Chánh Pháp",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Ngũ lôi hợp nhất oanh tạc địch thủ.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "co_than_quyen",
+    "name": "Cổ Thần Khai Thiên Quyền",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "Nắm đấm của Cổ Thần bát tinh một quyền vỡ nát tinh cầu.",
+    "rarity": "cam"
+   },
+   {
+    "id": "sinh_tu_luan_hoi",
+    "name": "Sinh Tử Luân Hồi Ý Cảnh",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Nắm giữ quy tắc sinh tử của vạn vật trong Tiên Nghịch.",
+    "rarity": "tt"
+   },
+   {
+    "id": "mong_dao_quyet",
+    "name": "Mộng Đạo Hóa Thần Quyết",
+    "mon": "chung",
+    "kind": "heal",
+    "el": "",
+    "desc": "Mộng trăm năm hóa phàm ngộ đạo, tâm cảnh viên mãn xóa tan mọi thương thế.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "van_hoa_nhan_qua",
+    "name": "Nhân Quả Chân Ý",
+    "mon": "chung",
+    "kind": "reflect",
+    "el": "",
+    "desc": "Sợi tơ nhân quả vô hình phản chấn 45% sát thương gánh chịu.",
+    "rarity": "vang"
+   },
+   {
+    "id": "chan_da_chi",
+    "name": "Chấn Dạ Thần Chỉ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Một chỉ xé toạc màn đêm vô tận của Vương Lâm.",
+    "rarity": "tt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_10",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "bat_tinh_co_than",
+    "name": "Bát Tinh Cổ Thần Biến",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Hóa thân Cổ Thần hoàng tộc tám sao đứng đầu vũ trụ.",
+    "rarity": "docban"
+   },
+   {
+    "id": "thien_van_quy_nhat",
+    "name": "Thiên Vấn Quy Nhất Chỉ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Một chỉ vấn thiên phá vỡ mọi phòng ngự hư ảo.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "dao_tam_thong_minh",
+    "name": "Đạo Tâm Thông Minh Quyết",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Đạo tâm kiên định không dời trước sóng gió cuộc đời.",
+    "rarity": "pt"
+   },
+   {
+    "id": "ham_son_quyen",
+    "name": "Hám Sơn Quyền",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "Quyền ý Trần Bình An, nhất quyền khai sơn toái thạch.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kiem_khi_thap_bat_dinh",
+    "name": "Kiếm Khí Thập Bát Đình",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm khí ngưng tụ mười tám nhịp thở, bộc phát sát thương kinh thiên động địa.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tho_nap_dang_son",
+    "name": "Thổ Nạp Đăng Sơn Pháp",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Pháp môn thở đăng sơn của võ phu, tăng cường gân cốt thể phách.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "than_nhan_loi_co",
+    "name": "Thần Nhân Lôi Cổ Thức",
+    "mon": "quyen",
+    "kind": "multi",
+    "el": "",
+    "desc": "Quyền thế dồn dập tựa thần nhân gióng trống lôi đình, áp bức địch thủ.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "on_duong_phi_kiem",
+    "name": "Ôn Dưỡng Phi Kiếm",
+    "mon": "kiem",
+    "kind": "buff",
+    "el": "",
+    "desc": "Nuôi dưỡng kiếm khí trong Dưỡng Kiếm Hồ, xuất kiếm tất trảm cường địch.",
+    "rarity": "tt"
+   },
+   {
+    "id": "tich_diet_chi",
+    "name": "Tịch Diệt Chỉ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Một chỉ tịch diệt vạn vật, mang theo tử khí lạnh thấu xương tủy.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "dinh_than_thuat",
+    "name": "Định Thân Thuật Tiên Nghịch",
+    "mon": "phap",
+    "kind": "stun",
+    "el": "",
+    "desc": "Cố định thời không và thân xác đối phương trong khoảnh khắc.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ho_phong_hoan_vu",
+    "name": "Hô Phong Hoán Vũ",
+    "mon": "phap",
+    "kind": "multi",
+    "el": "",
+    "desc": "Hắc phong xé trời, linh vũ như đao, quét sạch cõi cửu châu.",
+    "rarity": "tt"
+   },
+   {
+    "id": "tan_da",
+    "name": "Tàn Dạ",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Mặt trời xé toạc màn đêm vô tận, thần thông Thái Sơ diệt thế của Vương Lâm.",
+    "rarity": "cam"
+   },
+   {
+    "id": "luu_nguyet",
+    "name": "Lưu Nguyệt Thần Thông",
+    "mon": "chung",
+    "kind": "heal",
+    "el": "",
+    "desc": "Nghịch chuyển thời gian, xóa bỏ thương thế và hồi phục khí huyết thần tốc.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "chu_tuoc_bien",
+    "name": "Chu Tước Cửu Huyền Biến",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Chu Tước thức tỉnh cửu biến, hóa thân thần điểu đốt cháy thiên địa.",
+    "rarity": "tt"
+   },
+   {
+    "id": "thanh_nguyen_kiem_quyet",
+    "name": "Thanh Nguyên Kiếm Quyết",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tuyệt học phi kiếm trấn phái của Hàn Lập, kiếm mang ngưng tụ sắc bén dị thường.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "dai_canh_kiem_tran",
+    "name": "Đại Canh Kiếm Trận",
+    "mon": "kiem",
+    "kind": "multi",
+    "el": "",
+    "desc": "Trận pháp 72 thanh Thanh Trúc Kiếm bao vây giam cầm và tiêu diệt vạn địch.",
+    "rarity": "tt"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_11",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "nguyen_tu_than_quang",
+    "name": "Nguyên Từ Thần Quang",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Thần quang khắc chế ngũ hành pháp bảo, xuyên phá mọi lớp hộ thuẫn.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tam_chuyen_trong_nguyen",
+    "name": "Tam Chuyển Trọng Nguyên Công",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Tán công trọng tu ba lần, rèn đúc đan điền và thể phách thâm hậu vô song.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "dai_ngu_hanh_cam_tien",
+    "name": "Đại Ngũ Hành Cầm Tiên Thủ",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Bàn tay khổng lồ ngưng tụ ngũ hành nguyên lực, bắt trọn tiên nhân trần thế.",
+    "rarity": "cam"
+   },
+   {
+    "id": "can_lam_bang_diem",
+    "name": "Càn Lam Băng Diễm",
+    "mon": "dan",
+    "kind": "dot",
+    "el": "",
+    "desc": "Ngọn lửa hàn băng màu xanh ngọc từ Hư Thiên Đỉnh đóng băng linh hồn kẻ địch.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "ham_son_pho",
+    "name": "Hám Sơn Phổ",
+    "mon": "the",
+    "kind": "atk",
+    "el": "",
+    "desc": "Quyền phổ rèn thân thể, mượn sơn thế áp chế đối thủ.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "luc_bo_tau_thung",
+    "name": "Lục Bộ Tẩu Thung",
+    "mon": "the",
+    "kind": "buff",
+    "el": "",
+    "desc": "Bộ pháp căn bản của võ phu, tăng thân pháp trong giao chiến.",
+    "rarity": "pt"
+   },
+   {
+    "id": "kiem_thuat_chinh_kinh",
+    "name": "Kiếm Thuật Chính Kinh",
+    "mon": "kiem",
+    "kind": "atk",
+    "el": "",
+    "desc": "Kiếm quyết chính tông, chú trọng đường kiếm chuẩn xác và phá giáp.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "van_thuy_than",
+    "name": "Vân Thủy Thân",
+    "mon": "phap",
+    "kind": "buff",
+    "el": "",
+    "desc": "Thân pháp biến chuyển như mây nước, giúp né tránh đòn đánh.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "bach_ma_quyen_phap",
+    "name": "Bạch Ma Quyền Pháp",
+    "mon": "quyen",
+    "kind": "atk",
+    "el": "",
+    "desc": "Quyền ý cương mãnh, có cơ hội làm chấn động kinh mạch địch.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "kiem_quyen_hop_y",
+    "name": "Kiếm Ý Quyền Ý Hợp Dụng",
+    "mon": "chung",
+    "kind": "buff",
+    "el": "",
+    "desc": "Dung hợp kiếm ý và quyền ý, tăng công kích trong thời gian ngắn.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "loi_cuc",
+    "name": "Lôi Cục",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Bố trí lôi cục, dẫn lôi lực đánh trúng và làm tê liệt mục tiêu.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "dan_thu_chan_tich",
+    "name": "Đan Thư Chân Tích",
+    "mon": "dan",
+    "kind": "heal",
+    "el": "",
+    "desc": "Dùng dược khí điều tức, hồi phục một phần khí huyết và thanh lọc dị trạng.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "phu_luc_an_than",
+    "name": "Ẩn Thân Phù Lục Thuật",
+    "mon": "phu",
+    "kind": "escape",
+    "el": "",
+    "desc": "Phù pháp che giấu thân hình trong một nhịp, né đòn kế tiếp.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "dan_luc_thuat",
+    "name": "Dẫn Lực Thuật",
+    "mon": "phap",
+    "kind": "atk",
+    "el": "",
+    "desc": "Dẫn động lực trường, kéo chân nguyên đối phương và xuyên thủ.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tien_quyet_canh_11",
+    "name": "Bán Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Bán Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tien_quyet_canh_12",
+    "name": "Đăng Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đăng Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "hiem"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_12",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_quyet_canh_13",
+    "name": "Tán Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Tán Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tien_quyet_canh_14",
+    "name": "Địa Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Địa Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tien_quyet_canh_15",
+    "name": "Nhân Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Nhân Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "hiem"
+   },
+   {
+    "id": "tien_quyet_canh_16",
+    "name": "Chân Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Chân Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_17",
+    "name": "Huyền Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Huyền Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_18",
+    "name": "Thiên Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thiên Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_19",
+    "name": "Kim Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Kim Tiên, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_20",
+    "name": "Thái Ất Chân Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thái Ất Chân Tiên, vận chuyển tiên nguyên xuyên phá h",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_21",
+    "name": "Thái Ất Huyền Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thái Ất Huyền Tiên, vận chuyển tiên nguyên xuyên phá ",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_22",
+    "name": "Thái Ất Kim Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thái Ất Kim Tiên, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_23",
+    "name": "Đại La Chân Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đại La Chân Tiên, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "cuchiem"
+   },
+   {
+    "id": "tien_quyet_canh_24",
+    "name": "Đại La Kim Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đại La Kim Tiên, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_25",
+    "name": "Hỗn Nguyên Kim Tiên Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Nguyên Kim Tiên, vận chuyển tiên nguyên xuyên phá",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_26",
+    "name": "Tiên Quân Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Tiên Quân, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_27",
+    "name": "Tiên Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Tiên Tôn, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_28",
+    "name": "Chuẩn Tiên Vương Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Chuẩn Tiên Vương, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "vang"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_13",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_quyet_canh_29",
+    "name": "Tiên Vương Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Tiên Vương, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_30",
+    "name": "Tiên Đế Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Tiên Đế, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_31",
+    "name": "Thiên Tiên Đế Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thiên Tiên Đế, vận chuyển tiên nguyên xuyên phá hộ th",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_32",
+    "name": "Thiên Đế Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thiên Đế, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_33",
+    "name": "Thánh Nhân Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thánh Nhân, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_34",
+    "name": "Thánh Vương Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thánh Vương, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_35",
+    "name": "Thánh Hoàng Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thánh Hoàng, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_36",
+    "name": "Thánh Đế Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thánh Đế, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_37",
+    "name": "Đạo Quân Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Quân, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_38",
+    "name": "Đạo Vương Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Vương, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_39",
+    "name": "Đạo Hoàng Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Hoàng, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_40",
+    "name": "Đạo Đế Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Đế, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "cam"
+   },
+   {
+    "id": "tien_quyet_canh_41",
+    "name": "Đạo Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Tôn, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_42",
+    "name": "Đạo Chủ Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đạo Chủ, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_43",
+    "name": "Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Chí Tôn, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_44",
+    "name": "Thiên Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thiên Chí Tôn, vận chuyển tiên nguyên xuyên phá hộ th",
+    "rarity": "vang"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_14",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_quyet_canh_45",
+    "name": "Hỗn Nguyên Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Nguyên Chí Tôn, vận chuyển tiên nguyên xuyên phá ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_46",
+    "name": "Hỗn Độn Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Độn Chí Tôn, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_47",
+    "name": "Vô Thượng Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Vô Thượng Chí Tôn, vận chuyển tiên nguyên xuyên phá h",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_48",
+    "name": "Chí Cao Chí Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Chí Cao Chí Tôn, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_49",
+    "name": "Hỗn Độn Đạo Quân Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Độn Đạo Quân, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_50",
+    "name": "Hỗn Độn Đạo Tôn Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Độn Đạo Tôn, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "vang"
+   },
+   {
+    "id": "tien_quyet_canh_51",
+    "name": "Hỗn Độn Đạo Chủ Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Độn Đạo Chủ, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_52",
+    "name": "Bản Nguyên Cảnh Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Bản Nguyên Cảnh, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_53",
+    "name": "Bản Nguyên Chúa Tể Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Bản Nguyên Chúa Tể, vận chuyển tiên nguyên xuyên phá ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_54",
+    "name": "Vạn Đạo Chúa Tể Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Vạn Đạo Chúa Tể, vận chuyển tiên nguyên xuyên phá hộ ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_55",
+    "name": "Hư Vô Chúa Tể Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hư Vô Chúa Tể, vận chuyển tiên nguyên xuyên phá hộ th",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_56",
+    "name": "Thời Không Chúa Tể Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Thời Không Chúa Tể, vận chuyển tiên nguyên xuyên phá ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_57",
+    "name": "Siêu Thoát Giả Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Siêu Thoát Giả, vận chuyển tiên nguyên xuyên phá hộ t",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_58",
+    "name": "Đại Siêu Thoát Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Đại Siêu Thoát, vận chuyển tiên nguyên xuyên phá hộ t",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_59",
+    "name": "Vô Cực Cảnh Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Vô Cực Cảnh, vận chuyển tiên nguyên xuyên phá hộ thể.",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_60",
+    "name": "Vô Thượng Cảnh Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Vô Thượng Cảnh, vận chuyển tiên nguyên xuyên phá hộ t",
+    "rarity": "docban"
+   }
+  ]
+ },
+ {
+  "sheet": "skill_15",
+  "kind": "skill",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_quyet_canh_61",
+    "name": "Chư Thiên Chí Cao Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Chư Thiên Chí Cao, vận chuyển tiên nguyên xuyên phá h",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_62",
+    "name": "Hỗn Nguyên Vô Cực Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Hỗn Nguyên Vô Cực, vận chuyển tiên nguyên xuyên phá h",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_63",
+    "name": "Sáng Thế Cảnh Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Sáng Thế Cảnh, vận chuyển tiên nguyên xuyên phá hộ th",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_64",
+    "name": "Sáng Thế Chúa Tể Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Sáng Thế Chúa Tể, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "docban"
+   },
+   {
+    "id": "tien_quyet_canh_65",
+    "name": "Vạn Giới Chi Chủ Tiên Quyết",
+    "mon": "chung",
+    "kind": "atk",
+    "el": "",
+    "desc": "Tiên quyết truyền thừa của cảnh giới Vạn Giới Chi Chủ, vận chuyển tiên nguyên xuyên phá hộ",
+    "rarity": "docban"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_00",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "am_dao",
+    "name": "Âm Sát Bảo Đao",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "am_gia_kiem",
+    "name": "Ẩm Giả Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "am_nguyet_dao",
+    "name": "Âm Nguyệt Đao",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "bach_ngoc_phu_but",
+    "name": "Bạch Ngọc Phù Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "hoang"
+   },
+   {
+    "id": "bang_phach_truong",
+    "name": "Băng Phách Trượng",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "bat_cuc_kim_cang_bua",
+    "name": "Bát Cực Kim Cang Búa",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "bat_linh_xich",
+    "name": "Bát Linh Xích",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "bat_quai_dan_lo",
+    "name": "Bát Quái Cửu Khiếu Lô",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "binh_son_an",
+    "name": "Bình Sơn Ấn",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "dia"
+   },
+   {
+    "id": "bo_quyen_sao",
+    "name": "Bố Quyền Sáo",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "pham"
+   },
+   {
+    "id": "cam_hon_phien",
+    "name": "Cấm Hồn Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "can_lam_dinh",
+    "name": "Càn Lam Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "chan_gia_kiem",
+    "name": "Chân Giả Đạo Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "chu_sa_lang_hao",
+    "name": "Chu Sa Lang Hào Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "hoang"
+   },
+   {
+    "id": "co_than_dinh",
+    "name": "Cổ Thần Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "con_cuc_tien",
+    "name": "Côn Cực Tiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_01",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "cu_chung",
+    "name": "Cự Chung Cổ Bảo",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "huyen"
+   },
+   {
+    "id": "cuu_chuyen_dinh",
+    "name": "Cửu Chuyển Hóa Linh Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "huyen"
+   },
+   {
+    "id": "cuu_chuyen_khai_thien_chuy",
+    "name": "Cửu Chuyển Khai Thiên Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "cuu_u_nhiep_hon_but",
+    "name": "Cửu U Nhiếp Hồn Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "dia"
+   },
+   {
+    "id": "dam_loi",
+    "name": "Đạm Lôi Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "dan_hon_chung",
+    "name": "Dẫn Hồn Chung",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "dan_thien_moc_bao_lo",
+    "name": "Thiên Mộc Bảo Lô",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "dia"
+   },
+   {
+    "id": "dan_tu_hon_linh_dinh",
+    "name": "Tụ Hồn Linh Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "huyen"
+   },
+   {
+    "id": "dan_van_linh_dinh",
+    "name": "Vạn Linh Luyện Đan Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "huyen"
+   },
+   {
+    "id": "dia_hoa_chuy",
+    "name": "Địa Hỏa Kim Long Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "dia_hoa_thien_cong_chuy",
+    "name": "Địa Hỏa Thiên Công Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "diem_tien_but",
+    "name": "Điểm Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "dia"
+   },
+   {
+    "id": "dong_dinh",
+    "name": "Đồng Đỉnh Nhỏ",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "pham"
+   },
+   {
+    "id": "hac_huyet_nhan",
+    "name": "Hắc Huyết Nhận",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "hac_phong_ky",
+    "name": "Hắc Phong Kỳ",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "hac_thach_ren_bua",
+    "name": "Hắc Thạch Rèn Búa",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_02",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hac_thiet_chuy",
+    "name": "Hắc Thiết Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "hoa_ban_nguyen_kiem",
+    "name": "Hỏa Bản Nguyên Chi Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "hoa_van_truong",
+    "name": "Hỏa Vân Trượng",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "hoang_linh_dinh",
+    "name": "Hoàng Linh Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "hon_don_tao_hoa_dinh",
+    "name": "Hỗn Độn Tạo Hóa Thần Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "hon_nguyen_bat",
+    "name": "Hỗn Nguyên Bát",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "dia"
+   },
+   {
+    "id": "hu_thien_dinh",
+    "name": "Hư Thiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "huyen_tinh_phan_quan_but",
+    "name": "Huyền Tinh Phán Quan Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "huyen"
+   },
+   {
+    "id": "huyet_ma_kiem_pn",
+    "name": "Huyết Ma Kiếm Phàm Nhân",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "huyet_sat_kiem",
+    "name": "Huyết Sát Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "huyet_vien_quyen_sao",
+    "name": "Huyết Viên Quyền Sáo",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "dia"
+   },
+   {
+    "id": "kim_phu_tu_mau_nhan",
+    "name": "Kim Phù Tử Mẫu Nhận",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "lam_kim_chuyen",
+    "name": "Lam Kim Chuyên",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "lang_thu_khoi_loi",
+    "name": "Lang Thủ Khôi Lỗi",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "hoang"
+   },
+   {
+    "id": "luc_hoang_kiem",
+    "name": "Lục Hoàng Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_01",
+    "name": "Phàm Khai Sơn Rèn Chùy 01",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_03",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "luyen_khi_phap_bao_02",
+    "name": "Phàm Bách Luyện Rèn Chùy 02",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "luyen_khi_phap_bao_05",
+    "name": "Phàm Xích Lôi Rèn Chùy 05",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "luyen_khi_phap_bao_06",
+    "name": "Phàm Vạn Quân Rèn Chùy 06",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "luyen_khi_phap_bao_07",
+    "name": "Phàm Trấn Nhạc Rèn Chùy 07",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "luyen_khi_phap_bao_10",
+    "name": "Hoàng Khai Thiên Rèn Chùy 10",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_11",
+    "name": "Hoàng Khai Sơn Rèn Chùy 11",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_12",
+    "name": "Hoàng Bách Luyện Rèn Chùy 12",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_15",
+    "name": "Hoàng Xích Lôi Rèn Chùy 15",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_16",
+    "name": "Hoàng Vạn Quân Rèn Chùy 16",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_17",
+    "name": "Hoàng Trấn Nhạc Rèn Chùy 17",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "luyen_khi_phap_bao_20",
+    "name": "Huyền Khai Thiên Rèn Chùy 20",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_21",
+    "name": "Huyền Khai Sơn Rèn Chùy 21",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_22",
+    "name": "Huyền Bách Luyện Rèn Chùy 22",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_25",
+    "name": "Huyền Xích Lôi Rèn Chùy 25",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_26",
+    "name": "Huyền Vạn Quân Rèn Chùy 26",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "luyen_khi_phap_bao_27",
+    "name": "Huyền Trấn Nhạc Rèn Chùy 27",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_04",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "luyen_khi_phap_bao_30",
+    "name": "Địa Khai Thiên Rèn Chùy 30",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "luyen_khi_phap_bao_31",
+    "name": "Địa Khai Sơn Rèn Chùy 31",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "luyen_khi_phap_bao_32",
+    "name": "Địa Bách Luyện Rèn Chùy 32",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "luyen_khi_phap_bao_35",
+    "name": "Địa Xích Lôi Rèn Chùy 35",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "luyen_khi_phap_bao_36",
+    "name": "Địa Vạn Quân Rèn Chùy 36",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "luyen_khi_phap_bao_37",
+    "name": "Thiên Trấn Nhạc Rèn Chùy 37",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_40",
+    "name": "Thiên Khai Thiên Rèn Chùy 40",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_41",
+    "name": "Thiên Khai Sơn Rèn Chùy 41",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_42",
+    "name": "Thiên Bách Luyện Rèn Chùy 42",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_45",
+    "name": "Thiên Xích Lôi Rèn Chùy 45",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "thien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_46",
+    "name": "Tiên Vạn Quân Rèn Chùy 46",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_47",
+    "name": "Tiên Trấn Nhạc Rèn Chùy 47",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "luyen_khi_phap_bao_50",
+    "name": "Tiên Khai Thiên Rèn Chùy 50",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "ma_huyet_kiem",
+    "name": "Ma Huyết Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "ma_linh_dinh",
+    "name": "Cửu U Ma Linh Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "dia"
+   },
+   {
+    "id": "ma_tran_phien",
+    "name": "Ma Trần Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_05",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "me_tien_chung",
+    "name": "Mê Tiên Chung",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "moc_bua",
+    "name": "Mộc Búa",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "moc_kiem",
+    "name": "Mộc Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "moc_truong",
+    "name": "Mộc Trượng",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "pham"
+   },
+   {
+    "id": "ngu_thu_phap_bao_01",
+    "name": "Phàm Hồn Thú Thú Hồn Trượng 1",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "pham"
+   },
+   {
+    "id": "ngu_thu_phap_bao_06",
+    "name": "Phàm Thái Cổ Thú Hồn Trượng 6",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "pham"
+   },
+   {
+    "id": "ngu_thu_phap_bao_11",
+    "name": "Hoàng Hồn Thú Thú Hồn Trượng 11",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "ngu_thu_phap_bao_16",
+    "name": "Hoàng Thái Cổ Thú Hồn Trượng 16",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "ngu_thu_phap_bao_21",
+    "name": "Huyền Hồn Thú Thú Hồn Trượng 21",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "ngu_thu_phap_bao_26",
+    "name": "Huyền Thái Cổ Thú Hồn Trượng 26",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "ngu_thu_phap_bao_31",
+    "name": "Địa Hồn Thú Thú Hồn Trượng 31",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "ngu_thu_phap_bao_36",
+    "name": "Địa Thái Cổ Thú Hồn Trượng 36",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "ngu_thu_phap_bao_41",
+    "name": "Thiên Hồn Thú Thú Hồn Trượng 41",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "ngu_thu_phap_bao_46",
+    "name": "Tiên Thái Cổ Thú Hồn Trượng 46",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "nhan_qua_kiem",
+    "name": "Nhân Quả Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "o_long_doat",
+    "name": "Ô Long Đoạt",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_06",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "o_thiet_doan_chuy",
+    "name": "Ô Thiết Đoán Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "phan_thuy_ky",
+    "name": "Phân Thủy Kỳ",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "phap_tu_linh_phien",
+    "name": "Tụ Linh Pháp Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "phap_van_tinh_kiem",
+    "name": "Vạn Tinh Pháp Kiếm",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_am_duong_hon_thien_kiem",
+    "name": "Âm Dương Hỗn Thiên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_bac_dau_than_kiem",
+    "name": "Bắc Đẩu Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_bach_chien_phi_kiem",
+    "name": "Bách Chiến Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_bach_ho_than_kiem",
+    "name": "Bạch Hổ Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_bach_luyen_phi_kiem",
+    "name": "Bách Luyện Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_bach_vu_phi_kiem",
+    "name": "Bạch Vũ Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_ban_co_khai_thien_kiem",
+    "name": "Bàn Cổ Khai Thiên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_bang_phach_phi_kiem",
+    "name": "Băng Phách Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_bang_tinh_phi_kiem",
+    "name": "Băng Tinh Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_bao_hap_phi_kiem",
+    "name": "Bảo Hạp Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_bat_diet_tien_kiem",
+    "name": "Bất Diệt Tiên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_bat_hoang_than_kiem",
+    "name": "Bát Hoang Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_07",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_bich_ba_kiem",
+    "name": "Bích Ba Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_bich_lac_kiem",
+    "name": "Bích Lạc Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_can_khon_than_kiem",
+    "name": "Càn Khôn Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_chan_tien_hang_the_kiem",
+    "name": "Chân Tiên Hàng Thế Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_chan_vu_phi_kiem",
+    "name": "Chân Vũ Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_chu_tuoc_than_kiem",
+    "name": "Chu Tước Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_cu_khuyet_phi_kiem",
+    "name": "Cự Khuyết Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_cuc_quang_hoa_than_kiem",
+    "name": "Cực Quang Hóa Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_cuu_cuc_than_kiem",
+    "name": "Cửu Cực Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_cuu_loi_phi_kiem",
+    "name": "Cửu Lôi Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_cuu_thien_huyen_nu_kiem",
+    "name": "Cửu Thiên Huyền Nữ Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_cuu_tieu_chi_ton_kiem",
+    "name": "Cửu Tiêu Chí Tôn Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_cuu_u_than_kiem",
+    "name": "Cửu U Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_doat_hon_phi_kiem",
+    "name": "Đoạt Hồn Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_dong_lan_phi_kiem",
+    "name": "Đồng Lân Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_ham_tien_than_kiem",
+    "name": "Hãm Tiên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_08",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_han_phong_phi_kiem",
+    "name": "Hàn Phong Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_ho_phach_phi_kiem",
+    "name": "Hổ Phách Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_hoang_tuyen_kiem",
+    "name": "Hoàng Tuyền Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_hon_nguyen_than_kiem",
+    "name": "Hỗn Nguyên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_hong_mong_than_kiem",
+    "name": "Hồng Mông Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_hu_khong_pha_diet_kiem",
+    "name": "Hư Không Phá Diệt Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_huyen_bang_phi_kiem",
+    "name": "Huyền Băng Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_huyen_thien_phi_kiem",
+    "name": "Huyền Thiên Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_huyen_thiet_phi_kiem",
+    "name": "Huyền Thiết Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_huyen_vu_than_kiem",
+    "name": "Huyền Vũ Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_kim_xa_phi_kiem",
+    "name": "Kim Xà Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_lac_nhan_phi_kiem",
+    "name": "Lạc Nhạn Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_lanh_nguyet_phi_kiem",
+    "name": "Lãnh Nguyệt Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_liet_hoa_phi_kiem",
+    "name": "Liệt Hỏa Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_loi_dinh_van_quan_kiem",
+    "name": "Lôi Đình Vạn Quân Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_loi_quang_phi_kiem",
+    "name": "Lôi Quang Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_09",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_long_ngam_phi_kiem",
+    "name": "Long Ngâm Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_luc_ma_phi_kiem",
+    "name": "Lục Ma Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_luc_tien_than_kiem",
+    "name": "Lục Tiên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_luu_van_phi_kiem",
+    "name": "Lưu Vân Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_minh_ha_phi_kiem",
+    "name": "Minh Hà Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_moc_loi_phi_kiem",
+    "name": "Mộc Lôi Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_nam_minh_ly_hoa_kiem",
+    "name": "Nam Minh Ly Hỏa Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_ngan_nguyet_phi_kiem",
+    "name": "Ngân Nguyệt Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_pha_khong_phi_kiem",
+    "name": "Phá Không Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_pha_quan_than_kiem",
+    "name": "Phá Quân Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_phi_yen_kiem",
+    "name": "Phi Yến Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_phong_than_phi_kiem",
+    "name": "Phong Thần Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_quy_nguyen_than_kiem",
+    "name": "Quy Nguyên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_tao_hoa_tien_kiem",
+    "name": "Tạo Hóa Tiên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_tat_phong_phi_kiem",
+    "name": "Tật Phong Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_thai_am_huyen_bang_kiem",
+    "name": "Thái Âm Huyền Băng Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_10",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_thai_cuc_phi_kiem",
+    "name": "Thái Cực Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_thai_duong_chan_hoa_kiem",
+    "name": "Thái Dương Chân Hỏa Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_thai_hu_than_kiem",
+    "name": "Thái Hư Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_thai_so_hon_don_kiem",
+    "name": "Thái Sơ Hỗn Độn Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_tham_lang_than_kiem",
+    "name": "Tham Lang Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_than_ma_tuyet_diet_kiem",
+    "name": "Thần Ma Tuyệt Diệt Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_thanh_loan_phi_kiem",
+    "name": "Thanh Loan Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_thanh_long_than_kiem",
+    "name": "Thanh Long Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_thanh_phong_phi_kiem",
+    "name": "Thanh Phong Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_thanh_tieu_phi_kiem",
+    "name": "Thanh Tiêu Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_thanh_truc_phi_kiem",
+    "name": "Thanh Trúc Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_that_sat_than_kiem",
+    "name": "Thất Sát Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_that_tinh_phi_kiem",
+    "name": "Thất Tinh Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_thien_cang_phi_kiem",
+    "name": "Thiên Cang Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_thien_co_than_kiem",
+    "name": "Thiên Cơ Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_thien_dao_vinh_hang_kiem",
+    "name": "Thiên Đạo Vĩnh Hằng Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_11",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_thien_ma_cuc_lac_kiem",
+    "name": "Thiên Ma Cực Lạc Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_thien_menh_than_kiem",
+    "name": "Thiên Mệnh Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_thiet_tinh_phi_kiem",
+    "name": "Thiết Tinh Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_thu_thuy_kiem",
+    "name": "Thu Thủy Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_thua_anh_phi_kiem",
+    "name": "Thừa Ảnh Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_thuong_co_hien_vien_kiem",
+    "name": "Thượng Cổ Hiên Viên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_tram_lu_phi_kiem",
+    "name": "Trạm Lư Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_tram_ma_dao_kiem",
+    "name": "Trảm Ma Đạo Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_tru_tien_than_kiem",
+    "name": "Tru Tiên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_tu_dien_phi_kiem",
+    "name": "Tử Điện Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_tu_tieu_kiem",
+    "name": "Tử Tiêu Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phi_kiem_tu_vi_phi_kiem",
+    "name": "Tử Vi Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_tung_phong_kiem",
+    "name": "Tùng Phong Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_tuyet_tien_than_kiem",
+    "name": "Tuyệt Tiên Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "phi_kiem_u_minh_phi_kiem",
+    "name": "U Minh Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_van_dao_tien_de_kiem",
+    "name": "Vạn Đạo Tiên Đế Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_12",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "phi_kiem_van_kiem_quy_tong_kiem",
+    "name": "Vạn Kiếm Quy Tông Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_van_lan_phi_kiem",
+    "name": "Vạn Lân Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_viem_ma_phi_kiem",
+    "name": "Viêm Ma Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_vo_cuc_tien_kiem",
+    "name": "Vô Cực Tiên Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "phi_kiem_vo_thuong_than_kiem",
+    "name": "Vô Thượng Thần Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "phi_kiem_xich_dong_kiem",
+    "name": "Xích Đồng Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "phi_kiem_xich_huyet_phi_kiem",
+    "name": "Xích Huyết Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phi_kiem_xich_viem_phi_kiem",
+    "name": "Xích Viêm Phi Kiếm",
+    "slot": "phi_kiem",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "phong_hanh_kiem",
+    "name": "Phong Hành Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "phong_tien_an",
+    "name": "Phong Tiên Ấn",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "phong_van_phien",
+    "name": "Phong Vân Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "phu_linh_phong_but",
+    "name": "Linh Phong Đạo Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "huyen"
+   },
+   {
+    "id": "phu_thien_phu_than_but",
+    "name": "Thiên Phù Thần Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "dia"
+   },
+   {
+    "id": "quan_nhat_kiem",
+    "name": "Quán Nhật Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "quy_la_phien",
+    "name": "Quỷ La Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "quyen_bach_huyen_thu",
+    "name": "Bách Luyện Quyền Sáo",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_13",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "quyen_tinh_hai",
+    "name": "Tinh Hải Chấn Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "dia"
+   },
+   {
+    "id": "ren_huyet_loan_chuy",
+    "name": "Huyết Loan Đoán Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "ren_khai_son_chuy",
+    "name": "Khai Sơn Huyền Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "hoang"
+   },
+   {
+    "id": "ren_thien_cong_chuy",
+    "name": "Thiên Công Phá Giáp Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   },
+   {
+    "id": "ren_van_tuong_thien_cong",
+    "name": "Vạn Tượng Thiên Công Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "sat_giao_kiem",
+    "name": "Sát Giao Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "sat_luc_kiem",
+    "name": "Sát Lục Bản Thể Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "sinh_tu_kiem",
+    "name": "Sinh Tử Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "so_nhat_kiem",
+    "name": "Sơ Nhất (Tiểu Phong Đô)",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tam_xoa_kich",
+    "name": "Tam Xoa Thần Kích",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "tan_hoa_kiem",
+    "name": "Tân Hỏa Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "thach_hau_quyen_sao",
+    "name": "Thạch Hầu Quyền Sáo",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "hoang"
+   },
+   {
+    "id": "thai_ap_than_dinh",
+    "name": "Thái Ất Dược Vương Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "dia"
+   },
+   {
+    "id": "thai_cuc_ngu_sac_but",
+    "name": "Thái Cực Ngũ Sắc Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "dia"
+   },
+   {
+    "id": "thai_hu_than_cong_chuy",
+    "name": "Thái Hư Thần Công Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "thai_thuong_than_phu_but",
+    "name": "Thái Thượng Thần Phù Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "thien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_14",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thanh_dinh",
+    "name": "Thánh Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "thien"
+   },
+   {
+    "id": "thanh_giao_ky",
+    "name": "Thanh Giao Kỳ",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "thanh_moc_dinh",
+    "name": "Thanh Mộc Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "hoang"
+   },
+   {
+    "id": "thanh_phong_kiem",
+    "name": "Thanh Phong Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "thanh_thiem_chung",
+    "name": "Thanh Thiền Chung",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "thanh_thuong_kiem",
+    "name": "Thanh Thương Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "thanh_truc_kiem",
+    "name": "Thanh Trúc Phong Vân Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "thanh_xa_tai_hap",
+    "name": "Thanh Xà Tại Hạp",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "thap_ngu_kiem",
+    "name": "Thập Ngũ Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "thap_uc_ton_hon_phien",
+    "name": "Thập Ức Tôn Hồn Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "that_diem_phien",
+    "name": "Thất Diễm Phiến",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "the_khai_thien_phu",
+    "name": "Khai Thiên Cự Phủ",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "the_tran_nhac_chuy",
+    "name": "Trấn Nhạc Cự Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "thien_a_than_kiem",
+    "name": "Thiên A Thần Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "thien_chan_kiem",
+    "name": "Tiên Kiếm Thiên Chân",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "thien_hac_phu_but",
+    "name": "Thiên Hạc Linh Vũ Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_15",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thien_ho_ky",
+    "name": "Thiên Hổ Kỳ",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "thien_hoa_than_lien",
+    "name": "Thiên Hỏa Thần Liên",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "thien_hoang_lo",
+    "name": "Thiên Hoàng Lô",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "huyen"
+   },
+   {
+    "id": "thien_trong_phong",
+    "name": "Thiên Trọng Phong",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "thiet_chuy",
+    "name": "Thiết Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "pham"
+   },
+   {
+    "id": "thiet_kiem_gi",
+    "name": "Thiết Kiếm Gỉ",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "thuy_vi_kiem",
+    "name": "Thúy Vi Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "tien_map_10_nguyet_hanh_thu",
+    "name": "Thiên Ngoại Tiên Vực Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_bua",
+    "name": "Thiên Ngoại Tiên Vực Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_but",
+    "name": "Thiên Ngoại Tiên Vực Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_dinh",
+    "name": "Thiên Ngoại Tiên Vực Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_kiem",
+    "name": "Thiên Ngoại Tiên Vực Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_phapkhi",
+    "name": "Thiên Ngoại Tiên Vực Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_quyensao",
+    "name": "Thiên Ngoại Tiên Vực Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_10_vu_khi_trongkhi",
+    "name": "Thiên Ngoại Tiên Vực Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_nguyet_hanh_thu",
+    "name": "Thánh Linh Đại Lục Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_16",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_map_11_vu_khi_bua",
+    "name": "Thánh Linh Đại Lục Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_but",
+    "name": "Thánh Linh Đại Lục Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_dinh",
+    "name": "Thánh Linh Đại Lục Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_kiem",
+    "name": "Thánh Linh Đại Lục Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_phapkhi",
+    "name": "Thánh Linh Đại Lục Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_quyensao",
+    "name": "Thánh Linh Đại Lục Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_11_vu_khi_trongkhi",
+    "name": "Thánh Linh Đại Lục Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_nguyet_hanh_thu",
+    "name": "Đạo Nguyên Thiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_bua",
+    "name": "Đạo Nguyên Thiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_but",
+    "name": "Đạo Nguyên Thiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_dinh",
+    "name": "Đạo Nguyên Thiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_kiem",
+    "name": "Đạo Nguyên Thiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_phapkhi",
+    "name": "Đạo Nguyên Thiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_quyensao",
+    "name": "Đạo Nguyên Thiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_12_vu_khi_trongkhi",
+    "name": "Đạo Nguyên Thiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_nguyet_hanh_thu",
+    "name": "Chí Tôn Thần Giới Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_17",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_map_13_vu_khi_bua",
+    "name": "Chí Tôn Thần Giới Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_but",
+    "name": "Chí Tôn Thần Giới Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_dinh",
+    "name": "Chí Tôn Thần Giới Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_kiem",
+    "name": "Chí Tôn Thần Giới Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_phapkhi",
+    "name": "Chí Tôn Thần Giới Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_quyensao",
+    "name": "Chí Tôn Thần Giới Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_13_vu_khi_trongkhi",
+    "name": "Chí Tôn Thần Giới Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_nguyet_hanh_thu",
+    "name": "Hỗn Độn Cổ Giới Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_bua",
+    "name": "Hỗn Độn Cổ Giới Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_but",
+    "name": "Hỗn Độn Cổ Giới Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_dinh",
+    "name": "Hỗn Độn Cổ Giới Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_kiem",
+    "name": "Hỗn Độn Cổ Giới Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_phapkhi",
+    "name": "Hỗn Độn Cổ Giới Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_quyensao",
+    "name": "Hỗn Độn Cổ Giới Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_14_vu_khi_trongkhi",
+    "name": "Hỗn Độn Cổ Giới Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_nguyet_hanh_thu",
+    "name": "Bản Nguyên Hải Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_18",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_map_15_vu_khi_bua",
+    "name": "Bản Nguyên Hải Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_but",
+    "name": "Bản Nguyên Hải Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_dinh",
+    "name": "Bản Nguyên Hải Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_kiem",
+    "name": "Bản Nguyên Hải Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_phapkhi",
+    "name": "Bản Nguyên Hải Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_quyensao",
+    "name": "Bản Nguyên Hải Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_15_vu_khi_trongkhi",
+    "name": "Bản Nguyên Hải Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_nguyet_hanh_thu",
+    "name": "Vạn Đạo Thần Vực Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_bua",
+    "name": "Vạn Đạo Thần Vực Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_but",
+    "name": "Vạn Đạo Thần Vực Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_dinh",
+    "name": "Vạn Đạo Thần Vực Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_kiem",
+    "name": "Vạn Đạo Thần Vực Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_phapkhi",
+    "name": "Vạn Đạo Thần Vực Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_quyensao",
+    "name": "Vạn Đạo Thần Vực Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_16_vu_khi_trongkhi",
+    "name": "Vạn Đạo Thần Vực Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_nguyet_hanh_thu",
+    "name": "Thời Không Trường Hà Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_19",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_map_17_vu_khi_bua",
+    "name": "Thời Không Trường Hà Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_but",
+    "name": "Thời Không Trường Hà Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_dinh",
+    "name": "Thời Không Trường Hà Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_kiem",
+    "name": "Thời Không Trường Hà Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_phapkhi",
+    "name": "Thời Không Trường Hà Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_quyensao",
+    "name": "Thời Không Trường Hà Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_17_vu_khi_trongkhi",
+    "name": "Thời Không Trường Hà Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_nguyet_hanh_thu",
+    "name": "Siêu Thoát Thiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_bua",
+    "name": "Siêu Thoát Thiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_but",
+    "name": "Siêu Thoát Thiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_dinh",
+    "name": "Siêu Thoát Thiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_kiem",
+    "name": "Siêu Thoát Thiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_phapkhi",
+    "name": "Siêu Thoát Thiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_quyensao",
+    "name": "Siêu Thoát Thiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_18_vu_khi_trongkhi",
+    "name": "Siêu Thoát Thiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_nguyet_hanh_thu",
+    "name": "Sáng Thế Thần Quốc Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_20",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_map_19_vu_khi_bua",
+    "name": "Sáng Thế Thần Quốc Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_but",
+    "name": "Sáng Thế Thần Quốc Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_dinh",
+    "name": "Sáng Thế Thần Quốc Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_kiem",
+    "name": "Sáng Thế Thần Quốc Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_phapkhi",
+    "name": "Sáng Thế Thần Quốc Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_quyensao",
+    "name": "Sáng Thế Thần Quốc Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_19_vu_khi_trongkhi",
+    "name": "Sáng Thế Thần Quốc Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_nguyet_hanh_thu",
+    "name": "Tiên Đế Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_bua",
+    "name": "Tiên Đế Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_but",
+    "name": "Tiên Đế Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_dinh",
+    "name": "Tiên Đế Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_kiem",
+    "name": "Tiên Đế Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_phapkhi",
+    "name": "Tiên Đế Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_quyensao",
+    "name": "Tiên Đế Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_map_9_vu_khi_trongkhi",
+    "name": "Tiên Đế Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_nguyet_hanh_thu",
+    "name": "Bán Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_21",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_tien_canh_11_vu_khi_bua",
+    "name": "Bán Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_but",
+    "name": "Bán Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_dinh",
+    "name": "Bán Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_kiem",
+    "name": "Bán Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_phapkhi",
+    "name": "Bán Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_quyensao",
+    "name": "Bán Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_11_vu_khi_trongkhi",
+    "name": "Bán Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_nguyet_hanh_thu",
+    "name": "Đăng Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_bua",
+    "name": "Đăng Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_but",
+    "name": "Đăng Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_dinh",
+    "name": "Đăng Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_kiem",
+    "name": "Đăng Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_phapkhi",
+    "name": "Đăng Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_quyensao",
+    "name": "Đăng Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_12_vu_khi_trongkhi",
+    "name": "Đăng Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_nguyet_hanh_thu",
+    "name": "Tán Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_22",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_tien_canh_13_vu_khi_bua",
+    "name": "Tán Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_but",
+    "name": "Tán Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_dinh",
+    "name": "Tán Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_kiem",
+    "name": "Tán Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_phapkhi",
+    "name": "Tán Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_quyensao",
+    "name": "Tán Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_13_vu_khi_trongkhi",
+    "name": "Tán Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_nguyet_hanh_thu",
+    "name": "Địa Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_bua",
+    "name": "Địa Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_but",
+    "name": "Địa Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_dinh",
+    "name": "Địa Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_kiem",
+    "name": "Địa Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_phapkhi",
+    "name": "Địa Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_quyensao",
+    "name": "Địa Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_14_vu_khi_trongkhi",
+    "name": "Địa Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_nguyet_hanh_thu",
+    "name": "Nhân Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_23",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_tien_canh_15_vu_khi_bua",
+    "name": "Nhân Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_but",
+    "name": "Nhân Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_dinh",
+    "name": "Nhân Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_kiem",
+    "name": "Nhân Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_phapkhi",
+    "name": "Nhân Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_quyensao",
+    "name": "Nhân Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_15_vu_khi_trongkhi",
+    "name": "Nhân Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_nguyet_hanh_thu",
+    "name": "Chân Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_bua",
+    "name": "Chân Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_but",
+    "name": "Chân Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_dinh",
+    "name": "Chân Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_kiem",
+    "name": "Chân Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_phapkhi",
+    "name": "Chân Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_quyensao",
+    "name": "Chân Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_16_vu_khi_trongkhi",
+    "name": "Chân Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_nguyet_hanh_thu",
+    "name": "Huyền Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_24",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_tien_canh_17_vu_khi_bua",
+    "name": "Huyền Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_but",
+    "name": "Huyền Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_dinh",
+    "name": "Huyền Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_kiem",
+    "name": "Huyền Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_phapkhi",
+    "name": "Huyền Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_quyensao",
+    "name": "Huyền Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_17_vu_khi_trongkhi",
+    "name": "Huyền Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_nguyet_hanh_thu",
+    "name": "Thiên Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_bua",
+    "name": "Thiên Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_but",
+    "name": "Thiên Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_dinh",
+    "name": "Thiên Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_kiem",
+    "name": "Thiên Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_phapkhi",
+    "name": "Thiên Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_quyensao",
+    "name": "Thiên Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_18_vu_khi_trongkhi",
+    "name": "Thiên Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_nguyet_hanh_thu",
+    "name": "Kim Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_25",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_tien_canh_19_vu_khi_bua",
+    "name": "Kim Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_but",
+    "name": "Kim Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_dinh",
+    "name": "Kim Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_kiem",
+    "name": "Kim Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_phapkhi",
+    "name": "Kim Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_quyensao",
+    "name": "Kim Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_19_vu_khi_trongkhi",
+    "name": "Kim Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_nguyet_hanh_thu",
+    "name": "Thái Ất Chân Tiên Nguyệt Hành Thú",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_bua",
+    "name": "Thái Ất Chân Tiên Luyện Khí Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_but",
+    "name": "Thái Ất Chân Tiên Phù Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_dinh",
+    "name": "Thái Ất Chân Tiên Tiên Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_kiem",
+    "name": "Thái Ất Chân Tiên Đế Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_phapkhi",
+    "name": "Thái Ất Chân Tiên Tiên Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_quyensao",
+    "name": "Thái Ất Chân Tiên Đạo Quyền",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "tien"
+   },
+   {
+    "id": "tien_tien_canh_20_vu_khi_trongkhi",
+    "name": "Thái Ất Chân Tiên Thần Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   },
+   {
+    "id": "tinh_de_nguyet",
+    "name": "Tỉnh Để Nguyệt",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_26",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_bach_van",
+    "name": "Bạch Vân Linh Hạc",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_ky_lan",
+    "name": "Thái Cổ Kỳ Lân",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_linh_huou",
+    "name": "Thanh Giác Linh Lộc",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_loan_phuong",
+    "name": "Cửu Sắc Loan Phượng",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_001",
+    "name": "Thanh Vân Linh Hạc Phàm 001",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_002",
+    "name": "Xích Diễm Chiến Hổ Phàm 002",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_003",
+    "name": "Băng Nguyên Tuyết Lang Phàm 003",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_004",
+    "name": "Tử Điện Lôi Ưng Phàm 004",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_005",
+    "name": "Huyền Giáp Linh Quy Phàm 005",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_006",
+    "name": "Kim Đồng Ngọc Sư Phàm 006",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_007",
+    "name": "Cửu U Minh Báo Phàm 007",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_008",
+    "name": "Thương Hải Giao Long Phàm 008",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_009",
+    "name": "Ngũ Sắc Loan Phượng Phàm 009",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_010",
+    "name": "Thái Cổ Kỳ Lân Phàm 010",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_011",
+    "name": "Thanh Vân Linh Hạc Phàm 011",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_012",
+    "name": "Xích Diễm Chiến Hổ Phàm 012",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_27",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_013",
+    "name": "Băng Nguyên Tuyết Lang Phàm 013",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_014",
+    "name": "Tử Điện Lôi Ưng Phàm 014",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_015",
+    "name": "Huyền Giáp Linh Quy Phàm 015",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_016",
+    "name": "Kim Đồng Ngọc Sư Phàm 016",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_017",
+    "name": "Cửu U Minh Báo Phàm 017",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "pham"
+   },
+   {
+    "id": "toa_ky_thien_dao_018",
+    "name": "Thương Hải Giao Long Hoàng 018",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_019",
+    "name": "Ngũ Sắc Loan Phượng Hoàng 019",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_020",
+    "name": "Thái Cổ Kỳ Lân Hoàng 020",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_021",
+    "name": "Thanh Vân Linh Hạc Hoàng 021",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_022",
+    "name": "Xích Diễm Chiến Hổ Hoàng 022",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_023",
+    "name": "Băng Nguyên Tuyết Lang Hoàng 023",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_024",
+    "name": "Tử Điện Lôi Ưng Hoàng 024",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_025",
+    "name": "Huyền Giáp Linh Quy Hoàng 025",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_026",
+    "name": "Kim Đồng Ngọc Sư Hoàng 026",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_027",
+    "name": "Cửu U Minh Báo Hoàng 027",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_028",
+    "name": "Thương Hải Giao Long Hoàng 028",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_28",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_029",
+    "name": "Ngũ Sắc Loan Phượng Hoàng 029",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_030",
+    "name": "Thái Cổ Kỳ Lân Hoàng 030",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_031",
+    "name": "Thanh Vân Linh Hạc Hoàng 031",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_032",
+    "name": "Xích Diễm Chiến Hổ Hoàng 032",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_033",
+    "name": "Băng Nguyên Tuyết Lang Hoàng 033",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_034",
+    "name": "Tử Điện Lôi Ưng Hoàng 034",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "hoang"
+   },
+   {
+    "id": "toa_ky_thien_dao_035",
+    "name": "Huyền Giáp Linh Quy Huyền 035",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_036",
+    "name": "Kim Đồng Ngọc Sư Huyền 036",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_037",
+    "name": "Cửu U Minh Báo Huyền 037",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_038",
+    "name": "Thương Hải Giao Long Huyền 038",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_039",
+    "name": "Ngũ Sắc Loan Phượng Huyền 039",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_040",
+    "name": "Thái Cổ Kỳ Lân Huyền 040",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_041",
+    "name": "Thanh Vân Linh Hạc Huyền 041",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_042",
+    "name": "Xích Diễm Chiến Hổ Huyền 042",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_043",
+    "name": "Băng Nguyên Tuyết Lang Huyền 043",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_044",
+    "name": "Tử Điện Lôi Ưng Huyền 044",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_29",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_045",
+    "name": "Huyền Giáp Linh Quy Huyền 045",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_046",
+    "name": "Kim Đồng Ngọc Sư Huyền 046",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_047",
+    "name": "Cửu U Minh Báo Huyền 047",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_048",
+    "name": "Thương Hải Giao Long Huyền 048",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_049",
+    "name": "Ngũ Sắc Loan Phượng Huyền 049",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_050",
+    "name": "Thái Cổ Kỳ Lân Huyền 050",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_051",
+    "name": "Thanh Vân Linh Hạc Huyền 051",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "huyen"
+   },
+   {
+    "id": "toa_ky_thien_dao_052",
+    "name": "Xích Diễm Chiến Hổ Địa 052",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_053",
+    "name": "Băng Nguyên Tuyết Lang Địa 053",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_054",
+    "name": "Tử Điện Lôi Ưng Địa 054",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_055",
+    "name": "Huyền Giáp Linh Quy Địa 055",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_056",
+    "name": "Kim Đồng Ngọc Sư Địa 056",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_057",
+    "name": "Cửu U Minh Báo Địa 057",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_058",
+    "name": "Thương Hải Giao Long Địa 058",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_059",
+    "name": "Ngũ Sắc Loan Phượng Địa 059",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_060",
+    "name": "Thái Cổ Kỳ Lân Địa 060",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_30",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_061",
+    "name": "Thanh Vân Linh Hạc Địa 061",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_062",
+    "name": "Xích Diễm Chiến Hổ Địa 062",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_063",
+    "name": "Băng Nguyên Tuyết Lang Địa 063",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_064",
+    "name": "Tử Điện Lôi Ưng Địa 064",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_065",
+    "name": "Huyền Giáp Linh Quy Địa 065",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_066",
+    "name": "Kim Đồng Ngọc Sư Địa 066",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_067",
+    "name": "Cửu U Minh Báo Địa 067",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_068",
+    "name": "Thương Hải Giao Long Địa 068",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "dia"
+   },
+   {
+    "id": "toa_ky_thien_dao_069",
+    "name": "Ngũ Sắc Loan Phượng Thiên 069",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_070",
+    "name": "Thái Cổ Kỳ Lân Thiên 070",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_071",
+    "name": "Thanh Vân Linh Hạc Thiên 071",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_072",
+    "name": "Xích Diễm Chiến Hổ Thiên 072",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_073",
+    "name": "Băng Nguyên Tuyết Lang Thiên 073",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_074",
+    "name": "Tử Điện Lôi Ưng Thiên 074",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_075",
+    "name": "Huyền Giáp Linh Quy Thiên 075",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_076",
+    "name": "Kim Đồng Ngọc Sư Thiên 076",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_31",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_077",
+    "name": "Cửu U Minh Báo Thiên 077",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_078",
+    "name": "Thương Hải Giao Long Thiên 078",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_079",
+    "name": "Ngũ Sắc Loan Phượng Thiên 079",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_080",
+    "name": "Thái Cổ Kỳ Lân Thiên 080",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_081",
+    "name": "Thanh Vân Linh Hạc Thiên 081",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_082",
+    "name": "Xích Diễm Chiến Hổ Thiên 082",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_083",
+    "name": "Băng Nguyên Tuyết Lang Thiên 083",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_084",
+    "name": "Tử Điện Lôi Ưng Thiên 084",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_085",
+    "name": "Huyền Giáp Linh Quy Thiên 085",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "thien"
+   },
+   {
+    "id": "toa_ky_thien_dao_086",
+    "name": "Kim Đồng Ngọc Sư Tiên 086",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_087",
+    "name": "Cửu U Minh Báo Tiên 087",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_088",
+    "name": "Thương Hải Giao Long Tiên 088",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_089",
+    "name": "Ngũ Sắc Loan Phượng Tiên 089",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_090",
+    "name": "Thái Cổ Kỳ Lân Tiên 090",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_091",
+    "name": "Thanh Vân Linh Hạc Tiên 091",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_092",
+    "name": "Xích Diễm Chiến Hổ Tiên 092",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_32",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "toa_ky_thien_dao_093",
+    "name": "Băng Nguyên Tuyết Lang Tiên 093",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_094",
+    "name": "Tử Điện Lôi Ưng Tiên 094",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_095",
+    "name": "Huyền Giáp Linh Quy Tiên 095",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_096",
+    "name": "Kim Đồng Ngọc Sư Tiên 096",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_097",
+    "name": "Cửu U Minh Báo Tiên 097",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_098",
+    "name": "Thương Hải Giao Long Tiên 098",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_099",
+    "name": "Ngũ Sắc Loan Phượng Tiên 099",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "toa_ky_thien_dao_100",
+    "name": "Thái Cổ Kỳ Lân Tiên 100",
+    "slot": "phi_kiem",
+    "wtype": "",
+    "tier": "tien"
+   },
+   {
+    "id": "tram_kham_dao",
+    "name": "Trảm Khám Đao",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "tram_tien_kiem",
+    "name": "Trảm Tiên Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "thien"
+   },
+   {
+    "id": "tran_hai_chung",
+    "name": "Trấn Hải Chung",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "tru_ta_thich",
+    "name": "Tru Tà Thích",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "dia"
+   },
+   {
+    "id": "truc_but",
+    "name": "Thanh Trúc Phù Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_bua",
+    "name": "Tân Thủ Búa Rèn",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_but",
+    "name": "Tân Thủ Phù Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_chuy",
+    "name": "Tân Thủ Chùy",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "pham"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_33",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tt_dinh",
+    "name": "Tân Thủ Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_kiem",
+    "name": "Tân Thủ Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_quyen_sao",
+    "name": "Tân Thủ Quyền Sáo",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "pham"
+   },
+   {
+    "id": "tt_truong",
+    "name": "Tân Thủ Trượng",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "pham"
+   },
+   {
+    "id": "tu_bac_dao",
+    "name": "Tứ Bác Đao",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "tu_hon_bat",
+    "name": "Tụ Hồn Bát",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "hoang"
+   },
+   {
+    "id": "tu_tuong_xich",
+    "name": "Tứ Tượng Xích",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "thien"
+   },
+   {
+    "id": "tung_cham",
+    "name": "Tùng Châm Phi Kiếm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "huyen"
+   },
+   {
+    "id": "u_minh_quy_trao",
+    "name": "U Minh Quỷ Vuốt",
+    "slot": "weapon",
+    "wtype": "quyensao",
+    "tier": "huyen"
+   },
+   {
+    "id": "van_co_hoa_phu_tien_but",
+    "name": "Vạn Cổ Hóa Đạo Tiên Bút",
+    "slot": "weapon",
+    "wtype": "but",
+    "tier": "tien"
+   },
+   {
+    "id": "van_hon_phien",
+    "name": "Vạn Hồn Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "van_thiet_quy_phu_chuy",
+    "name": "Vạn Thiết Quỷ Phủ Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "dia"
+   },
+   {
+    "id": "van_yeu_phien",
+    "name": "Vạn Yêu Phiên",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "huyen"
+   },
+   {
+    "id": "vo_hinh_cham",
+    "name": "Vô Hình Châm",
+    "slot": "weapon",
+    "wtype": "kiem",
+    "tier": "hoang"
+   },
+   {
+    "id": "vu_ma_thuong",
+    "name": "Vụ Ma Thương",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "hoang"
+   },
+   {
+    "id": "xa_than_chien_xa",
+    "name": "Xạ Thần Chiến Xa",
+    "slot": "weapon",
+    "wtype": "trongkhi",
+    "tier": "tien"
+   }
+  ]
+ },
+ {
+  "sheet": "weapon_34",
+  "kind": "weapon",
+  "cols": 4,
+  "rows": 4,
+  "items": [
+   {
+    "id": "xa_ve_khoi_loi",
+    "name": "Xà Vệ Khôi Lỗi",
+    "slot": "weapon",
+    "wtype": "phapkhi",
+    "tier": "dia"
+   },
+   {
+    "id": "xich_diem_dinh",
+    "name": "Xích Diễm Dược Đỉnh",
+    "slot": "weapon",
+    "wtype": "dinh",
+    "tier": "hoang"
+   },
+   {
+    "id": "xich_loi_doan_than_chuy",
+    "name": "Xích Lôi Đoán Thần Chùy",
+    "slot": "weapon",
+    "wtype": "bua",
+    "tier": "huyen"
+   }
+  ]
+ },
+ {
+  "sheet": "monster_00",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "da_lang",
+    "name": "Độc Giác Thanh Giao",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 0
+   },
+   {
+    "id": "doc_phong",
+    "name": "Kim Giác Tê",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 0
+   },
+   {
+    "id": "thanh_xa",
+    "name": "Hắc Thủy Huyền Xà",
+    "el": "moc",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   },
+   {
+    "id": "thach_hau",
+    "name": "Man Hoang Cự Viên",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   }
+  ]
+ },
+ {
+  "sheet": "monster_01",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hoa_ho",
+    "name": "Hỏa Diễm Ma Điệp",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "u_hon",
+    "name": "Dạ Xoa Minh Hà",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "phong_lang",
+    "name": "Phong Lôi Hống",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "thiet_giap_te",
+    "name": "Cổ Thần Cự Tê",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_02",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "huyen_bang_mang",
+    "name": "Cửu U Băng Mãng",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "loi_ung",
+    "name": "Lôi Trì Kim Ưng",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "huyet_ma_vien",
+    "name": "Kiếm Khí Huyết Viên",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "kim_giap_ngac",
+    "name": "Thôn Thiên Tích Dịch",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   }
+  ]
+ },
+ {
+  "sheet": "monster_03",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thuy_ky_lan",
+    "name": "Minh Hải Giao Long",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 8
+   },
+   {
+    "id": "cuu_vi_ho",
+    "name": "Cửu Vĩ Ma Hồ",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   },
+   {
+    "id": "loi_giao",
+    "name": "Huyền Kim Lôi Giao",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 10
+   },
+   {
+    "id": "bang_phuong",
+    "name": "Băng Tinh Phượng Hoàng",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 11
+   }
+  ]
+ },
+ {
+  "sheet": "monster_04",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thanh_long_anh",
+    "name": "Thanh Long Chân Linh",
+    "el": "moc",
+    "boss": true,
+    "small": false,
+    "realm": 13
+   },
+   {
+    "id": "bach_ho_anh",
+    "name": "Bạch Hổ Sát Thần",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 14
+   },
+   {
+    "id": "huyen_vu_anh",
+    "name": "Huyền Vũ Thần Quân",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 15
+   },
+   {
+    "id": "chu_tuoc_anh",
+    "name": "Chu Tước Thần Điểu",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 16
+   }
+  ]
+ },
+ {
+  "sheet": "monster_05",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hon_don_thu",
+    "name": "Vọng Nguyệt Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 17
+   },
+   {
+    "id": "thao_thiet",
+    "name": "Lạc Phách Thao Thiết",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 18
+   },
+   {
+    "id": "cung_ky",
+    "name": "Man Hoang Cùng Kỳ",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 19
+   },
+   {
+    "id": "thien_ma",
+    "name": "Hư Không Thiên Ma",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 20
+   }
+  ]
+ },
+ {
+  "sheet": "monster_06",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_tho_yeu",
+    "name": "Độc Hỏa Nghĩ",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 0
+   },
+   {
+    "id": "ty_chuot_dat",
+    "name": "U Minh Thử",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 0
+   },
+   {
+    "id": "ty_ran_co",
+    "name": "Hắc Thủy Xà",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 1
+   },
+   {
+    "id": "ty_ong_vang",
+    "name": "Thiết Giáp Phong",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 1
+   }
+  ]
+ },
+ {
+  "sheet": "monster_07",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_ech_doc",
+    "name": "Lôi Oa Ấu Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   },
+   {
+    "id": "ty_ho_ly_con",
+    "name": "Băng Tinh Điệp",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   },
+   {
+    "id": "ty_soi_con",
+    "name": "U Minh Lang",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 3
+   },
+   {
+    "id": "ty_nhen_to",
+    "name": "Huyết Ngọc Chu",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_08",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_ret_lua",
+    "name": "Lục Dực Sương Ngô",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 4
+   },
+   {
+    "id": "ty_luon_dien",
+    "name": "Lôi Trì Ngạc",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 4
+   },
+   {
+    "id": "ty_qua_den",
+    "name": "Ô Cưu Điêu",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 5
+   },
+   {
+    "id": "ty_khi_lua",
+    "name": "Bạch Viên Hầu",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 6
+   }
+  ]
+ },
+ {
+  "sheet": "monster_09",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_bo_cap",
+    "name": "Độc Giác Hạt",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 7
+   },
+   {
+    "id": "ty_rua_nuoc",
+    "name": "Huyền Hà Quy",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 8
+   },
+   {
+    "id": "ty_hac_bang",
+    "name": "Tuyết Sơn Linh Điêu",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 9
+   },
+   {
+    "id": "ty_linh_ho",
+    "name": "Huyễn Cảnh Hồ",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 10
+   }
+  ]
+ },
+ {
+  "sheet": "monster_10",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_tuyet_vien",
+    "name": "Kiếm Khí Vượn",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 11
+   },
+   {
+    "id": "ty_loi_thu",
+    "name": "Tinh Vân Lôi Thử",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 13
+   },
+   {
+    "id": "ty_kim_dieu",
+    "name": "Sát Lục Huyết Điêu",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 14
+   },
+   {
+    "id": "ty_moc_tinh",
+    "name": "Hòe Ma Tinh Quỷ",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 15
+   }
+  ]
+ },
+ {
+  "sheet": "monster_11",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_thach_linh",
+    "name": "Cửu Khiếu Thạch Tinh",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 16
+   },
+   {
+    "id": "ty_phong_linh",
+    "name": "Phong Lôi Linh Thể",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 17
+   },
+   {
+    "id": "ty_thuy_linh",
+    "name": "Minh Hải Thủy Linh",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 18
+   },
+   {
+    "id": "ty_hoa_linh",
+    "name": "Địa Hỏa Yêu Tinh",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 19
+   }
+  ]
+ },
+ {
+  "sheet": "monster_12",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_hu_anh",
+    "name": "Hư Không Tàn Ảnh",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 20
+   },
+   {
+    "id": "ty_huyen_tinh_xa",
+    "name": "Huyền Tinh U Xà",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 21
+   },
+   {
+    "id": "ty_kim_tuy_dieu",
+    "name": "Kim Tủy Thần Điêu",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 22
+   },
+   {
+    "id": "ty_dai_la_yeu_tinh",
+    "name": "Đại La Hư Không Tinh",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 23
+   }
+  ]
+ },
+ {
+  "sheet": "monster_13",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_thien_hoa_vuong",
+    "name": "Bất Diệt Hỏa Tinh",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 24
+   },
+   {
+    "id": "ty_hon_nguyen_ma_linh",
+    "name": "Hỗn Nguyên Tà Ma Linh",
+    "el": "ma",
+    "boss": false,
+    "small": true,
+    "realm": 25
+   },
+   {
+    "id": "ty_tien_quan_ho_ve",
+    "name": "Tiên Triều Đọa Lạc Vệ",
+    "el": "thien",
+    "boss": false,
+    "small": true,
+    "realm": 26
+   },
+   {
+    "id": "ty_van_co_oan_hon",
+    "name": "Vạn Cổ Chiến Hồn",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 27
+   }
+  ]
+ },
+ {
+  "sheet": "monster_14",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_loan_co_hung_thu",
+    "name": "Loạn Cổ Hung Thú Ấu Thể",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 28
+   },
+   {
+    "id": "ty_tien_vuong_chien_linh",
+    "name": "Tiên Vương Đạo Binh",
+    "el": "thien",
+    "boss": false,
+    "small": true,
+    "realm": 29
+   },
+   {
+    "id": "ty_hon_don_diet_the",
+    "name": "Hỗn Độn Diệt Thế Trùng",
+    "el": "ma",
+    "boss": false,
+    "small": true,
+    "realm": 30
+   },
+   {
+    "id": "phe_kim_trung",
+    "name": "Phệ Kim Trùng",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   }
+  ]
+ },
+ {
+  "sheet": "monster_15",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ban_son_vien",
+    "name": "Bàn Sơn Viên",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "thanh_y_thuy_giao",
+    "name": "Thanh Y Thủy Giao",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "van_thu",
+    "name": "Văn Thú Tiên Nghịch",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "thai_co_loi_long",
+    "name": "Thái Cổ Lôi Long",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   }
+  ]
+ },
+ {
+  "sheet": "monster_16",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "u_minh_thu",
+    "name": "U Minh Cổ Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "de_hon_thu",
+    "name": "Đề Hồn Thần Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   },
+   {
+    "id": "mac_giao",
+    "name": "Mặc Giao Đầm Lầy",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "song_dong_thu",
+    "name": "Song Đồng Thử",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 8
+   }
+  ]
+ },
+ {
+  "sheet": "monster_17",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "du_thien_con_bang",
+    "name": "Du Thiên Côn Bằng",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 16
+   },
+   {
+    "id": "la_hau_co_thu",
+    "name": "La Hầu Thần Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 17
+   },
+   {
+    "id": "hinh_nha_thu",
+    "name": "Hinh Nha Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 15
+   },
+   {
+    "id": "kim_thien_ong",
+    "name": "Kim Thiền Ong Vương",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 14
+   }
+  ]
+ },
+ {
+  "sheet": "monster_18",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "kim_si_dieu",
+    "name": "Kim Sí Điêu",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   },
+   {
+    "id": "doc_giac_bao",
+    "name": "Độc Giác Hắc Báo",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "thiet_giap_cu_te",
+    "name": "Thiết Giáp Cự Tê",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "huyet_nhuc_khoi_loi",
+    "name": "Huyết Ma Khôi Lỗi",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_19",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "bat_trao_hoa_thu",
+    "name": "Bát Trảo Hỏa Liệt Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "thon_thien_mang",
+    "name": "Thôn Thiên Cự Mãng",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "liet_phong_thu",
+    "name": "Liệt Phong Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "ngu_sac_khong_tuoc",
+    "name": "Ngũ Sắc Khổng Tước",
+    "el": "moc",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   }
+  ]
+ },
+ {
+  "sheet": "monster_20",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "son_nhac_cu_vien",
+    "name": "Sơn Nhạc Cự Viên",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "huyet_ky_lan",
+    "name": "Huyết Sát Kỳ Lân",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   },
+   {
+    "id": "thien_si_chu_hac",
+    "name": "Thiên Sí Chu Hạc",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 8
+   },
+   {
+    "id": "cuu_muc_thiem",
+    "name": "Cửu Mục Huyết Thiềm",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   }
+  ]
+ },
+ {
+  "sheet": "monster_21",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "loi_oa_thu",
+    "name": "Lôi Oa Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   },
+   {
+    "id": "hac_ma_nghi",
+    "name": "Hắc Ma Nghĩ",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "sat_luc_huyet_buc",
+    "name": "Sát Lục Huyết Bức",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "bach_cot_lang",
+    "name": "U Minh Bạch Cốt Lang",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_22",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "u_lam_hoa_diep",
+    "name": "U Lam Hỏa Điệp",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "tu_la_ma_thu",
+    "name": "Tu La Ma Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "bat_hoang_long",
+    "name": "Bát Hoang Thú Long",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "thon_hu_kinh",
+    "name": "Thôn Hư Ma Kình",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   }
+  ]
+ },
+ {
+  "sheet": "monster_23",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "lac_phach_chuy_quy",
+    "name": "Lạc Phách Chùy Quỷ",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   },
+   {
+    "id": "thao_thiet_tan_hon",
+    "name": "Thao Thiết Tàn Hồn",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "thac_nguyet_ho",
+    "name": "Thác Nguyệt Hồ Yêu",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "ban_son_trung",
+    "name": "Bàn Sơn Cự Trùng",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   }
+  ]
+ },
+ {
+  "sheet": "monster_24",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "kiem_khi_bach_vien",
+    "name": "Kiếm Khí Bạch Viên",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "ty_linh_meo",
+    "name": "Linh Miêu Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 0
+   },
+   {
+    "id": "ty_hai_sam",
+    "name": "Hàn Hải Thạch Sâm",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 1
+   },
+   {
+    "id": "ty_kiem_diep",
+    "name": "Kiếm Khí Điệp",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 1
+   }
+  ]
+ },
+ {
+  "sheet": "monster_25",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_hoa_ho",
+    "name": "Hỏa Nha Điểu",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   },
+   {
+    "id": "ty_loi_trung",
+    "name": "Lôi Dẫn Trùng",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   },
+   {
+    "id": "ty_bang_thiem",
+    "name": "Băng Tinh Thiềm",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 3
+   },
+   {
+    "id": "ty_quy_anh",
+    "name": "Minh Hà Quỷ Anh",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_26",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_kim_giap_trung",
+    "name": "Kim Giáp Trùng",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 4
+   },
+   {
+    "id": "ty_u_hon_xa",
+    "name": "U Hồn Độc Xà",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 4
+   },
+   {
+    "id": "ty_tu_la_dieu",
+    "name": "Tu La Ấu Điêu",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 5
+   },
+   {
+    "id": "ty_loi_long_con",
+    "name": "Lôi Long Ấu Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 6
+   }
+  ]
+ },
+ {
+  "sheet": "monster_27",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_hon_don_trung",
+    "name": "Hỗn Độn Trùng",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 7
+   },
+   {
+    "id": "ty_thai_co_trung",
+    "name": "Thái Cổ Hung Điệp",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 8
+   },
+   {
+    "id": "bach_ngoc_chu",
+    "name": "Bạch Ngọc Chu Trùng",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 0
+   },
+   {
+    "id": "thanh_lang_vuong",
+    "name": "Thanh Giác Lang Vương",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   }
+  ]
+ },
+ {
+  "sheet": "monster_28",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "trieu_quoc_ma_chu",
+    "name": "Triệu Quốc Oán Ma Nhện",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 1
+   },
+   {
+    "id": "am_cot_ma_xa",
+    "name": "Âm Cốt Ma Xà",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "ngu_loi_hac_ung",
+    "name": "Ngũ Lôi Hắc Ưng",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   },
+   {
+    "id": "loan_tinh_hai_giao",
+    "name": "Loạn Tinh Hải Cổ Giao",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   }
+  ]
+ },
+ {
+  "sheet": "monster_29",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "huyet_hoang_thu",
+    "name": "Huyết Hoang Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "nga_hoang_kiem_thu",
+    "name": "Ngã Hoàng Kiếm Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 3
+   },
+   {
+    "id": "co_ma_hoa_than",
+    "name": "Cổ Ma Phân Thần",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "tram_long_thach_vien",
+    "name": "Trảm Long Thạch Viên",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   }
+  ]
+ },
+ {
+  "sheet": "monster_30",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "bach_cau_bang_hung",
+    "name": "Bắc Câu Băng Hùng",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "am_la_quy_vuong",
+    "name": "Âm La Quỷ Vương",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "thien_nam_co_dieu",
+    "name": "Thiên Nam Cổ Kim Điêu",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 5
+   },
+   {
+    "id": "tinh_khong_cu_thu",
+    "name": "Tinh Không Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   }
+  ]
+ },
+ {
+  "sheet": "monster_31",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tu_la_huyet_long",
+    "name": "Tu La Huyết Ma Long",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "chu_tuoc_hoa_dieu",
+    "name": "Chu Tước Thần Điểu",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   },
+   {
+    "id": "co_than_do_tu_ve",
+    "name": "Cổ Thần Vệ Khôi Lỗi",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   },
+   {
+    "id": "truong_thanh_kiem_linh",
+    "name": "Trường Thành Kiếm Linh",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 8
+   }
+  ]
+ },
+ {
+  "sheet": "monster_32",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_di_thanh_thu",
+    "name": "Tiên Di Cổ Thần Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 8
+   },
+   {
+    "id": "dong_linh_co_giao",
+    "name": "Đông Lâm Cổ Giao Long",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   },
+   {
+    "id": "man_hoang_dai_yeu",
+    "name": "Man Hoang Thập Tứ Cảnh Cự Yêu",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   },
+   {
+    "id": "bac_han_tien_hac",
+    "name": "Bắc Hàn Tiên Vực Bạch Hạc",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 10
+   }
+  ]
+ },
+ {
+  "sheet": "monster_33",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "chan_tien_ma_khi",
+    "name": "Chân Tiên Biến Dị Ma Khôi",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 11
+   },
+   {
+    "id": "dai_la_kim_long",
+    "name": "Đại La Kim Long",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 13
+   },
+   {
+    "id": "hon_don_to_long",
+    "name": "Hỗn Độn Thủy Tổ Ma Long",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 14
+   },
+   {
+    "id": "thien_dao_loi_thu",
+    "name": "Thiên Đạo Lôi Đình Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 15
+   }
+  ]
+ },
+ {
+  "sheet": "monster_34",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "thai_co_to_than",
+    "name": "Thái Cổ Tổ Thần",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 16
+   },
+   {
+    "id": "tien_de_tan_niem",
+    "name": "Tiên Đế Hủy Diệt Tàn Niệm",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 17
+   },
+   {
+    "id": "thao_thiet_co_than",
+    "name": "Thái Cổ Thao Thiết Thần",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 18
+   },
+   {
+    "id": "cung_ky_hoang_thu",
+    "name": "Cùng Kỳ Viễn Cổ Hoàng",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 19
+   }
+  ]
+ },
+ {
+  "sheet": "monster_35",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hu_khong_thien_ma_ton",
+    "name": "Hư Không Vạn Ma Tôn",
+    "el": "ma",
+    "boss": true,
+    "small": false,
+    "realm": 20
+   },
+   {
+    "id": "thai_at_huyen_lan",
+    "name": "Thái Ất Huyền Lân Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 21
+   },
+   {
+    "id": "thai_at_kim_long",
+    "name": "Thái Ất Chân Kim Long",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 22
+   },
+   {
+    "id": "dai_la_hac_nguu",
+    "name": "Đại La Hắc Ma Ngưu",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 23
+   }
+  ]
+ },
+ {
+  "sheet": "monster_36",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "dai_la_bach_ho",
+    "name": "Đại La Bạch Hổ Thần Quân",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 24
+   },
+   {
+    "id": "hon_don_to_long_vi_dai",
+    "name": "Hỗn Nguyên Viễn Cổ Tổ Long",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 25
+   },
+   {
+    "id": "u_minh_tien_quan",
+    "name": "U Minh Sát Tiên Quân",
+    "el": "ma",
+    "boss": true,
+    "small": false,
+    "realm": 26
+   },
+   {
+    "id": "cuu_u_tien_ton",
+    "name": "Cửu U Ma Đạo Tiên Tôn",
+    "el": "ma",
+    "boss": true,
+    "small": false,
+    "realm": 27
+   }
+  ]
+ },
+ {
+  "sheet": "monster_37",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "chuan_tien_vuong_thu",
+    "name": "Bất Tử Chuẩn Tiên Vương Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 28
+   },
+   {
+    "id": "bat_hoang_tien_vuong",
+    "name": "Bát Hoang Bất Diệt Tiên Vương",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 29
+   },
+   {
+    "id": "thai_so_tien_de_hon",
+    "name": "Thái Sơ Hỗn Độn Tiên Đế",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 30
+   },
+   {
+    "id": "ty_hac_linh_tho",
+    "name": "Hắc Linh Thố",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 0
+   }
+  ]
+ },
+ {
+  "sheet": "monster_38",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ty_thach_tinh_xa",
+    "name": "Thạch Tinh Xà",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 1
+   },
+   {
+    "id": "ty_tuyet_vu_dieu",
+    "name": "Tuyết Vũ Điêu",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   },
+   {
+    "id": "ty_huyet_van_buc",
+    "name": "Huyết Văn Bức",
+    "el": "ma",
+    "boss": false,
+    "small": true,
+    "realm": 3
+   },
+   {
+    "id": "thanh_dong_gia_vien",
+    "name": "Thanh Đồng Giáp Viên",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 2
+   }
+  ]
+ },
+ {
+  "sheet": "monster_39",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hoa_lien_xa_vuong",
+    "name": "Hỏa Liên Xà Vương",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 4
+   },
+   {
+    "id": "bach_suong_huyen_hac",
+    "name": "Bạch Sương Huyền Hạc",
+    "el": "bang",
+    "boss": true,
+    "small": false,
+    "realm": 6
+   },
+   {
+    "id": "tinh_hai_cuu_dau_giao",
+    "name": "Tinh Hải Cửu Đầu Giao",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 9
+   },
+   {
+    "id": "thien_kiep_loi_ngao",
+    "name": "Thiên Kiếp Lôi Ngao",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 13
+   }
+  ]
+ },
+ {
+  "sheet": "monster_40",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "hon_don_thuc_tinh",
+    "name": "Hỗn Độn Thức Tỉnh Cự Linh",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 17
+   },
+   {
+    "id": "van_co_huyet_phuong",
+    "name": "Vạn Cổ Huyết Phượng",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 21
+   },
+   {
+    "id": "vo_cuc_tinh_thu",
+    "name": "Vô Cực Tinh Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 25
+   },
+   {
+    "id": "bach_loc_linh_thu",
+    "name": "Bạch Lộc Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 2
+   }
+  ]
+ },
+ {
+  "sheet": "monster_41",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "ngan_quang_thu",
+    "name": "Ngân Quang Thử",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 4
+   },
+   {
+    "id": "bang_tuyet_thiem",
+    "name": "Băng Tuyết Thiềm",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 6
+   },
+   {
+    "id": "tinh_ngan_dieu",
+    "name": "Tinh Ngân Điêu",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 7
+   },
+   {
+    "id": "li_hoa_giao",
+    "name": "Ly Hỏa Giao",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 10
+   }
+  ]
+ },
+ {
+  "sheet": "monster_42",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "linh_te_khong_tuoc",
+    "name": "Linh Tê Khổng Tước",
+    "el": "moc",
+    "boss": true,
+    "small": false,
+    "realm": 11
+   },
+   {
+    "id": "tuyet_vien_linh_thu",
+    "name": "Tuyết Viên Linh Thú",
+    "el": "bang",
+    "boss": false,
+    "small": true,
+    "realm": 9
+   },
+   {
+    "id": "loi_bang_thien_tac",
+    "name": "Lôi Bằng Thiên Tước",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 17
+   },
+   {
+    "id": "tien_canh_12_huyen_hai_giao",
+    "name": "Huyền Hải Trấn Giới Giao",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 12
+   }
+  ]
+ },
+ {
+  "sheet": "monster_43",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tien_canh_12_tinh_thu",
+    "name": "Tinh Hà Thủ Giới Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 12
+   },
+   {
+    "id": "tien_canh_12_kiem_linh",
+    "name": "Vạn Kiếm Hộ Đạo Linh",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 12
+   },
+   {
+    "id": "tiengioi_tieuyeu_31",
+    "name": "Thiên Tiên Đế Linh Thú",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 31
+   },
+   {
+    "id": "tiengioi_daiyeu_31",
+    "name": "Thiên Tiên Đế Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 31
+   }
+  ]
+ },
+ {
+  "sheet": "monster_44",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_31",
+    "name": "Thiên Tiên Đế Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 31
+   },
+   {
+    "id": "tiengioi_tieuyeu_32",
+    "name": "Thiên Đế Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 32
+   },
+   {
+    "id": "tiengioi_daiyeu_32",
+    "name": "Thiên Đế Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 32
+   },
+   {
+    "id": "tiengioi_boss_32",
+    "name": "Thiên Đế Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 32
+   }
+  ]
+ },
+ {
+  "sheet": "monster_45",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_33",
+    "name": "Thánh Nhân Linh Thú",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 33
+   },
+   {
+    "id": "tiengioi_daiyeu_33",
+    "name": "Thánh Nhân Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 33
+   },
+   {
+    "id": "tiengioi_boss_33",
+    "name": "Thánh Nhân Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 33
+   },
+   {
+    "id": "tiengioi_tieuyeu_34",
+    "name": "Thánh Vương Linh Thú",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 34
+   }
+  ]
+ },
+ {
+  "sheet": "monster_46",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_34",
+    "name": "Thánh Vương Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 34
+   },
+   {
+    "id": "tiengioi_boss_34",
+    "name": "Thánh Vương Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 34
+   },
+   {
+    "id": "tiengioi_tieuyeu_35",
+    "name": "Thánh Hoàng Linh Thú",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 35
+   },
+   {
+    "id": "tiengioi_daiyeu_35",
+    "name": "Thánh Hoàng Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 35
+   }
+  ]
+ },
+ {
+  "sheet": "monster_47",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_35",
+    "name": "Thánh Hoàng Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 35
+   },
+   {
+    "id": "tiengioi_tieuyeu_36",
+    "name": "Thánh Đế Linh Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 36
+   },
+   {
+    "id": "tiengioi_daiyeu_36",
+    "name": "Thánh Đế Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 36
+   },
+   {
+    "id": "tiengioi_boss_36",
+    "name": "Thánh Đế Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 36
+   }
+  ]
+ },
+ {
+  "sheet": "monster_48",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_37",
+    "name": "Đạo Quân Linh Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 37
+   },
+   {
+    "id": "tiengioi_daiyeu_37",
+    "name": "Đạo Quân Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 37
+   },
+   {
+    "id": "tiengioi_boss_37",
+    "name": "Đạo Quân Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 37
+   },
+   {
+    "id": "tiengioi_tieuyeu_38",
+    "name": "Đạo Vương Linh Thú",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 38
+   }
+  ]
+ },
+ {
+  "sheet": "monster_49",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_38",
+    "name": "Đạo Vương Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 38
+   },
+   {
+    "id": "tiengioi_boss_38",
+    "name": "Đạo Vương Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 38
+   },
+   {
+    "id": "tiengioi_tieuyeu_39",
+    "name": "Đạo Hoàng Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 39
+   },
+   {
+    "id": "tiengioi_daiyeu_39",
+    "name": "Đạo Hoàng Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 39
+   }
+  ]
+ },
+ {
+  "sheet": "monster_50",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_39",
+    "name": "Đạo Hoàng Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 39
+   },
+   {
+    "id": "tiengioi_tieuyeu_40",
+    "name": "Đạo Đế Linh Thú",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 40
+   },
+   {
+    "id": "tiengioi_daiyeu_40",
+    "name": "Đạo Đế Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 40
+   },
+   {
+    "id": "tiengioi_boss_40",
+    "name": "Đạo Đế Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 40
+   }
+  ]
+ },
+ {
+  "sheet": "monster_51",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_41",
+    "name": "Đạo Tôn Linh Thú",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 41
+   },
+   {
+    "id": "tiengioi_daiyeu_41",
+    "name": "Đạo Tôn Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 41
+   },
+   {
+    "id": "tiengioi_boss_41",
+    "name": "Đạo Tôn Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 41
+   },
+   {
+    "id": "tiengioi_tieuyeu_42",
+    "name": "Đạo Chủ Linh Thú",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 42
+   }
+  ]
+ },
+ {
+  "sheet": "monster_52",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_42",
+    "name": "Đạo Chủ Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 42
+   },
+   {
+    "id": "tiengioi_boss_42",
+    "name": "Đạo Chủ Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 42
+   },
+   {
+    "id": "tiengioi_tieuyeu_43",
+    "name": "Chí Tôn Linh Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 43
+   },
+   {
+    "id": "tiengioi_daiyeu_43",
+    "name": "Chí Tôn Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 43
+   }
+  ]
+ },
+ {
+  "sheet": "monster_53",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_43",
+    "name": "Chí Tôn Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 43
+   },
+   {
+    "id": "tiengioi_tieuyeu_44",
+    "name": "Thiên Chí Tôn Linh Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 44
+   },
+   {
+    "id": "tiengioi_daiyeu_44",
+    "name": "Thiên Chí Tôn Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 44
+   },
+   {
+    "id": "tiengioi_boss_44",
+    "name": "Thiên Chí Tôn Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 44
+   }
+  ]
+ },
+ {
+  "sheet": "monster_54",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_45",
+    "name": "Hỗn Nguyên Chí Tôn Linh Thú",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 45
+   },
+   {
+    "id": "tiengioi_daiyeu_45",
+    "name": "Hỗn Nguyên Chí Tôn Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 45
+   },
+   {
+    "id": "tiengioi_boss_45",
+    "name": "Hỗn Nguyên Chí Tôn Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 45
+   },
+   {
+    "id": "tiengioi_tieuyeu_46",
+    "name": "Hỗn Độn Chí Tôn Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 46
+   }
+  ]
+ },
+ {
+  "sheet": "monster_55",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_46",
+    "name": "Hỗn Độn Chí Tôn Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 46
+   },
+   {
+    "id": "tiengioi_boss_46",
+    "name": "Hỗn Độn Chí Tôn Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 46
+   },
+   {
+    "id": "tiengioi_tieuyeu_47",
+    "name": "Vô Thượng Chí Tôn Linh Thú",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 47
+   },
+   {
+    "id": "tiengioi_daiyeu_47",
+    "name": "Vô Thượng Chí Tôn Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 47
+   }
+  ]
+ },
+ {
+  "sheet": "monster_56",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_47",
+    "name": "Vô Thượng Chí Tôn Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 47
+   },
+   {
+    "id": "tiengioi_tieuyeu_48",
+    "name": "Chí Cao Chí Tôn Linh Thú",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 48
+   },
+   {
+    "id": "tiengioi_daiyeu_48",
+    "name": "Chí Cao Chí Tôn Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 48
+   },
+   {
+    "id": "tiengioi_boss_48",
+    "name": "Chí Cao Chí Tôn Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 48
+   }
+  ]
+ },
+ {
+  "sheet": "monster_57",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_49",
+    "name": "Hỗn Độn Đạo Quân Linh Thú",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 49
+   },
+   {
+    "id": "tiengioi_daiyeu_49",
+    "name": "Hỗn Độn Đạo Quân Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 49
+   },
+   {
+    "id": "tiengioi_boss_49",
+    "name": "Hỗn Độn Đạo Quân Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 49
+   },
+   {
+    "id": "tiengioi_tieuyeu_50",
+    "name": "Hỗn Độn Đạo Tôn Linh Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 50
+   }
+  ]
+ },
+ {
+  "sheet": "monster_58",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_50",
+    "name": "Hỗn Độn Đạo Tôn Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 50
+   },
+   {
+    "id": "tiengioi_boss_50",
+    "name": "Hỗn Độn Đạo Tôn Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 50
+   },
+   {
+    "id": "tiengioi_tieuyeu_51",
+    "name": "Hỗn Độn Đạo Chủ Linh Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 51
+   },
+   {
+    "id": "tiengioi_daiyeu_51",
+    "name": "Hỗn Độn Đạo Chủ Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 51
+   }
+  ]
+ },
+ {
+  "sheet": "monster_59",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_51",
+    "name": "Hỗn Độn Đạo Chủ Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 51
+   },
+   {
+    "id": "tiengioi_tieuyeu_52",
+    "name": "Bản Nguyên Cảnh Linh Thú",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 52
+   },
+   {
+    "id": "tiengioi_daiyeu_52",
+    "name": "Bản Nguyên Cảnh Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 52
+   },
+   {
+    "id": "tiengioi_boss_52",
+    "name": "Bản Nguyên Cảnh Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 52
+   }
+  ]
+ },
+ {
+  "sheet": "monster_60",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_53",
+    "name": "Bản Nguyên Chúa Tể Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 53
+   },
+   {
+    "id": "tiengioi_daiyeu_53",
+    "name": "Bản Nguyên Chúa Tể Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 53
+   },
+   {
+    "id": "tiengioi_boss_53",
+    "name": "Bản Nguyên Chúa Tể Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 53
+   },
+   {
+    "id": "tiengioi_tieuyeu_54",
+    "name": "Vạn Đạo Chúa Tể Linh Thú",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 54
+   }
+  ]
+ },
+ {
+  "sheet": "monster_61",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_54",
+    "name": "Vạn Đạo Chúa Tể Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 54
+   },
+   {
+    "id": "tiengioi_boss_54",
+    "name": "Vạn Đạo Chúa Tể Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 54
+   },
+   {
+    "id": "tiengioi_tieuyeu_55",
+    "name": "Hư Vô Chúa Tể Linh Thú",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 55
+   },
+   {
+    "id": "tiengioi_daiyeu_55",
+    "name": "Hư Vô Chúa Tể Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 55
+   }
+  ]
+ },
+ {
+  "sheet": "monster_62",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_55",
+    "name": "Hư Vô Chúa Tể Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 55
+   },
+   {
+    "id": "tiengioi_tieuyeu_56",
+    "name": "Thời Không Chúa Tể Linh Thú",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 56
+   },
+   {
+    "id": "tiengioi_daiyeu_56",
+    "name": "Thời Không Chúa Tể Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 56
+   },
+   {
+    "id": "tiengioi_boss_56",
+    "name": "Thời Không Chúa Tể Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 56
+   }
+  ]
+ },
+ {
+  "sheet": "monster_63",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_57",
+    "name": "Siêu Thoát Giả Linh Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 57
+   },
+   {
+    "id": "tiengioi_daiyeu_57",
+    "name": "Siêu Thoát Giả Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 57
+   },
+   {
+    "id": "tiengioi_boss_57",
+    "name": "Siêu Thoát Giả Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 57
+   },
+   {
+    "id": "tiengioi_tieuyeu_58",
+    "name": "Đại Siêu Thoát Linh Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 58
+   }
+  ]
+ },
+ {
+  "sheet": "monster_64",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_58",
+    "name": "Đại Siêu Thoát Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 58
+   },
+   {
+    "id": "tiengioi_boss_58",
+    "name": "Đại Siêu Thoát Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 58
+   },
+   {
+    "id": "tiengioi_tieuyeu_59",
+    "name": "Vô Cực Cảnh Linh Thú",
+    "el": "kim",
+    "boss": false,
+    "small": true,
+    "realm": 59
+   },
+   {
+    "id": "tiengioi_daiyeu_59",
+    "name": "Vô Cực Cảnh Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 59
+   }
+  ]
+ },
+ {
+  "sheet": "monster_65",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_59",
+    "name": "Vô Cực Cảnh Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 59
+   },
+   {
+    "id": "tiengioi_tieuyeu_60",
+    "name": "Vô Thượng Cảnh Linh Thú",
+    "el": "moc",
+    "boss": false,
+    "small": true,
+    "realm": 60
+   },
+   {
+    "id": "tiengioi_daiyeu_60",
+    "name": "Vô Thượng Cảnh Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 60
+   },
+   {
+    "id": "tiengioi_boss_60",
+    "name": "Vô Thượng Cảnh Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 60
+   }
+  ]
+ },
+ {
+  "sheet": "monster_66",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_61",
+    "name": "Chư Thiên Chí Cao Linh Thú",
+    "el": "thuy",
+    "boss": false,
+    "small": true,
+    "realm": 61
+   },
+   {
+    "id": "tiengioi_daiyeu_61",
+    "name": "Chư Thiên Chí Cao Cổ Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 61
+   },
+   {
+    "id": "tiengioi_boss_61",
+    "name": "Chư Thiên Chí Cao Trấn Giới Cự Thú",
+    "el": "thien",
+    "boss": true,
+    "small": false,
+    "realm": 61
+   },
+   {
+    "id": "tiengioi_tieuyeu_62",
+    "name": "Hỗn Nguyên Vô Cực Linh Thú",
+    "el": "hoa",
+    "boss": false,
+    "small": true,
+    "realm": 62
+   }
+  ]
+ },
+ {
+  "sheet": "monster_67",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_daiyeu_62",
+    "name": "Hỗn Nguyên Vô Cực Cổ Thú",
+    "el": "hoa",
+    "boss": true,
+    "small": false,
+    "realm": 62
+   },
+   {
+    "id": "tiengioi_boss_62",
+    "name": "Hỗn Nguyên Vô Cực Trấn Giới Cự Thú",
+    "el": "kim",
+    "boss": true,
+    "small": false,
+    "realm": 62
+   },
+   {
+    "id": "tiengioi_tieuyeu_63",
+    "name": "Sáng Thế Cảnh Linh Thú",
+    "el": "tho",
+    "boss": false,
+    "small": true,
+    "realm": 63
+   },
+   {
+    "id": "tiengioi_daiyeu_63",
+    "name": "Sáng Thế Cảnh Cổ Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 63
+   }
+  ]
+ },
+ {
+  "sheet": "monster_68",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_boss_63",
+    "name": "Sáng Thế Cảnh Trấn Giới Cự Thú",
+    "el": "loi",
+    "boss": true,
+    "small": false,
+    "realm": 63
+   },
+   {
+    "id": "tiengioi_tieuyeu_64",
+    "name": "Sáng Thế Chúa Tể Linh Thú",
+    "el": "loi",
+    "boss": false,
+    "small": true,
+    "realm": 64
+   },
+   {
+    "id": "tiengioi_daiyeu_64",
+    "name": "Sáng Thế Chúa Tể Cổ Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 64
+   },
+   {
+    "id": "tiengioi_boss_64",
+    "name": "Sáng Thế Chúa Tể Trấn Giới Cự Thú",
+    "el": "tho",
+    "boss": true,
+    "small": false,
+    "realm": 64
+   }
+  ]
+ },
+ {
+  "sheet": "monster_69",
+  "kind": "monster",
+  "cols": 1,
+  "rows": 4,
+  "items": [
+   {
+    "id": "tiengioi_tieuyeu_65",
+    "name": "Vạn Giới Chi Chủ Linh Thú",
+    "el": "phong",
+    "boss": false,
+    "small": true,
+    "realm": 65
+   },
+   {
+    "id": "tiengioi_daiyeu_65",
+    "name": "Vạn Giới Chi Chủ Cổ Thú",
+    "el": "phong",
+    "boss": true,
+    "small": false,
+    "realm": 65
+   },
+   {
+    "id": "tiengioi_boss_65",
+    "name": "Vạn Giới Chi Chủ Trấn Giới Cự Thú",
+    "el": "thuy",
+    "boss": true,
+    "small": false,
+    "realm": 65
+   }
+  ]
+ }
+]

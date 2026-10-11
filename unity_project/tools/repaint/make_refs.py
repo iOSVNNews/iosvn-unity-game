@@ -1,7 +1,8 @@
 # Builds reference grids (old pixel art) + manifest for the ChatGPT repaint of skills, weapons and monsters.
 import json, os, subprocess, sys
+from pathlib import Path
 from PIL import Image, ImageDraw
-ROOT = os.path.expanduser('~/mnt/game_iosvn')
+ROOT = str(Path(__file__).resolve().parents[3])
 RES = ROOT + '/unity_project/Assets/Resources'
 OUT = ROOT + '/unity_project/ArtSource/RepaintRefs'
 os.makedirs(OUT, exist_ok=True)
@@ -47,5 +48,5 @@ def monster_ref(it):
     return im.crop((0, 0, 256, 256))
 mons = cat['monsters']
 grid('monster', mons, monster_ref, cols=1, rows=4)
-json.dump(manifest, open(OUT + '/manifest.json', 'w'), ensure_ascii=False, indent=1)
+json.dump(manifest, open(OUT + '/manifest.json', 'w', encoding='utf-8'), ensure_ascii=False, indent=1)
 print(len(manifest), sum(1 for m in manifest if m['kind']=='skill'), sum(1 for m in manifest if m['kind']=='weapon'), sum(1 for m in manifest if m['kind']=='monster'))

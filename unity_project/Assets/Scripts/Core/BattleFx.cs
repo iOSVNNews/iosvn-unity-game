@@ -948,13 +948,20 @@ namespace IOSVN.TuTien.Core
                 bodyNext.enabled = false;
             }
             var pose = PoseNow(out var poseLift);
+            var feetOffset = 0f;
             if (pose != null)
             {
                 bodySprite = pose;
                 body.sprite = pose;
                 bodyNext.enabled = false;
+                if (alive)
+                {
+                    var canvasScale = PaintedArt.PoseCanvasScale(set.Body[0], Rect.sizeDelta);
+                    scale.x *= canvasScale; scale.y *= canvasScale;
+                    feetOffset = PaintedArt.PoseFeetOffset(set.Body[0], Rect.sizeDelta);
+                }
             }
-            body.rectTransform.anchoredPosition = new Vector2(0f, poseLift * (Rect != null ? Rect.sizeDelta.y : 0f));
+            body.rectTransform.anchoredPosition = new Vector2(0f, feetOffset + poseLift * (Rect != null ? Rect.sizeDelta.y : 0f));
             flash.rectTransform.anchoredPosition = body.rectTransform.anchoredPosition;
             body.enabled = bodySprite != null;
             body.rectTransform.localScale = scale;

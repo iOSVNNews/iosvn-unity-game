@@ -754,7 +754,10 @@ namespace IOSVN.TuTien.Core
                     ? monsterPoses[((int)(actor.AnimTime * 6f) & 1) == 0 ? PaintedArt.PoseRun : PaintedArt.PoseIdle]
                     : actor.Frames[(int)(actor.AnimTime * (actor.Moving ? 7f : 4f)) % actor.Frames.Length];
                 var rightFacingArt = actor.Data is J m && m["monsterId"].Str() == "da_lang";
-                actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight == rightFacingArt ? 1f : -1f, 1f + Mathf.Sin(actor.AnimTime * 2.4f) * .012f, 1f);
+                var poseScale = monsterPoses != null ? PaintedArt.PoseCanvasScale(actor.Frames[0], actor.Rect.sizeDelta) : 1f;
+                actor.Body.rectTransform.anchoredPosition = new Vector2(0f, monsterPoses != null ? PaintedArt.PoseFeetOffset(actor.Frames[0], actor.Rect.sizeDelta) : 0f);
+                actor.Body.rectTransform.localScale = new Vector3((actor.FaceRight == rightFacingArt ? 1f : -1f) * poseScale,
+                    (1f + Mathf.Sin(actor.AnimTime * 2.4f) * .012f) * poseScale, 1f);
             }
             else if (actor.Body != null)
             {
