@@ -384,7 +384,8 @@ namespace IOSVN.TuTien.Core
             nameText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             playerHp = Bar(me, new Vector2(0, 32), new Vector2(0, 68), new Color32(204, 58, 50, 255), out playerHpText, out _);
             playerMp = Bar(me, new Vector2(16, 4), new Vector2(-16, 30), new Color32(70, 142, 220, 255), out playerMpText, out _);
-            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 13, Cream, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -190), new Vector2(318, -108));
+            logText = owner.BattleText(hud, "Log", "", ModernUi.Regular, 20, Cream, TextAnchor.UpperLeft, new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -190), new Vector2(360, -108));
+            logText.verticalOverflow = VerticalWrapMode.Truncate;
             logText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             comboText = owner.BattleText(hud, "Combo", "", ModernUi.Bold, 24, new Color32(255, 214, 110, 255), TextAnchor.MiddleLeft,
                 new Vector2(0, 1), new Vector2(0, 1), new Vector2(24, -228), new Vector2(260, -190));

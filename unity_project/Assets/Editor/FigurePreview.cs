@@ -398,6 +398,7 @@ namespace IOSVN.TuTien.Editor
             {
                 const int width = 1536, height = 1600;
                 var (canvas, camera, target) = Stage(width, height, new Color(.91f, .89f, .83f));
+                Vector3[] restingLegMesh = null;
                 for (var direction = 0; direction < 8; direction++)
                 for (var phase = 0; phase < 4; phase++)
                 {
@@ -413,6 +414,23 @@ namespace IOSVN.TuTien.Editor
                     figure.AdvanceTravel(vector, phase * .65f + .0001f, 1f);
                     figure.SetMotion(FighterAction.Idle, 0f, true, vector.x >= 0f, phase * .2f);
                     Invoke(figure, "LateUpdate");
+                    if (direction == 0 && phase <= 1)
+                    {
+                        Canvas.ForceUpdateCanvases();
+                        var skirt = Array.Find(figure.GetComponentsInChildren<Image>(), image => image.name == "skirtF");
+                        var mesh = skirt.canvasRenderer.GetMesh();
+                        if (mesh == null) throw new Exception("Painted character renderer has no mesh");
+                        if (phase == 0) restingLegMesh = mesh.vertices;
+                        else
+                        {
+                            var vertices = mesh.vertices;
+                            var distance = 0f;
+                            for (var vertex = 0; vertex < vertices.Length; vertex++)
+                                distance = Mathf.Max(distance, Vector3.Distance(vertices[vertex], restingLegMesh[vertex]));
+                            if (distance < 15f) throw new Exception("Painted legs remain static despite walking joints");
+                            log.AppendLine("painted leg mesh " + (female ? "female" : "male") + ": visible stride deformation " + distance.ToString("F1"));
+                        }
+                    }
                     if (direction == 4)
                         foreach (var image in figure.GetComponentsInChildren<Image>())
                             if (image.name.StartsWith("eye") && image.enabled) throw new Exception("Walking away still shows front-facing eyes");

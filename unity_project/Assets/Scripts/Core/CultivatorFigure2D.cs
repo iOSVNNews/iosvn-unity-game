@@ -184,6 +184,7 @@ namespace IOSVN.TuTien.Core
         private float[] poseAngle = new float[0];
         private Vector2[] poseOffset = new Vector2[0];
         private Vector2[] poseScale = new Vector2[0];
+        private Matrix4x4[] bindWorld, bindInverse;
         private readonly Dictionary<string, Vector2> anchors = new Dictionary<string, Vector2>();
         private float eyeScale = 1f;
         private float bendHair, bendSkirt, bendSleeve, bendCape;
@@ -272,6 +273,13 @@ namespace IOSVN.TuTien.Core
             var n = rig.BoneNames.Length;
             boneWorld = new Vector2[n]; boneAngle = new float[n]; boneScale = new Vector2[n];
             poseAngle = new float[n]; poseOffset = new Vector2[n]; poseScale = new Vector2[n];
+            bindWorld = new Matrix4x4[n]; bindInverse = new Matrix4x4[n];
+            for (var i = 0; i < n; i++)
+            {
+                var local = Matrix4x4.TRS(rig.BoneBind[i], Quaternion.Euler(0, 0, rig.BoneBindAngle[i]), Vector3.one);
+                bindWorld[i] = rig.BoneParent[i] < 0 ? local : bindWorld[rig.BoneParent[i]] * local;
+                bindInverse[i] = bindWorld[i].inverse;
+            }
             boneHead = Bone("head"); boneHandN = Bone("handN"); boneBack = Bone("back");
             slots = new Slot[rig.Layers.Length];
             for (var i = 0; i < rig.Layers.Length; i++)
@@ -613,11 +621,13 @@ namespace IOSVN.TuTien.Core
                 var p = travelHeading ? stridePhase : t * (run ? 11f : 7.6f);
                 var weight = travelHeading ? strideWeight : 1f;
                 var s = Mathf.Sin(p) * weight;
+                var side = travelHeading ? Mathf.Sin(heading * Mathf.Deg2Rad) : 1f;
+                var front = travelHeading ? Mathf.Cos(heading * Mathf.Deg2Rad) : 0f;
                 var amp = run ? 30f : 15f;
-                Pose("legN_up", amp * s);
-                Pose("legF_up", -amp * s);
-                Pose("legN_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f)) * weight);
-                Pose("legF_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f + Mathf.PI)) * weight);
+                Pose("legN_up", amp * s * side, 0, Mathf.Max(0f, s) * Mathf.Abs(front) * 24f);
+                Pose("legF_up", -amp * s * side, 0, Mathf.Max(0f, -s) * Mathf.Abs(front) * 24f);
+                Pose("legN_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f)) * weight * side);
+                Pose("legF_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f + Mathf.PI)) * weight * side);
                 Pose("hips", (run ? -3f : -.5f) * weight, 0, (run ? -7f : -3f) * Mathf.Abs(s));
                 // Opposite arm / leg swing. Sleeve meshes retain the shoulder seam while their
                 // lower vertices follow the joint; the hands and elbows stay on the same skeleton.
@@ -732,6 +742,7 @@ namespace IOSVN.TuTien.Core
                 var sc = boneScale[b];
                 var ox = offset.x * sc.x; var oy = offset.y * sc.y;
                 var pos = boneWorld[b] + new Vector2(ox * Mathf.Cos(rad) - oy * Mathf.Sin(rad), ox * Mathf.Sin(rad) + oy * Mathf.Cos(rad));
+                var slotWorld = Matrix4x4.TRS(pos, Quaternion.Euler(0, 0, a), new Vector3(sc.x, sc.y, 1f));
                 var r = s.Image.rectTransform;
                 var yaw = travelHeading ? heading * Mathf.Deg2Rad : 0f;
                 var side = Mathf.Sin(yaw);
@@ -756,6 +767,19 @@ namespace IOSVN.TuTien.Core
                     var swing = shoulder && walkingPose ? poseAngle[b] : 0f;
                     s.Flex.JointSwing = swing;
                     if (shoulder) r.localRotation = Quaternion.Euler(0, 0, a - swing);
+                    if (id.StartsWith("skirt"))
+                    {
+                        // Painted lower-body parts already contain both legs and boots; skin that
+                        // shared image instead of animating the empty standalone leg slots.
+                        var toSlot = slotWorld.inverse;
+                        Matrix4x4 Leg(string name)
+                        {
+                            var joint = Bone(name);
+                            var pose = Matrix4x4.TRS(boneWorld[joint], Quaternion.Euler(0, 0, boneAngle[joint]), new Vector3(boneScale[joint].x, boneScale[joint].y, 1f));
+                            return toSlot * pose * bindInverse[joint] * bindWorld[b];
+                        }
+                        s.Flex.SetLegSkin(Leg("legN_up"), Leg("legN_lo"), Leg("legF_up"), Leg("legF_lo"), bindWorld[b]);
+                    }
                 }
                 if (travelHeading)
                 {
@@ -846,6 +870,14 @@ namespace IOSVN.TuTien.Core
     {
         private float bend;
         private float jointSwing;
+        private bool skinLegs;
+        private Matrix4x4 nearUpper, nearLower, farUpper, farLower, bindCoordinates;
+        public void SetLegSkin(Matrix4x4 nu, Matrix4x4 nl, Matrix4x4 fu, Matrix4x4 fl, Matrix4x4 bind)
+        {
+            skinLegs = true;
+            nearUpper = nu; nearLower = nl; farUpper = fu; farLower = fl; bindCoordinates = bind;
+            SetVerticesDirty();
+        }
         public float JointSwing
         {
             get => jointSwing;
@@ -864,7 +896,8 @@ namespace IOSVN.TuTien.Core
             vh.Clear();
             var rect = GetPixelAdjustedRect();
             var outer = UnityEngine.Sprites.DataUtility.GetOuterUV(sprite);
-            const int rows = 10;
+            var rows = skinLegs ? 28 : 10;
+            var columns = skinLegs ? 12 : 1;
             // the pivot is where the part hangs from; bending grows with distance below it
             var pivotY = rect.yMin + rect.height * rectTransform.pivot.y;
             var reach = Mathf.Max(1f, pivotY - rect.yMin);
@@ -875,24 +908,38 @@ namespace IOSVN.TuTien.Core
                 var y = Mathf.Lerp(rect.yMin, rect.yMax, v);
                 var t = Mathf.Clamp01((pivotY - y) / reach);
                 var dx = bend * t * t;
-                for (var col = 0; col <= 1; col++)
+                for (var col = 0; col <= columns; col++)
                 {
-                    var x = col == 0 ? rect.xMin : rect.xMax;
+                    var u = col / (float)columns;
+                    var x = Mathf.Lerp(rect.xMin, rect.xMax, u);
                     var vert = UIVertex.simpleVert;
                     var point = new Vector2(x + dx, y);
                     // Hold the cut shoulder edge in place, blending to the rotating sleeve below.
                     var joint = jointSwing * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(-y / 150f)) * Mathf.Deg2Rad;
                     vert.position = new Vector3(point.x * Mathf.Cos(joint) - point.y * Mathf.Sin(joint), point.x * Mathf.Sin(joint) + point.y * Mathf.Cos(joint));
-                    vert.uv0 = new Vector2(Mathf.Lerp(outer.x, outer.z, col), Mathf.Lerp(outer.y, outer.w, v));
+                    if (skinLegs)
+                    {
+                        var original = new Vector3(x, y);
+                        var bind = bindCoordinates.MultiplyPoint3x4(original);
+                        var knee = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(430f, 280f, bind.y));
+                        var near = Vector3.Lerp(nearUpper.MultiplyPoint3x4(original), nearLower.MultiplyPoint3x4(original), knee);
+                        var far = Vector3.Lerp(farUpper.MultiplyPoint3x4(original), farLower.MultiplyPoint3x4(original), knee);
+                        var nearWeight = 1f - Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(-22f, 22f, bind.x));
+                        var legs = Vector3.Lerp(far, near, nearWeight);
+                        var legWeight = Mathf.SmoothStep(0f, 1f, Mathf.InverseLerp(640f, 500f, bind.y));
+                        vert.position = Vector3.Lerp(vert.position, legs, legWeight);
+                    }
+                    vert.uv0 = new Vector2(Mathf.Lerp(outer.x, outer.z, u), Mathf.Lerp(outer.y, outer.w, v));
                     vert.color = c;
                     vh.AddVert(vert);
                 }
             }
             for (var row = 0; row < rows; row++)
+            for (var col = 0; col < columns; col++)
             {
-                var a = row * 2;
-                vh.AddTriangle(a, a + 2, a + 3);
-                vh.AddTriangle(a, a + 3, a + 1);
+                var a = row * (columns + 1) + col;
+                vh.AddTriangle(a, a + columns + 1, a + columns + 2);
+                vh.AddTriangle(a, a + columns + 2, a + 1);
             }
         }
     }
