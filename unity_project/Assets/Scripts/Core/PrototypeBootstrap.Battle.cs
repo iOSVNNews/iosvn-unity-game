@@ -101,10 +101,18 @@ namespace IOSVN.TuTien.Core
 
         // ---- callbacks used by the battle component (keeps the partial's private helpers in reach)
 
-        internal Sprite BattleSkillIcon(J skill) => BattleInkIcons.Skill(skill["name"].Str(), BattleFx.ElementOfSkill(skill["name"].Str(), skill["element"].Str("kim")));
+        internal Sprite BattleSkillIcon(J skill)
+        {
+            // every player skill has its own painted icon now; the generic glyphs stay as a fallback
+            var paintedSkill = PaintedArt.Skill(skill["id"].Str());
+            if (paintedSkill != null) return paintedSkill;
+            var name = skill["name"].Str().ToLowerInvariant();
+            var icon = skill["kind"].Str() == "mana" ? "mp" : name.Contains("ngự kiếm") ? "flight" : name.Contains("kiếm") ? "mon_kiem" : name.Contains("quyền") ? "mon_quyen" : name.Contains("hộ") ? "shield" : null;
+            return icon != null ? ArtSprites.UiIcon(icon) ?? BattleInkIcons.Skill(name, element: "kim") : BattleInkIcons.Skill(name, BattleFx.ElementOfSkill(name, skill["element"].Str("kim")));
+        }
         internal Sprite BattleItemIcon(J item) => ArtSprites.Item(item["id"].Str()) ?? BattleInkIcons.Potion;
         internal Sprite BattleMonsterSprite(string id) => ArtSprites.Monster(id) ?? ArtSprites.Monster("da_lang");
-        internal Sprite BattleUiIcon(string id) => BattleInkIcons.Ui(id);
+        internal Sprite BattleUiIcon(string id) => id == "road" ? ModernUi.Icon("arrowLeft") : id == "lock" ? ModernUi.Icon("lock") : ArtSprites.UiIcon(id) ?? BattleInkIcons.Ui(id);
         internal void BattleToast(string message, bool error) => Toast(message, error);
         internal RectTransform BattleAnchored(string name, Transform parent, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax) => Anchored(name, parent, min, max, offMin, offMax);
         internal Text BattleText(Transform parent, string name, string value, Font font, int size, Color color, TextAnchor anchor, Vector2 min, Vector2 max, Vector2 offMin, Vector2 offMax)
@@ -366,7 +374,8 @@ namespace IOSVN.TuTien.Core
             var A = (Func<string, Transform, Vector2, Vector2, Vector2, Vector2, RectTransform>)owner.BattleAnchored;
             // Keep the opponent status compact and centered at the top of the screen.
             var enemy = A("EnemyBar", hud, new Vector2(.5f, 1), new Vector2(.5f, 1), new Vector2(-430, -88), new Vector2(430, -20));
-            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 21, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(16, 36), new Vector2(-16, -2));
+            StatusSurface(enemy);
+            monsterName = owner.BattleText(enemy, "Name", "", ModernUi.SemiBold, 28, Cream, TextAnchor.UpperCenter, Vector2.zero, Vector2.one, new Vector2(16, 36), new Vector2(-16, 4));
             monsterName.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             monsterHp = Bar(enemy, new Vector2(0, 4), new Vector2(0, 36), new Color32(206, 58, 48, 255), out monsterHpText, out monsterHpTrail);
             movesText = owner.BattleText(hud, "Moves", "", ModernUi.Regular, 19, new Color32(236, 214, 170, 255), TextAnchor.UpperCenter,
@@ -377,7 +386,8 @@ namespace IOSVN.TuTien.Core
             // Player status sits at the bottom centre as in Quỷ Cốc: name, a long framed health bar, a slimmer
             // energy bar and the five quick item slots right under them.
             var me = A("MeBar", hud, new Vector2(.5f, 0), new Vector2(.5f, 0), new Vector2(-310, 96), new Vector2(310, 200));
-            var nameText = owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 19, Gold, TextAnchor.LowerLeft,
+            StatusSurface(me);
+            var nameText = owner.BattleText(me, "Name", owner.BattleClean(b["p"]["name"].Str("Đạo hữu")), ModernUi.SemiBold, 25, Cream, TextAnchor.LowerLeft,
                 new Vector2(0, 1), new Vector2(1, 1), new Vector2(26, -30), new Vector2(-26, 0));
             nameText.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             playerHp = Bar(me, new Vector2(0, 32), new Vector2(0, 68), new Color32(204, 58, 50, 255), out playerHpText, out _);
@@ -500,6 +510,13 @@ namespace IOSVN.TuTien.Core
             }
         }
 
+        private void StatusSurface(RectTransform parent)
+        {
+            var panel = owner.BattleAnchored("StatusSurface", parent, Vector2.zero, Vector2.one, new Vector2(-10, -8), new Vector2(10, 6)).gameObject.AddComponent<Image>();
+            ModernUi.Fill(panel, 14f); panel.color = new Color32(24, 35, 39, 210); panel.raycastTarget = false;
+            panel.transform.SetAsFirstSibling();
+        }
+
         private Image Bar(RectTransform parent, Vector2 offMin, Vector2 offMax, Color color, out Text text, out Image trail)
         {
             var track = owner.BattleAnchored("Bar", parent, new Vector2(0, 0), new Vector2(1, 0), offMin, offMax);
@@ -523,16 +540,11 @@ namespace IOSVN.TuTien.Core
             fill.fillMethod = Image.FillMethod.Horizontal;
             fill.color = color;
             fill.raycastTarget = false;
-            // a soft highlight along the top half of the fill
-            var sheen = owner.BattleAnchored("Sheen", fill.rectTransform, new Vector2(0, .55f), Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            sheen.sprite = InkUi.White;
-            sheen.color = new Color(1, 1, 1, .16f);
-            sheen.raycastTarget = false;
             var trackImage = track.gameObject.AddComponent<Image>();
             ModernUi.Fill(trackImage, 8f);
             trackImage.color = new Color32(28, 36, 39, 220);
             trackImage.raycastTarget = false;
-            trackImage.transform.SetAsFirstSibling();
+            track.gameObject.AddComponent<Mask>().showMaskGraphic = true;
             text = owner.BattleText(track, "Text", "", ModernUi.SemiBold, Mathf.Clamp(Mathf.RoundToInt(h * .7f), 20, 26), Cream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
             text.gameObject.AddComponent<Outline>().effectColor = new Color(0, 0, 0, .85f);
             return fill;
@@ -640,8 +652,8 @@ namespace IOSVN.TuTien.Core
                 var item = items[index];
                 var icon = rect.Find("Icon").GetComponent<Image>();
                 var has = !string.IsNullOrEmpty(item["uid"].Str());
-                icon.sprite = has ? owner.BattleItemIcon(LookupItem(item)) : owner.BattleUiIcon("quick_slot");
-                icon.color = has ? Color.white : new Color(1, 1, 1, .35f);
+                icon.sprite = has ? owner.BattleItemIcon(LookupItem(item)) : null;
+                icon.color = has ? Color.white : Color.clear;
                 qty.text = has && item["qty"].Int(1) > 1 ? item["qty"].Int().ToString() : "";
             }
             var warn = m["warn"];
@@ -679,6 +691,7 @@ namespace IOSVN.TuTien.Core
             monsterLungeTime = melee ? .4f : .25f;
             monsterLungeUntil = Time.time + monsterLungeTime;
             monsterLungeScale = melee ? 1f : .25f;
+            monster.Strike(monsterLungeTime, melee);
             StageMinionRush();
             return SkillStage.Monster(MonsterStage(), fx, move["v"].Int(), big, battle["m"]["element"].Str("kim"));
         }
@@ -691,6 +704,7 @@ namespace IOSVN.TuTien.Core
             {
                 minionRushStarts[i] = now + i * .11f;
                 minionRushEnds[i] = minionRushStarts[i] + .58f;
+                minions[i].Strike(.58f, true, i * .11f);
             }
         }
 
@@ -1042,6 +1056,7 @@ namespace IOSVN.TuTien.Core
                 ? -toMonster * 150f * monsterLungeScale * Mathf.Sin((monsterLungeUntil - Time.time) / monsterLungeTime * Mathf.PI)
                 : Vector2.zero;
             monster.Rect.anchoredPosition = monsterPos + mLunge + shakeOffset;
+            monster.Step(monsterPos);
             monster.FaceRight = monsterPos.x < playerPos.x;
             var midpoint = Vector2.Lerp(monsterPos, playerPos, .46f);
             var side = new Vector2(-toMonster.y, toMonster.x);
@@ -1068,6 +1083,7 @@ namespace IOSVN.TuTien.Core
                 target.y = Mathf.Clamp(target.y, -bounds.height * .34f, bounds.height * .10f);
                 minionPositions[i] = Vector2.MoveTowards(minionPositions[i], target, 310f * dt);
                 minions[i].Rect.anchoredPosition = minionPositions[i] + shakeOffset;
+                minions[i].Step(minionPositions[i]);
                 minions[i].FaceRight = target.x > minionPositions[i].x;
             }
             UpdateCamera(bounds, dt);
@@ -1179,10 +1195,18 @@ namespace IOSVN.TuTien.Core
         public RectTransform Knob;
         public Action<Vector2> OnMove;
 
-        public void OnPointerDown(PointerEventData eventData) => OnDrag(eventData);
+        private int? pointer;
+        private bool keyboardActive;
+        public void OnPointerDown(PointerEventData eventData)
+        {
+            if (pointer.HasValue) return;
+            pointer = eventData.pointerId;
+            OnDrag(eventData);
+        }
 
         public void OnDrag(PointerEventData eventData)
         {
+            if (pointer != eventData.pointerId) return;
             var rect = (RectTransform)transform;
             if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(rect, eventData.position, eventData.pressEventCamera, out var local)) return;
             var radius = rect.rect.width * .5f;
@@ -1193,6 +1217,8 @@ namespace IOSVN.TuTien.Core
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            if (pointer != eventData.pointerId) return;
+            pointer = null;
             Knob.anchoredPosition = Vector2.zero;
             OnMove?.Invoke(Vector2.zero);
         }
@@ -1201,7 +1227,16 @@ namespace IOSVN.TuTien.Core
         {
             // keyboard support in the editor
             var k = new Vector2(Input.GetAxisRaw("Horizontal"), Input.GetAxisRaw("Vertical"));
-            if (k.sqrMagnitude > .01f) { OnMove?.Invoke(k.normalized); Knob.anchoredPosition = k.normalized * ((RectTransform)transform).rect.width * .3f; }
+            if (pointer.HasValue) return;
+            if (k.sqrMagnitude > .01f) { keyboardActive = true; OnMove?.Invoke(k.normalized); Knob.anchoredPosition = k.normalized * ((RectTransform)transform).rect.width * .3f; }
+            else if (keyboardActive) { keyboardActive = false; Knob.anchoredPosition = Vector2.zero; OnMove?.Invoke(Vector2.zero); }
+        }
+
+        private void OnDisable()
+        {
+            pointer = null; keyboardActive = false;
+            if (Knob != null) Knob.anchoredPosition = Vector2.zero;
+            OnMove?.Invoke(Vector2.zero);
         }
     }
 

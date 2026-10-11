@@ -273,7 +273,7 @@ namespace IOSVN.TuTien.Core
             {
                 // the same painted ink icons as the battle skill buttons (the old 32px pixel frames are retired)
                 var name = skill["name"].Str();
-                var painted = BattleInkIcons.Skill(name, BattleFx.ElementOfSkill(name, skill["element"].Str("kim")));
+                var painted = PaintedArt.Skill(skill["id"].Str()) ?? BattleInkIcons.Skill(name, BattleFx.ElementOfSkill(name, skill["element"].Str("kim")));
                 if (painted != null) return painted;
                 var frames = PixelSkillArt.Frames(skill["id"].Str(), name, skill["kind"].Str(), hub["player"]["ascended"].Bool());
                 if (frames != null && frames.Length > 0 && frames[0] != null) return frames[0];
@@ -395,16 +395,23 @@ namespace IOSVN.TuTien.Core
             var back = BackTarget();
             var player = hub["player"];
             var body = OpenScreen("Nhân Vật", Clean(player["fullName"].Str(player["name"].Str())), "ho_so", back);
-            var (left, right) = Split(body, .42f);
-            GlassPanel(right, 26f, new Color32(22, 28, 34, 248), new Color32(12, 18, 24, 248));
+            void ProfileButton(RectTransform rect, string label, string iconId, bool primary, Action click)
+            {
+                var fill = ModernSurface(rect, primary ? new Color32(161, 192, 171, 255) : new Color32(39, 54, 59, 255), 14f, new Color32(140, 171, 166, 100), true);
+                var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = fill; button.onClick.AddListener(() => click());
+                AnchoredText(rect, "Label", label, ModernUi.SemiBold, 26, primary ? new Color32(21, 37, 31, 255) : AuthTextPrimary, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).raycastTarget = false;
+                rect.gameObject.AddComponent<UiPressScale>();
+            }
+            var (left, right) = Split(body, .36f);
+            ModernSurface(right, new Color32(23, 32, 37, 248), 22f, new Color32(122, 151, 151, 80));
             var portraitArea = Anchored("Portrait", left, new Vector2(0, .22f), Vector2.one, Vector2.zero, Vector2.zero);
-            GlassPanel(portraitArea, 26f, new Color32(26, 30, 34, 220), new Color32(14, 18, 20, 220));
+            ModernSurface(portraitArea, new Color32(33, 45, 48, 245), 22f, new Color32(122, 151, 151, 80));
             if (CultivatorFigure2D.Available)
             {
-                // waist-up portrait of the same layered figure, clipped to its panel
-                var portraitClip = Anchored("PortraitClip", portraitArea, Vector2.zero, Vector2.one, new Vector2(6, 6), new Vector2(-6, -6));
+                var portraitClip = Anchored("PortraitClip", portraitArea, Vector2.zero, Vector2.one, new Vector2(24, 80), new Vector2(-24, -24));
                 portraitClip.gameObject.AddComponent<RectMask2D>();
-                var bust = CultivatorFigure2D.Create(portraitClip, LookOf(player), CultivatorFigure2D.Framing.Bust);
+                var bust = CultivatorFigure2D.Create(portraitClip, LookOf(player), CultivatorFigure2D.Framing.Full);
+                bust.SafePreview = true; bust.Zoom = 1.1f;
                 bust.SetFacing(true);
             }
             else if (CultivatorPuppet2D.Available)
@@ -428,16 +435,16 @@ namespace IOSVN.TuTien.Core
                 hero.preserveAspect = true;
                 hero.raycastTarget = false;
             }
-            var dichDungBtn = Anchored("DichDungBtn", portraitArea, new Vector2(.56f, .03f), new Vector2(.96f, .125f), Vector2.zero, Vector2.zero);
-            PillButton(dichDungBtn, "Dịch dung", "ui:ho_so", false, () => ShowCreator(true));
+            var dichDungBtn = Anchored("DichDungBtn", portraitArea, new Vector2(.12f, 0), new Vector2(.88f, 0), new Vector2(0, 18), new Vector2(0, 78));
+            ProfileButton(dichDungBtn, "Dịch dung", "ui:ho_so", false, () => ShowCreator(true));
             var actions = Anchored("Actions", left, Vector2.zero, new Vector2(1, .22f), Vector2.zero, new Vector2(0, -14));
-            PillButton(Anchored("Break", actions, new Vector2(0, .5f), new Vector2(.5f, 1), new Vector2(0, 6), new Vector2(-6, 0)), "Đột phá", "ui:sense", true, () => Act("/breakthrough", Body(), _ => OpenCharacterScreen()));
-            PillButton(Anchored("Ascend", actions, new Vector2(.5f, .5f), new Vector2(1, 1), new Vector2(6, 6), new Vector2(0, 0)), "Phi thăng", "ui:flight", false, () =>
+            ProfileButton(Anchored("Break", actions, new Vector2(0, .5f), new Vector2(.5f, 1), new Vector2(0, 6), new Vector2(-6, 0)), "Đột phá", "ui:sense", true, () => Act("/breakthrough", Body(), _ => OpenCharacterScreen()));
+            ProfileButton(Anchored("Ascend", actions, new Vector2(.5f, .5f), new Vector2(1, 1), new Vector2(6, 6), new Vector2(0, 0)), "Phi thăng", "ui:flight", false, () =>
                 Confirm("Nghi thức Phi Thăng", "Đủ cảnh giới và Thiên Đạo Nguyên Ấn sẽ mở khóa Cổng Phi Thăng. Sau đó hãy tự đến cổng tại Man Châu để chuyển sang bản đồ Tiên Giới.", "Mở khóa cổng", () => Act("/ascend", Body(), _ => OpenCharacterScreen())));
-            PillButton(Anchored("Account", actions, new Vector2(0, 0), new Vector2(.5f, .5f), new Vector2(0, 0), new Vector2(-6, -6)), "Tài khoản", "ui:ho_so", false, () => { if (latestState != null) ShowAccountLinks(latestState); });
-            PillButton(Anchored("Logout", actions, new Vector2(.5f, 0), new Vector2(1, .5f), new Vector2(6, 0), new Vector2(0, -6)), offlinePreview ? "Thoát ra" : "Đăng xuất", "arrowLeft", false, () =>
+            ProfileButton(Anchored("Account", actions, new Vector2(0, 0), new Vector2(.5f, .5f), new Vector2(0, 0), new Vector2(-6, -6)), "Tài khoản", "ui:ho_so", false, () => { if (latestState != null) ShowAccountLinks(latestState); });
+            ProfileButton(Anchored("Logout", actions, new Vector2(.5f, 0), new Vector2(1, .5f), new Vector2(6, 0), new Vector2(0, -6)), offlinePreview ? "Thoát ra" : "Đăng xuất", "arrowLeft", false, () =>
                 Confirm(offlinePreview ? "Rời thế giới" : "Đăng xuất", offlinePreview ? "Quay lại màn hình đăng nhập?" : "Thoát khỏi tài khoản trên thiết bị này?", offlinePreview ? "Thoát ra" : "Đăng xuất", () => { if (offlinePreview) ExitOfflineWorld(); else client.Logout(_ => ShowLogin()); }));
-            var info = ScrollColumn(right, 6f, 14);
+            var info = ScrollColumn(right, 12f, 24);
             var realm = hub["realm"];
             SectionLabel(info, "Cảnh giới");
             StatLine(info, Clean(realm["name"].Str()) + " · " + Clean(realm["sub"].Str()), $"{Vn(realm["experience"])} / {Vn(realm["levelCap"])} tu vi", AuthGoldAccent);
@@ -453,7 +460,7 @@ namespace IOSVN.TuTien.Core
             {
                 var v = stat.Value.Num();
                 var text = stat.Key == "critRate" || stat.Key == "critDmg" || stat.Key == "dmgReduction" || stat.Key == "dodge" ? Vn(v) + "%" : Vn(v);
-                StatLine(info, StatName(stat.Key), text);
+                StatLine(info, stat.Key == "maxHp" ? "Khí huyết tối đa" : StatName(stat.Key), text);
             }
             SectionLabel(info, "Lôi đài");
             var pvp = player["pvp"];

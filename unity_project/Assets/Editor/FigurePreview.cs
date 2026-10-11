@@ -249,6 +249,118 @@ namespace IOSVN.TuTien.Editor
             File.WriteAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/figure-captures/combat-log.txt")), log.ToString());
         }
 
+        public static void RenderInterface()
+        {
+            Directory.CreateDirectory(OutDir);
+            var log = new System.Text.StringBuilder();
+            foreach (var screen in new[] { "world", "world_zoom", "boss_preview", "character_female", "character_male" })
+            {
+                EditorSceneManager.NewScene(NewSceneSetup.EmptyScene, NewSceneMode.Single);
+                var controller = new GameObject("InterfacePreview").AddComponent<PrototypeBootstrap>();
+                Invoke(controller, "BuildCanvas");
+                var canvas = GameObject.Find("GameCanvas").GetComponent<Canvas>();
+                const int width = 1280, height = 590;
+                var camera = new GameObject("PreviewCamera").AddComponent<Camera>();
+                camera.orthographic = true; camera.orthographicSize = height * .5f;
+                camera.transform.position = new Vector3(0, 0, -1000);
+                camera.nearClipPlane = .1f; camera.farClipPlane = 2000;
+                var target = new RenderTexture(width, height, 24); camera.targetTexture = target;
+                canvas.renderMode = RenderMode.ScreenSpaceCamera; canvas.worldCamera = camera; canvas.planeDistance = 100;
+                Invoke(canvas.GetComponent<CanvasScaler>(), "Handle");
+                var hub = J.Parse(File.ReadAllText(Path.GetFullPath(Path.Combine(Application.dataPath, "../../build/samples/qcbh_state.json"))));
+                var chosen = AvatarComposer.Default(screen != "character_male"); chosen.Set("wp", 9);
+                hub["player"].Set("look", chosen.ToString());
+                var worn = LookSpec.Parse(chosen.ToString()); worn.Set("wp", 6);
+                hub["player"].Set("lookWorn", worn.ToString());
+                Set(controller, "hub", hub); Set(controller, "offlinePreview", true);
+                var typed = NetworkGameClient.ToGameState(hub);
+                Set(controller, "latestState", typed); Set(controller, "currentCatalog", typed.catalog);
+                var displayed = (LookSpec)typeof(PrototypeBootstrap).GetMethod("LookOf", Flags | BindingFlags.Static).Invoke(null, new object[] { hub["player"] });
+                if (displayed.Int("wp") != 9) throw new Exception("Equipped weapon replaced the chosen cosmetic weapon");
+                if (screen.StartsWith("character")) Invoke(controller, "OpenCharacterScreen");
+                else
+                {
+                    Invoke(controller, "ShowWorld"); Canvas.ForceUpdateCanvases();
+                    var world = GameObject.Find("ProvinceWorld").GetComponent<ProvinceWorld>();
+                    Invoke(world, "Start");
+                    if (screen == "world_zoom") world.SetZoom(world.MaxZoom);
+                    if (screen == "world")
+                    {
+                        var pad = canvas.transform.Find("Background/SafeArea/Content/WorldHud/WorldStick");
+                        if (pad == null) pad = Array.Find(canvas.GetComponentsInChildren<RectTransform>(), r => r.name == "WorldStick");
+                        if (pad == null) throw new Exception("World joystick is missing");
+                        var stick = pad.GetComponent<MonoBehaviour>();
+                        foreach (var behaviour in pad.GetComponents<MonoBehaviour>()) if (behaviour.GetType().Name == "BattleStick") stick = behaviour;
+                        var eventData = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current) { pointerId = 3,
+                            pointerPressRaycast = new UnityEngine.EventSystems.RaycastResult { module = canvas.GetComponent<GraphicRaycaster>() } };
+                        eventData.position = RectTransformUtility.WorldToScreenPoint(camera, ((RectTransform)pad).TransformPoint(new Vector2(80, 0)));
+                        Invoke(stick, "OnPointerDown", eventData);
+                        if (world.VirtualStick.x < .4f) throw new Exception("World touch joystick did not deliver movement");
+                        var second = new UnityEngine.EventSystems.PointerEventData(UnityEngine.EventSystems.EventSystem.current) { pointerId = 4 };
+                        Invoke(stick, "OnPointerUp", second);
+                        if (world.VirtualStick.x < .4f) throw new Exception("Another touch cancelled the active joystick");
+                        Invoke(stick, "OnPointerUp", eventData);
+                        if (world.VirtualStick != Vector2.zero) throw new Exception("Joystick remained stuck after release");
+                        log.AppendLine("touch joystick: movement, independent pointers and release OK");
+                        ValidateWorldMovement(world, log);
+                        var monster = world.Actors.Find(a => a.Kind == "boss");
+                        if (monster != null)
+                        {
+                            WorldActor tapped = null; world.OnActorTap = a => tapped = a;
+                            var bodyPoint = monster.Rect.TransformPoint(new Vector2(0, monster.Rect.rect.height * .6f));
+                            world.HandleTap(RectTransformUtility.WorldToScreenPoint(camera, bodyPoint));
+                            if (tapped != monster) throw new Exception("Tapping the monster body missed its target");
+                            world.SetHp(monster, 1, 2);
+                            if (monster.HpFill.type != Image.Type.Filled || Mathf.Abs(monster.HpFill.fillAmount - .5f) > .001f) throw new Exception("Monster HP bar does not reflect actual health");
+                            world.SetHp(monster, 1, 1);
+                            log.AppendLine("monster body hit target and health bar OK");
+                        }
+                    }
+                    Invoke(world, "LateUpdate");
+                    if (screen == "boss_preview")
+                    {
+                        var actor = world.Actors.Find(a => a.Kind == "boss");
+                        if (actor == null) throw new Exception("Missing sample boss");
+                        Invoke(controller, "HandleWorldActor", actor);
+                        var details = Array.Find(canvas.GetComponentsInChildren<Text>(), t => t.name == "Details");
+                        if (details == null || !details.text.Contains("Khí huyết")) throw new Exception("Missing monster preview");
+                    }
+                }
+                for (var pass = 0; pass < 3; pass++)
+                {
+                    Canvas.ForceUpdateCanvases();
+                    foreach (var group in canvas.GetComponentsInChildren<LayoutGroup>()) LayoutRebuilder.ForceRebuildLayoutImmediate((RectTransform)group.transform);
+                }
+                foreach (var figure in canvas.GetComponentsInChildren<CultivatorFigure2D>()) Invoke(figure, "LateUpdate");
+                Save(camera, target, width, height, screen + ".png"); log.AppendLine(screen + ": OK");
+            }
+            RenderBattleHud(log);
+            File.WriteAllText(Path.Combine(OutDir, "interface-log.txt"), log.ToString());
+            Debug.Log("INTERFACE_PREVIEW_DONE\n" + log);
+        }
+
+        private static void ValidateWorldMovement(ProvinceWorld world, System.Text.StringBuilder log)
+        {
+            var original = world.Player.Pos;
+            var originalData = world.Data;
+            world.Data = new WorldMapData { w = 32, h = 32, Blocked = new bool[1024], Border = new bool[1024], Water = new bool[1024], Road = new bool[1024] };
+            world.OnPlayerStep = null;
+            world.Player.Pos = new Vector2(10, 10);
+            world.Player.Path = new System.Collections.Generic.List<Vector2Int> { new Vector2Int(20, 20) };
+            Invoke(world, "MovePlayerDirection", Vector2.right, .1f);
+            if (world.Player.Pos.x <= 10 || world.Player.Path != null) throw new Exception("Manual movement did not move / cancel the old route");
+            world.Player.Pos = new Vector2(10, 10); world.Data.Blocked[10 * 32 + 11] = true;
+            Invoke(world, "MovePlayerDirection", Vector2.right, .25f);
+            if (world.Player.Pos.x != 10) throw new Exception("Manual movement crossed blocked terrain");
+            world.Data.Blocked[10 * 32 + 11] = false;
+            var arrived = false;
+            if (!world.WalkTo(new Vector2Int(20, 20), () => arrived = true)) throw new Exception("Tap route could not be created");
+            for (var i = 0; i < 200 && world.Player.Path != null; i++) Invoke(world, "StepActor", world.Player, .05f, false);
+            if (!arrived || world.TileOf(world.Player.Pos) != new Vector2Int(20, 20)) throw new Exception("Tap route failed to reach its destination");
+            world.Stop(); world.Data = originalData; world.Teleport(world.Player, original);
+            log.AppendLine("world movement: manual, collision, route cancellation and tap destination OK");
+        }
+
         private static void RenderBattleHud(System.Text.StringBuilder log)
         {
             foreach (var regular in new[] { false, true })
@@ -277,6 +389,9 @@ namespace IOSVN.TuTien.Editor
                 if (regular) source = source.Replace("\"kind\":\"boss\"", "\"kind\":\"pve\"").Replace("\"packSize\":5", "\"packSize\":1").Replace("\"minionCount\":4", "\"minionCount\":0");
                 Invoke(controller, "BuildActionBattle", J.Parse(source)["battle"]);
                 var battle = controller.GetType().GetField("actionBattle", Flags).GetValue(controller);
+                foreach (var bar in canvas.GetComponentsInChildren<RectTransform>())
+                    if (bar.name == "Bar" && bar.parent.Find("StatusSurface") is Transform status && bar.GetSiblingIndex() < status.GetSiblingIndex())
+                        throw new Exception("Status surface covers the health bar");
                 if (result) Invoke(battle, "Finish", J.Parse("{\"result\":\"win\",\"summary\":{\"exp\":1234,\"stones\":520,\"drops\":[],\"notes\":[\"Trang bị sau chiến đấu: độ bền giảm nhẹ.\"]}}"));
                 else Invoke(battle, "PreviewMoment");
                 Canvas.ForceUpdateCanvases();

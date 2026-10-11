@@ -62,6 +62,8 @@ namespace IOSVN.TuTien.Core
                 var painted = Item(id);
                 if (painted != null) return painted;
                 // skill jade slips (ngọc giản) have no painted item art of their own: show the painted scroll icon
+                var skillArt = PaintedArt.Skill(id);
+                if (skillArt != null) return skillArt;
                 if (Resources.Load<Texture2D>("CombatPixel/Skills/" + id) != null) return UiIcon("scroll");
                 return null;
             }

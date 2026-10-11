@@ -105,7 +105,7 @@ namespace IOSVN.TuTien.Core
                 me.Rig = CultivatorFigure2D.Create(me.Rect, LookOf(player));
                 me.Body.enabled = false;
                 me.Frames = null;
-                me.TagHeight = HeroSize.y + 18f;
+                me.TagHeight = HeroSize.y + 27f;
                 if (me.Shadow != null) me.Shadow.rectTransform.sizeDelta = new Vector2(22f, 8f);
             }
             worldView.WalkSpeed = 3.2f;
@@ -127,6 +127,7 @@ namespace IOSVN.TuTien.Core
             worldView.OnPoiTap = HandleWorldPoi;
             worldView.OnActorTap = HandleWorldActor;
             worldView.OnPlayerStep = OnWorldStep;
+            worldView.OnRouteBlocked = () => Toast("Đường bị chặn. Hãy chọn điểm gần hơn hoặc dùng cần di chuyển.", true);
 
             try
             {
@@ -207,11 +208,15 @@ namespace IOSVN.TuTien.Core
             if (player.IsNull) return AvatarComposer.Default(false);
             try
             {
-                // lookWorn = the creator look with the equipped weapon / armour applied by the server
+                // Equipment may tint the robe, but the creator's chosen cosmetic
+                // weapon is shared by the world, profile and battle previews.
                 var text = player["lookWorn"].Str(player["look"].Str());
                 if (!string.IsNullOrEmpty(text))
                 {
                     var look = LookSpec.Parse(text);
+                    var chosen = LookSpec.Parse(player["look"].Str());
+                    if (!string.IsNullOrEmpty(chosen.Get("wp", ""))) look.Set("wp", chosen.Get("wp", "0"));
+                    if (!string.IsNullOrEmpty(chosen.Get("wc", ""))) look.Set("wc", chosen.Get("wc", ""));
                     return look.Fill(AvatarComposer.Default(look.Get("g", player["gender"].Str() == "nu" ? "f" : "m") == "f"));
                 }
                 var colors = player["appearanceColors"];
@@ -355,12 +360,13 @@ namespace IOSVN.TuTien.Core
                     range = new RectInt(center.x - 8, center.y - 4, 16, 10);
                 }
                 tile = worldData.NearestOpen(new Vector2Int(Mathf.RoundToInt(tile.x), Mathf.RoundToInt(tile.y)));
+                var art = ArtSprites.MonsterFrames(m["monsterId"].Str());
                 var sprite = MonsterSprite(m["monsterId"].Str());
-                var size = boss ? new Vector2(58, 58) : new Vector2(34, 34);
+                var size = boss ? new Vector2(140, 140) : new Vector2(86, 86);
                 var name = Clean(m["name"].Str());
-                var displayName = (boss ? "Boss · " : "") + name;
+                var displayName = (boss ? "Boss · " : "") + name + (boss ? " · " + WorldMonsterRealm(m) : "");
                 Color tagColor = boss ? (Color)new Color32(255, 120, 96, 255) : (Color)new Color32(250, 232, 210, 255);
-                var actor = worldView.AddActor(uid, boss ? "boss" : "monster", tile, null, sprite, size, displayName, tagColor, aura: boss);
+                var actor = worldView.AddActor(uid, boss ? "boss" : "monster", tile, art?.Body, sprite, size, displayName, tagColor, aura: boss);
                 actor.Data = m;
                 actor.Pressure = boss;
                 actor.PressureColor = m["isWorldBoss"].Bool() ? new Color(1f, .78f, .3f, 1f) : new Color(1f, .3f, .22f, 1f);
@@ -595,15 +601,47 @@ namespace IOSVN.TuTien.Core
                 }
                 var uid = actor.Id;
                 if (worldActorEngagedId == uid || worldActorConfirmId == uid) return;
-                Action arrive = () => StartWorldBattle(uid, m);
-                ShowHudAction("Khiêu chiến · " + Clean(m["name"].Str()), () => worldView.Approach(actor, 1.4f, arrive));
-                worldView.Approach(actor, 1.4f, arrive);
+                OpenWorldMonsterPreview(actor, m);
             }
             else if (actor.Kind == "npc")
             {
                 var npc = actor.Data is J j ? j : J.Null;
                 worldView.Approach(actor, 1.6f, () => OpenNpcDialog(npc));
             }
+        }
+
+        private string WorldMonsterRealm(J monster)
+        {
+            var label = Clean(monster["realmName"].Str(monster["realmMinName"].Str()));
+            if (!string.IsNullOrEmpty(label)) return label;
+            var index = monster["realm"].Int();
+            foreach (var realm in hub["realms"].Items)
+                if (realm["index"].Int(-1) == index) return Clean(realm["name"].Str());
+            return index == 0 ? "Phàm Nhân" : "Cảnh giới " + (index + 1);
+        }
+
+        private void OpenWorldMonsterPreview(WorldActor actor, J monster)
+        {
+            worldView?.Stop();
+            var card = Modal(Clean(monster["name"].Str()), 1120f, 650f, out var close);
+            var art = Anchored("MonsterPreview", card, new Vector2(0, .2f), new Vector2(.38f, .85f), new Vector2(30, 0), new Vector2(-20, 0)).gameObject.AddComponent<Image>();
+            art.sprite = ArtSprites.MonsterFrames(monster["monsterId"].Str())?.Body[0] ?? MonsterSprite(monster["monsterId"].Str());
+            art.preserveAspect = true; art.raycastTarget = false;
+            var boss = IsBossMonster(monster);
+            var text = (boss ? "BOSS" : "YÊU THÚ") + "  ·  " + WorldMonsterRealm(monster) +
+                "\n\nKhí huyết  " + Vn(monster["hp"]) + " / " + Vn(monster["maxHp"]) +
+                (monster["atk"].Num() > 0 ? "\nCông kích  " + Vn(monster["atk"]) : "") +
+                (monster["requiredPartySize"].Int(1) > 1 ? "\nTổ đội  " + monster["requiredPartySize"].Int() + " người" : "") +
+                "\n\nChọn Khiêu chiến để tiến lại gần và vào trận.";
+            AnchoredText(card, "Details", text, ModernUi.SemiBold, 28, AuthTextPrimary, TextAnchor.UpperLeft,
+                new Vector2(.4f, .2f), new Vector2(1, .83f), Vector2.zero, new Vector2(-34, 0));
+            PillButton(Anchored("Leave", card, Vector2.zero, new Vector2(.5f, 0), new Vector2(28, 24), new Vector2(-8, 104)), "Rời đi", "arrowLeft", false, close);
+            PillButton(Anchored("Challenge", card, new Vector2(.5f, 0), new Vector2(1, 0), new Vector2(8, 24), new Vector2(-28, 104)), "Khiêu chiến", "ui:swords", true, () =>
+            {
+                close();
+                if (worldView != null && !actor.Hidden)
+                    worldView.Approach(actor, 1.4f, () => StartWorldBattle(actor.Id, actor.Data is J current ? current : monster));
+            });
         }
 
         private void StartWorldBattle(string uid, J monster)
@@ -776,7 +814,7 @@ namespace IOSVN.TuTien.Core
             travelLabel = null;
             if (!HasTravelItem()) return;
             var item = TravelItem();
-            var rect = Anchored("Travel", root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(252, 262), new Vector2(368, 378));
+            var rect = Anchored("Travel", root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(334, 84), new Vector2(450, 200));
             var disc = rect.gameObject.AddComponent<Image>();
             disc.sprite = InkUi.Glow;
             disc.color = new Color32(26, 28, 30, 235);
@@ -864,7 +902,6 @@ namespace IOSVN.TuTien.Core
         {
             if (worldView?.Player == null) return;
             var tile = worldView.TileOf(worldView.Player.Pos);
-            TryAutoEnterNearbyWorldTarget();
             if (worldView?.Player == null) return;
             UpdateMiniPlayer();
             UpdatePlacePrompt(tile);
@@ -874,48 +911,6 @@ namespace IOSVN.TuTien.Core
                 SaveWorldTile();
             }
             UpdateHudLocation(tile);
-        }
-
-        private void TryAutoEnterNearbyWorldTarget()
-        {
-            if (worldView?.Player == null || worldView.Flying || worldCityEntryPending) return;
-
-            WorldPoi nearestCity = null;
-            var cityDistance = 1.65f;
-            foreach (var poi in worldData?.pois ?? Array.Empty<WorldPoi>())
-            {
-                if (poi?.kind != "city" || string.IsNullOrEmpty(poi.townId)) continue;
-                var distance = Vector2.Distance(worldView.Player.Pos, new Vector2(poi.x, poi.y));
-                if (distance < cityDistance) { cityDistance = distance; nearestCity = poi; }
-            }
-            if (nearestCity != null)
-            {
-                EnterCityFromWorld(nearestCity.townId);
-                return;
-            }
-
-            WorldActor nearestMonster = null;
-            var monsterDistance = 1.45f;
-            foreach (var actor in worldView.Actors)
-            {
-                if (actor == null || actor.Hidden || (actor.Kind != "monster" && actor.Kind != "boss")) continue;
-                if (actor.Data is J monsterData && monsterData["isLocked"].Bool()) continue;
-                var distance = Vector2.Distance(worldView.Player.Pos, actor.Pos + new Vector2(0f, -.6f));
-                if (distance < monsterDistance) { monsterDistance = distance; nearestMonster = actor; }
-            }
-            if (nearestMonster != null) HandleWorldActor(nearestMonster);
-
-            if (!string.IsNullOrEmpty(worldActorConfirmId))
-            {
-                var confirmedActorStillNear = false;
-                foreach (var actor in worldView.Actors)
-                {
-                    if (actor == null || actor.Id != worldActorConfirmId || actor.Hidden) continue;
-                    confirmedActorStillNear = Vector2.Distance(worldView.Player.Pos, actor.Pos + new Vector2(0f, -.6f)) <= 2.8f;
-                    break;
-                }
-                if (!confirmedActorStillNear) worldActorConfirmId = null;
-            }
         }
 
         private void SaveWorldTile()
@@ -985,6 +980,8 @@ namespace IOSVN.TuTien.Core
             hudTicker.Owner = this;
             BuildAvatarCard(root);
             BuildMiniMap(root, data);
+            BuildVirtualDpad(root);
+            BuildWorldZoom(root);
             BuildTravelButton(root);
             BuildWayfinders(root);
             BuildMenuColumn(root);
@@ -1076,16 +1073,16 @@ namespace IOSVN.TuTien.Core
         private void BuildAvatarCard(RectTransform root)
         {
             var player = hub["player"];
-            var card = Anchored("Avatar", root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 18), new Vector2(590, 166));
-            ModernSurface(card, new Color32(12, 18, 24, 238), 16f, new Color32(232, 196, 120, 140));
+            var card = Anchored("Avatar", root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(18, 320), new Vector2(590, 498));
+            ModernSurface(card, new Color32(23, 34, 38, 230), 22f, new Color32(135, 165, 159, 100));
             // portrait disc
             var disc = Anchored("Disc", card, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(8, -58), new Vector2(124, 58));
             var discFill = disc.gameObject.AddComponent<Image>();
-            discFill.sprite = InkUi.Glow;
-            discFill.color = new Color32(232, 214, 170, 255);
+            ModernUi.Fill(discFill, 58f);
+            discFill.color = new Color32(45, 61, 61, 255);
             var ring = Anchored("Ring", disc, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            ring.sprite = InkUi.Ring;
-            ring.color = HudGold;
+            ModernUi.Ring(ring, 58f, 1.5f);
+            ring.color = new Color32(151, 182, 170, 210);
             ring.raycastTarget = false;
             var portraitMask = Anchored("PortraitMask", disc, Vector2.zero, Vector2.one, new Vector2(18, 18), new Vector2(-18, -18));
             var maskImage = portraitMask.gameObject.AddComponent<Image>();
@@ -1126,13 +1123,13 @@ namespace IOSVN.TuTien.Core
             var discButton = disc.gameObject.AddComponent<Button>();
             discButton.onClick.AddListener(OpenCharacterScreen);
             disc.gameObject.AddComponent<UiPressScale>();
-            AnchoredText(card, "Name", Clean(player["name"].Str("Đạo hữu")), ModernUi.SemiBold, 21, HudCream, TextAnchor.MiddleLeft,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(142, -38), new Vector2(-16, -8));
-            AnchoredText(card, "Realm", Clean(hub["realm"]["name"].Str()) + " · " + Clean(player["monName"].Str()), ModernUi.Regular, 14, HudGold, TextAnchor.MiddleLeft,
-                new Vector2(0, 1), new Vector2(1, 1), new Vector2(142, -61), new Vector2(-16, -39));
-            HudBar(card, "Khí huyết", player["hp"].Num(), player["maxHp"].Num(1), new Color32(196, 62, 54, 255), 64);
+            AnchoredText(card, "Name", Clean(player["name"].Str("Đạo hữu")), ModernUi.SemiBold, 28, HudCream, TextAnchor.MiddleLeft,
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(142, -44), new Vector2(-16, -12));
+            AnchoredText(card, "Realm", Clean(hub["realm"]["name"].Str()) + " · " + Clean(player["monName"].Str()), ModernUi.Regular, 20, new Color32(177, 198, 186, 255), TextAnchor.MiddleLeft,
+                new Vector2(0, 1), new Vector2(1, 1), new Vector2(142, -73), new Vector2(-16, -47));
+            HudBar(card, "Khí huyết", player["hp"].Num(), player["maxHp"].Num(1), new Color32(196, 62, 54, 255), 68);
             var stamina = player["stamina"].Num();
-            HudBar(card, "Thể lực", stamina, player["staminaMax"].Num(1), new Color32(92, 170, 110, 255), 40);
+            HudBar(card, "Thể lực", stamina, player["staminaMax"].Num(1), new Color32(92, 170, 110, 255), 36);
             var coin = Anchored("Stones", card, new Vector2(0, 0), new Vector2(1, 0), new Vector2(142, 8), new Vector2(-16, 31));
             var coinIcon = Anchored("Icon", coin, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(0, -12), new Vector2(24, 12)).gameObject.AddComponent<Image>();
             coinIcon.sprite = UiPixelIcon("coin");
@@ -1152,7 +1149,7 @@ namespace IOSVN.TuTien.Core
             ModernUi.Fill(fill, 8f);
             fill.color = color;
             fill.raycastTarget = false;
-            AnchoredText(bar, "Text", $"{label}  {Vn(value)}/{Vn(max)}", ModernUi.SemiBold, 14, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+            AnchoredText(bar, "Text", $"{label}  {Vn(value)}/{Vn(max)}", ModernUi.SemiBold, 19, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
         }
 
         // ------------------------------------------------------------------ minimap (Quỷ Cốc style)
@@ -1177,25 +1174,24 @@ namespace IOSVN.TuTien.Core
             miniIcons.Clear();
             miniMonsterDots.Clear();
             miniRegionId = null;
-            miniZoom = Mathf.Clamp(PlayerPrefs.GetInt("tt_minimap_zoom2", 2), 0, MiniSpans.Length - 1);
-            const float side = 250f, titleH = 40f, footH = 34f, pad = 7f;
+            miniZoom = Mathf.Clamp(PlayerPrefs.GetInt("tt_minimap_zoom2", 1), 0, MiniSpans.Length - 1);
+            const float side = 276f, titleH = 54f, footH = 54f, pad = 10f;
             var frame = Anchored("MiniMap", root, new Vector2(1, 1), new Vector2(1, 1),
                 new Vector2(-side - pad * 2 - 18f, -side - titleH - footH - pad * 2 - 18f), new Vector2(-18f, -18f));
             miniMapFrame = frame;
-            ModernSurface(frame, new Color32(16, 20, 24, 240), 10f, new Color32(214, 178, 108, 200));
+            ModernSurface(frame, new Color32(23, 34, 38, 230), 22f, new Color32(135, 165, 159, 100));
 
             // title strip: the region the traveller stands in, with the realm map name under it
             var title = Anchored("Title", frame, new Vector2(0, 1), new Vector2(1, 1), new Vector2(pad, -titleH - pad + 2f), new Vector2(-pad, -pad + 2f));
             var titleBg = title.gameObject.AddComponent<Image>();
-            titleBg.sprite = InkUi.Glow;
-            titleBg.color = new Color32(122, 86, 44, 120);
+            ModernUi.Fill(titleBg, 12f);
+            titleBg.color = new Color32(46, 64, 64, 110);
             titleBg.raycastTarget = false;
-            miniTitle = AnchoredText(title, "Region", "", ModernUi.Display, 20, HudCream, TextAnchor.MiddleCenter,
+            miniTitle = AnchoredText(title, "Region", "", ModernUi.SemiBold, 24, HudCream, TextAnchor.MiddleCenter,
                 new Vector2(0, .36f), Vector2.one, new Vector2(30, 0), new Vector2(-30, 0));
-            miniTitle.resizeTextForBestFit = true; miniTitle.resizeTextMinSize = 13; miniTitle.resizeTextMaxSize = 20;
+            miniTitle.resizeTextForBestFit = true; miniTitle.resizeTextMinSize = 13; miniTitle.resizeTextMaxSize = 24;
             miniTitle.raycastTarget = false;
-            UiGradient.Apply(miniTitle, AuthGoldTop, AuthGoldBottom);
-            miniSubtitle = AnchoredText(title, "World", Clean(data.name), ModernUi.Regular, 11, new Color32(205, 198, 182, 255), TextAnchor.MiddleCenter,
+            miniSubtitle = AnchoredText(title, "World", Clean(data.name), ModernUi.Regular, 16, new Color32(180, 199, 194, 255), TextAnchor.MiddleCenter,
                 Vector2.zero, new Vector2(1, .42f), new Vector2(30, 0), new Vector2(-30, 0));
             miniSubtitle.raycastTarget = false;
 
@@ -1277,23 +1273,21 @@ namespace IOSVN.TuTien.Core
             // footer: time of day, zoom, open the big map
             var foot = Anchored("Foot", frame, Vector2.zero, new Vector2(1, 0), new Vector2(pad, pad - 1f), new Vector2(-pad, footH + pad - 3f));
             var phase = hub["timePhase"];
-            var when = AnchoredText(foot, "When", Clean(phase["name"].Str("Ban ngày")), ModernUi.Regular, 13, HudCream, TextAnchor.MiddleLeft,
+            var when = AnchoredText(foot, "When", Clean(phase["name"].Str("Ban ngày")), ModernUi.Regular, 18, HudCream, TextAnchor.MiddleLeft,
                 Vector2.zero, new Vector2(.42f, 1), new Vector2(4, 0), Vector2.zero);
             when.raycastTarget = false;
             void FootButton(string name, string label, float x0, float x1, Action click)
             {
                 var r = Anchored(name, foot, new Vector2(x0, 0), new Vector2(x1, 1), new Vector2(2, 2), new Vector2(-2, -2));
-                var fill = ModernSurface(r, new Color32(46, 40, 32, 255), 7f, new Color32(214, 178, 108, 190), true);
+                var fill = ModernSurface(r, new Color32(45, 62, 64, 255), 12f, new Color32(140, 171, 166, 100), true);
                 var b = r.gameObject.AddComponent<Button>();
                 b.targetGraphic = fill;
                 b.onClick.AddListener(() => click());
-                var t = AnchoredText(r, "Label", label, ModernUi.SemiBold, label.Length > 2 ? 12 : 18, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
+                var t = AnchoredText(r, "Label", label, ModernUi.SemiBold, label.Length > 2 ? 18 : 28, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero);
                 t.raycastTarget = false;
                 r.gameObject.AddComponent<UiPressScale>();
             }
-            FootButton("ZoomIn", "+", .42f, .54f, () => SetMiniZoom(miniZoom - 1));
-            FootButton("ZoomOut", "−", .54f, .66f, () => SetMiniZoom(miniZoom + 1));
-            FootButton("Atlas", "BẢN ĐỒ LỚN", .66f, 1f, () => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
+            FootButton("Atlas", "Bản đồ", .42f, 1f, () => OpenWorldAtlas(latestState ?? NetworkGameClient.ToGameState(hub)));
 
             var open = map.gameObject.AddComponent<Button>();
             open.transition = Selectable.Transition.None;
@@ -1311,45 +1305,29 @@ namespace IOSVN.TuTien.Core
 
         private void BuildVirtualDpad(RectTransform root)
         {
-            var dpad = Anchored("Dpad", root, new Vector2(0, 0), new Vector2(0, 0), new Vector2(40, 236), new Vector2(230, 426));
-            var padBg = dpad.gameObject.AddComponent<Image>();
-            padBg.sprite = InkUi.Glow;
-            padBg.color = new Color32(20, 22, 26, 170);
-            padBg.raycastTarget = false;
+            var pad = Anchored("WorldStick", root, Vector2.zero, Vector2.zero, new Vector2(36, 32), new Vector2(296, 292));
+            var fill = ModernSurface(pad, new Color32(25, 35, 39, 135), 130f, new Color32(167, 189, 184, 150), true);
+            var knob = Anchored("Knob", pad, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-44, -44), new Vector2(44, 44)).gameObject.AddComponent<Image>();
+            ModernUi.Fill(knob, 44f); knob.color = new Color32(176, 194, 189, 215); knob.raycastTarget = false;
+            var stick = pad.gameObject.AddComponent<BattleStick>();
+            stick.Knob = knob.rectTransform;
+            stick.OnMove = direction => { if (worldView != null) worldView.VirtualStick = direction; };
+        }
 
-            var border = Anchored("Border", dpad, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            ModernUi.Ring(border, 85f, 1.2f);
-            border.color = new Color32(220, 190, 120, 100);
-            border.raycastTarget = false;
-
-            void Arrow(string name, Vector2 dir, Vector2 anchorMin, Vector2 anchorMax, float turn)
+        private void BuildWorldZoom(RectTransform root)
+        {
+            var area = Anchored("WorldZoom", root, Vector2.one, Vector2.one, new Vector2(-420, -338), new Vector2(-330, -18));
+            ModernSurface(area, new Color32(22, 32, 36, 225), 20f, new Color32(140, 171, 166, 100));
+            void Control(string name, string label, float bottom, Action click)
             {
-                var btnRect = Anchored(name, dpad, anchorMin, anchorMax, Vector2.zero, Vector2.zero);
-                var btnImg = btnRect.gameObject.AddComponent<Image>();
-                ModernUi.Fill(btnImg, 14f);
-                btnImg.color = new Color32(34, 38, 46, 240);
-                // the game fonts have no arrow glyphs: use the arrow icon, turned
-                var glyph = Anchored("Icon", btnRect, new Vector2(.5f, .5f), new Vector2(.5f, .5f), new Vector2(-17, -17), new Vector2(17, 17)).gameObject.AddComponent<Image>();
-                glyph.sprite = ModernUi.Icon("arrowRight");
-                glyph.color = HudCream;
-                glyph.raycastTarget = false;
-                glyph.rectTransform.localRotation = Quaternion.Euler(0, 0, turn);
-                var trigger = btnRect.gameObject.AddComponent<EventTrigger>();
-                AddBattlePointerEvent(trigger, EventTriggerType.PointerDown, () => { if (worldView != null) worldView.VirtualStick = dir; });
-                AddBattlePointerEvent(trigger, EventTriggerType.PointerUp, () => { if (worldView != null) worldView.VirtualStick = Vector2.zero; });
-                AddBattlePointerEvent(trigger, EventTriggerType.PointerExit, () => { if (worldView != null) worldView.VirtualStick = Vector2.zero; });
-                btnRect.gameObject.AddComponent<UiPressScale>();
+                var rect = Anchored(name, area, new Vector2(0, 0), new Vector2(1, 0), new Vector2(8, bottom), new Vector2(-8, bottom + 88));
+                var image = rect.gameObject.AddComponent<Image>(); ModernUi.Fill(image, 16f); image.color = new Color32(53, 69, 71, 235);
+                var button = rect.gameObject.AddComponent<Button>(); button.targetGraphic = image; button.onClick.AddListener(() => click());
+                AnchoredText(rect, "Label", label, ModernUi.SemiBold, 32, HudCream, TextAnchor.MiddleCenter, Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).raycastTarget = false;
             }
-
-            Arrow("Up", new Vector2(0, 1), new Vector2(.32f, .65f), new Vector2(.68f, .98f), 90f);
-            Arrow("Down", new Vector2(0, -1), new Vector2(.32f, .02f), new Vector2(.68f, .35f), -90f);
-            Arrow("Left", new Vector2(-1, 0), new Vector2(.02f, .32f), new Vector2(.35f, .68f), 180f);
-            Arrow("Right", new Vector2(1, 0), new Vector2(.65f, .32f), new Vector2(.98f, .68f), 0f);
-
-            var center = Anchored("Center", dpad, new Vector2(.40f, .40f), new Vector2(.60f, .60f), Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            center.sprite = InkUi.Glow;
-            center.color = new Color32(232, 196, 120, 150);
-            center.raycastTarget = false;
+            Control("ZoomIn", "+", 222, () => worldView?.ZoomBy(1.25f));
+            Control("Follow", "Tâm", 116, () => worldView?.Recenter());
+            Control("ZoomOut", "−", 10, () => worldView?.ZoomBy(1f / 1.25f));
         }
 
         private void UpdateMiniPlayer()
@@ -1487,7 +1465,7 @@ namespace IOSVN.TuTien.Core
 
         private void BuildMenuColumn(RectTransform root)
         {
-            var button = Anchored("WorldMenuButton", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-204, -430), new Vector2(-20, -374));   // under the minimap (356 px tall)
+            var button = Anchored("WorldMenuButton", root, new Vector2(1, 1), new Vector2(1, 1), new Vector2(-270, -506), new Vector2(-18, -426));   // under the minimap (356 px tall)
             WuxiaHudButton(button, "Tiện ích", "compass", OpenWorldMenu);
         }
 

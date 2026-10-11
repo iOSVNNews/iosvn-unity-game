@@ -62,9 +62,9 @@ namespace IOSVN.TuTien.Core
         public RawImage Painting;
         public Image NightTint;
         // Explore one province at a readable scale; the atlas supplies the realm overview.
-        public float Zoom = .78f;
-        public float MinZoom = .42f;
-        public float MaxZoom = 1.25f;
+        public float Zoom = 1.2f;
+        public float MinZoom = .65f;
+        public float MaxZoom = 2.8f;
         /// <summary>Tiles per second on foot; a sword or a mount multiplies it.</summary>
         public float WalkSpeed = 3.2f;
         public TravelMode Travel { get; private set; }
@@ -76,6 +76,7 @@ namespace IOSVN.TuTien.Core
         public Action<WorldActor> OnActorTap;
         public Action<Vector2Int> OnGroundTap;
         public Action OnPlayerStep;
+        public Action OnRouteBlocked;
         public Vector2 VirtualStick;
         private Vector2Int lastStepTile = new Vector2Int(-999, -999);
 
@@ -244,7 +245,9 @@ namespace IOSVN.TuTien.Core
         public bool ScreenToTile(Vector2 screen, out Vector2 tile)
         {
             tile = default;
-            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(MapRect, screen, null, out var local)) return false;
+            var canvas = MapRect.GetComponentInParent<Canvas>();
+            var camera = canvas != null && canvas.renderMode != RenderMode.ScreenSpaceOverlay ? canvas.worldCamera : null;
+            if (!RectTransformUtility.ScreenPointToLocalPointInRectangle(MapRect, screen, camera, out var local)) return false;
             tile = LocalToTile(local);
             return true;
         }
@@ -274,6 +277,7 @@ namespace IOSVN.TuTien.Core
             actor.Body.transform.SetParent(actor.Rect, false);
             var br = actor.Body.rectTransform;
             br.anchorMin = Vector2.zero; br.anchorMax = Vector2.one; br.offsetMin = br.offsetMax = Vector2.zero;
+            br.pivot = new Vector2(.5f, 0f);
             actor.Body.sprite = frames != null && frames.Length > 0 ? frames[0] : still;
             actor.Body.preserveAspect = true;
             actor.Body.raycastTarget = false;
@@ -294,7 +298,7 @@ namespace IOSVN.TuTien.Core
                 {
                     bgCol = new Color32(36, 12, 16, 230);
                     borderCol = new Color32(245, 76, 60, 235);
-                    fontSize = 18;
+                    fontSize = 24;
                 }
                 else if (kind == "player")
                 {
@@ -312,7 +316,7 @@ namespace IOSVN.TuTien.Core
                 {
                     bgCol = new Color32(20, 16, 14, 225);
                     borderCol = new Color32(175, 125, 75, 190);
-                    fontSize = 16;
+                    fontSize = 22;
                 }
 
                 ModernUi.Fill(pill, 14f);
@@ -340,8 +344,8 @@ namespace IOSVN.TuTien.Core
                 text.text = name;
                 PixelUiSkin.ApplyTextTreatment(text);
 
-                var textWidth = Mathf.Clamp(name.Length * (fontSize * 0.56f) + 22f, 80f, kind == "boss" ? 240f : kind == "monster" ? 190f : 230f);
-                var pillHeight = (kind == "boss" || kind == "monster") ? 32f : 30f;
+                var textWidth = Mathf.Clamp(name.Length * (fontSize * 0.56f) + 22f, 100f, kind == "boss" ? 380f : kind == "monster" ? 260f : 230f);
+                var pillHeight = (kind == "boss" || kind == "monster") ? 40f : 30f;
                 pill.rectTransform.sizeDelta = new Vector2(textWidth, pillHeight);
                 pill.rectTransform.anchoredPosition = new Vector2(0, 14);
                 var textRect = text.rectTransform;
@@ -370,7 +374,6 @@ namespace IOSVN.TuTien.Core
                     actor.HpFill.type = Image.Type.Filled;
                     actor.HpFill.fillMethod = Image.FillMethod.Horizontal;
                     actor.HpFill.raycastTarget = false;
-                    ModernUi.Fill(actor.HpFill, 2f);
                 }
             }
             Actors.Add(actor);
@@ -636,7 +639,7 @@ namespace IOSVN.TuTien.Core
             return WalkPlayer(goal, onArrive);
         }
 
-        private bool WalkPlayer(Vector2Int goal, Action onArrive)
+        private bool WalkPlayer(Vector2Int goal, Action onArrive, int segment = 0)
         {
             if (Player == null) return false;
             var start = Data.NearestOpen(TileOf(Player.Pos), 8, Flying);
@@ -649,7 +652,16 @@ namespace IOSVN.TuTien.Core
             }
             Player.Path = path;
             Player.PathIndex = 0;
-            Player.OnArrive = onArrive;
+            var end = path[path.Count - 1];
+            Player.OnArrive = () =>
+            {
+                if (TileOf(Player.Pos) == goal) { onArrive?.Invoke(); return; }
+                // A bounded A* search can return only the first part of a long
+                // route. Continue toward the actual destination, never trigger
+                // a town / battle action at an unrelated partial endpoint.
+                if (segment < 8 && end != start && WalkPlayer(goal, onArrive, segment + 1)) return;
+                OnRouteBlocked?.Invoke();
+            };
             following = true;
             ShowTapRing(goal);
             return true;
@@ -671,7 +683,8 @@ namespace IOSVN.TuTien.Core
         public void Stop()
         {
             chaseTarget = null;
-            if (Player != null) { Player.Path = null; Player.Moving = false; }
+            VirtualStick = Vector2.zero;
+            if (Player != null) { Player.Path = null; Player.OnArrive = null; Player.Moving = false; }
         }
 
         public void Teleport(WorldActor actor, Vector2 tile)
@@ -732,6 +745,16 @@ namespace IOSVN.TuTien.Core
                 actor.Body.sprite = actor.Frames[HeroSprites.FrameIndex(actor.Moving && !(actor == Player && Flying), actor.AnimTime)];
                 actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight ? -1f : 1f, 1f, 1f);
                 if (actor.AuraFx != null) actor.AuraFx.Flip = actor.FaceRight;
+            }
+            else if (actor.Body != null && actor.Frames != null && actor.Frames.Length > 0)
+            {
+                // a roaming beast with painted action poses strides (run / stand) instead of only breathing
+                var monsterPoses = actor.Moving && actor.Data is J pm ? PaintedArt.MonsterPoses(pm["monsterId"].Str()) : null;
+                actor.Body.sprite = monsterPoses != null
+                    ? monsterPoses[((int)(actor.AnimTime * 6f) & 1) == 0 ? PaintedArt.PoseRun : PaintedArt.PoseIdle]
+                    : actor.Frames[(int)(actor.AnimTime * (actor.Moving ? 7f : 4f)) % actor.Frames.Length];
+                var rightFacingArt = actor.Data is J m && m["monsterId"].Str() == "da_lang";
+                actor.Body.rectTransform.localScale = new Vector3(actor.FaceRight == rightFacingArt ? 1f : -1f, 1f + Mathf.Sin(actor.AnimTime * 2.4f) * .012f, 1f);
             }
             else if (actor.Body != null)
             {
@@ -905,9 +928,12 @@ namespace IOSVN.TuTien.Core
             foreach (var actor in Actors)
             {
                 if (actor == Player || actor.Hidden) continue;
-                var reach = actor.Kind == "boss" ? 1.9f : 1.25f;
-                var d = Vector2.Distance(actor.Pos + new Vector2(0, -.6f), tile);
-                if (d < reach && d < bestDist) { best = actor; bestDist = d; }
+                var local = TileToLocal(tile) - TileToLocal(actor.Pos);
+                var width = Mathf.Max(actor.Rect.sizeDelta.x, 72f / Zoom);
+                var height = Mathf.Max(actor.Rect.sizeDelta.y, 72f / Zoom);
+                var inside = Mathf.Abs(local.x) <= width * .55f && local.y >= -12f && local.y <= height + 12f;
+                var d = (local - new Vector2(0, actor.Rect.sizeDelta.y * .5f)).sqrMagnitude;
+                if (inside && d < bestDist) { best = actor; bestDist = d; }
             }
             if (best != null) { OnActorTap?.Invoke(best); return; }
             var cell = TileOf(tile);
@@ -967,6 +993,65 @@ namespace IOSVN.TuTien.Core
             ApplyCamera();
         }
 
+        private void MovePlayerDirection(Vector2 input, float dt)
+        {
+            chaseTarget = null;
+            Player.Path = null;
+            Player.OnArrive = null;
+            var inputDir = new Vector2(input.x, -input.y).normalized;
+            var step = Player.Speed * dt;
+            var desired = Player.Pos + inputDir * step;
+
+            // 8-way directional sliding against collision grid
+            var targetTile = new Vector2Int(Mathf.RoundToInt(desired.x), Mathf.RoundToInt(desired.y));
+            if (!Data.IsBlocked(targetTile.x, targetTile.y, Flying))
+            {
+                Player.Pos = desired;
+            }
+            else
+            {
+                // Try slide X
+                var slideX = new Vector2(desired.x, Player.Pos.y);
+                var tileX = new Vector2Int(Mathf.RoundToInt(slideX.x), Mathf.RoundToInt(slideX.y));
+                if (!Data.IsBlocked(tileX.x, tileX.y, Flying))
+                {
+                    Player.Pos = slideX;
+                }
+                else
+                {
+                    // Try slide Y
+                    var slideY = new Vector2(Player.Pos.x, desired.y);
+                    var tileY = new Vector2Int(Mathf.RoundToInt(slideY.x), Mathf.RoundToInt(slideY.y));
+                    if (!Data.IsBlocked(tileY.x, tileY.y, Flying))
+                    {
+                        Player.Pos = slideY;
+                    }
+                }
+            }
+
+            Player.Moving = true;
+            if (Mathf.Abs(inputDir.x) > Mathf.Abs(inputDir.y) * 0.75f)
+            {
+                Player.Facing = inputDir.x < 0 ? 1 : 2;
+                Player.FaceRight = inputDir.x > 0;
+            }
+            else
+            {
+                Player.Facing = inputDir.y < 0 ? 3 : 0;
+            }
+
+            var curTile = TileOf(Player.Pos);
+            if (curTile != lastStepTile)
+            {
+                lastStepTile = curTile;
+                OnPlayerStep?.Invoke();
+                if (this == null || !isActiveAndEnabled || Player?.Rect == null) return;
+            }
+
+            following = true;
+            Place(Player);
+        }
+
         private void Update()
         {
             var dt = Mathf.Min(Time.deltaTime, .05f);
@@ -986,63 +1071,8 @@ namespace IOSVN.TuTien.Core
             }
 
             bool manualMoving = (Mathf.Abs(moveX) > 0.05f || Mathf.Abs(moveY) > 0.05f) && Player != null;
-            if (manualMoving)
-            {
-                chaseTarget = null;
-                Player.Path = null;
-                var inputDir = new Vector2(moveX, -moveY).normalized;
-                var step = Player.Speed * dt;
-                var desired = Player.Pos + inputDir * step;
-
-                // 8-way directional sliding against collision grid
-                var targetTile = new Vector2Int(Mathf.RoundToInt(desired.x), Mathf.RoundToInt(desired.y));
-                if (!Data.IsBlocked(targetTile.x, targetTile.y, Flying))
-                {
-                    Player.Pos = desired;
-                }
-                else
-                {
-                    // Try slide X
-                    var slideX = new Vector2(desired.x, Player.Pos.y);
-                    var tileX = new Vector2Int(Mathf.RoundToInt(slideX.x), Mathf.RoundToInt(slideX.y));
-                    if (!Data.IsBlocked(tileX.x, tileX.y, Flying))
-                    {
-                        Player.Pos = slideX;
-                    }
-                    else
-                    {
-                        // Try slide Y
-                        var slideY = new Vector2(Player.Pos.x, desired.y);
-                        var tileY = new Vector2Int(Mathf.RoundToInt(slideY.x), Mathf.RoundToInt(slideY.y));
-                        if (!Data.IsBlocked(tileY.x, tileY.y, Flying))
-                        {
-                            Player.Pos = slideY;
-                        }
-                    }
-                }
-
-                Player.Moving = true;
-                if (Mathf.Abs(inputDir.x) > Mathf.Abs(inputDir.y) * 0.75f)
-                {
-                    Player.Facing = inputDir.x < 0 ? 1 : 2;
-                    Player.FaceRight = inputDir.x > 0;
-                }
-                else
-                {
-                    Player.Facing = inputDir.y < 0 ? 3 : 0;
-                }
-
-                var curTile = TileOf(Player.Pos);
-                if (curTile != lastStepTile)
-                {
-                    lastStepTile = curTile;
-                    OnPlayerStep?.Invoke();
-                    if (this == null || !isActiveAndEnabled || Player?.Rect == null) return;
-                }
-
-                following = true;
-                Place(Player);
-            }
+            if (manualMoving) MovePlayerDirection(new Vector2(moveX, moveY), dt);
+            if (this == null || !isActiveAndEnabled || Player?.Rect == null) return;
 
             UpdateVehicle(dt);
             if (chaseTarget != null && Player != null)
@@ -1157,7 +1187,7 @@ namespace IOSVN.TuTien.Core
 
         private void HandlePinch()
         {
-            if (Input.touchCount == 2)
+            if (Input.touchCount == 2 && Viewport.GetComponent<WorldTouch>().PointerCount >= 2)
             {
                 var a = Input.GetTouch(0).position;
                 var b = Input.GetTouch(1).position;
@@ -1177,9 +1207,12 @@ namespace IOSVN.TuTien.Core
         public static bool SuppressTap;
         private Vector2 downPosition;
         private bool dragged;
+        private readonly HashSet<int> pointers = new HashSet<int>();
+        public int PointerCount => pointers.Count;
 
         public void OnPointerDown(PointerEventData eventData)
         {
+            pointers.Add(eventData.pointerId);
             if (Input.touchCount <= 1) SuppressTap = false;
             downPosition = eventData.position;
             dragged = false;
@@ -1195,9 +1228,12 @@ namespace IOSVN.TuTien.Core
 
         public void OnPointerUp(PointerEventData eventData)
         {
+            pointers.Remove(eventData.pointerId);
             if (dragged || SuppressTap) return;
             World.HandleTap(eventData.position);
         }
+
+        private void OnDisable() { pointers.Clear(); }
 
         public void OnScroll(PointerEventData eventData)
         {

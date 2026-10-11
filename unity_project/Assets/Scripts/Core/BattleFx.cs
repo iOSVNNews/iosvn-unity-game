@@ -775,6 +775,61 @@ namespace IOSVN.TuTien.Core
         private float time, flashUntil, dieAt = -1f, phase;
         public bool FaceRight;
         public float Height => Rect != null ? Rect.sizeDelta.y : 300f;
+        // painted action poses of this species (idle, run, attack, pounce) and what the beast is doing
+        private Sprite[] poses;
+        private bool posesLoaded;
+        private Vector2 lastGround;
+        private bool hasGround;
+        private float speed, stride, strikeFrom, strikeUntil = -1f;
+        private bool strikePounce;
+
+        /// <summary>The beast strikes: a pounce leaps in then bites, otherwise it rears up and claws / bites.</summary>
+        public void Strike(float seconds, bool pounce, float delay = 0f)
+        {
+            strikeFrom = Time.unscaledTime + Mathf.Max(0f, delay);
+            strikeUntil = strikeFrom + Mathf.Max(.12f, seconds);
+            strikePounce = pounce;
+        }
+
+        /// <summary>Its ground position this frame (without lunges and screen shake): drives the run cycle.</summary>
+        public void Step(Vector2 ground)
+        {
+            var dt = Mathf.Max(1e-3f, Time.unscaledDeltaTime);
+            if (hasGround)
+            {
+                var moved = (ground - lastGround).magnitude;
+                speed = Mathf.Lerp(speed, moved / dt, 1f - Mathf.Exp(-dt * 10f));
+                stride += moved;
+            }
+            lastGround = ground;
+            hasGround = true;
+        }
+
+        /// <summary>The pose to show now, or null to keep the breathing body frames.</summary>
+        private Sprite PoseNow(out float lift)
+        {
+            lift = 0f;
+            if (!posesLoaded) { poses = PaintedArt.MonsterPoses(monsterId); posesLoaded = true; }
+            if (poses == null || dieAt >= 0) return null;
+            var now = Time.unscaledTime;
+            if (now >= strikeFrom && now < strikeUntil)
+            {
+                var k = (now - strikeFrom) / Mathf.Max(.01f, strikeUntil - strikeFrom);
+                if (strikePounce && k < .55f)
+                {
+                    lift = Mathf.Sin(k / .55f * Mathf.PI) * .16f;
+                    return poses[PaintedArt.PosePounce];
+                }
+                return poses[PaintedArt.PoseAttack];
+            }
+            if (speed > 40f)
+            {
+                // a gait: the stride pose and the standing pose alternate with the distance covered
+                var gait = Mathf.Max(26f, Rect != null ? Rect.sizeDelta.x * .16f : 40f);
+                return ((int)(stride / gait) & 1) == 0 ? poses[PaintedArt.PoseRun] : poses[PaintedArt.PoseIdle];
+            }
+            return null;
+        }
 
         public static MonsterView Create(RectTransform parent, string name, string monsterId, Sprite fallback, Vector2 size, string element = null)
         {
@@ -892,6 +947,15 @@ namespace IOSVN.TuTien.Core
                 body.sprite = bodySprite;
                 bodyNext.enabled = false;
             }
+            var pose = PoseNow(out var poseLift);
+            if (pose != null)
+            {
+                bodySprite = pose;
+                body.sprite = pose;
+                bodyNext.enabled = false;
+            }
+            body.rectTransform.anchoredPosition = new Vector2(0f, poseLift * (Rect != null ? Rect.sizeDelta.y : 0f));
+            flash.rectTransform.anchoredPosition = body.rectTransform.anchoredPosition;
             body.enabled = bodySprite != null;
             body.rectTransform.localScale = scale;
             flash.rectTransform.localScale = scale;
@@ -921,7 +985,7 @@ namespace IOSVN.TuTien.Core
     /// <summary>A layered figure on the field with its aura: idle / walk / attack / cast / hurt / down.</summary>
     internal sealed class FighterView : MonoBehaviour
     {
-        internal const float BattleScale = 1.2f;
+        internal const float BattleScale = 1.6f;
         public const float AttackTime = .36f, CastTime = .5f, HurtTime = .28f;
         public RectTransform Rect { get; private set; }
         public bool FaceRight;
