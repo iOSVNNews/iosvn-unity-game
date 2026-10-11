@@ -22,6 +22,7 @@ namespace IOSVN.TuTien.Core
         public Color PressureColor = new Color(1f, .3f, .22f, 1f);
         public float NextRipple;
         public Vector2 Pos;                // tile coordinates (float), feet position
+        public Vector2 PosePosition;
         public List<Vector2Int> Path;
         public int PathIndex;
         public float Speed = 4.2f;
@@ -128,6 +129,7 @@ namespace IOSVN.TuTien.Core
             paint.uvRect = TextureUv(painting, data.w / (float)data.h);
             paint.raycastTarget = false;
             world.Painting = paint;
+            world.FitTextureZoom(true);
             world.BuildIllustrations();
             world.ActorLayer = Child("Actors", world.MapRect);
             Stretch(world.ActorLayer);
@@ -256,7 +258,7 @@ namespace IOSVN.TuTien.Core
 
         public WorldActor AddActor(string id, string kind, Vector2 tile, Sprite[] frames, Sprite still, Vector2 size, string name, Color tagColor, bool aura = false)
         {
-            var actor = new WorldActor { Id = id, Kind = kind, Pos = tile, Frames = frames };
+            var actor = new WorldActor { Id = id, Kind = kind, Pos = tile, PosePosition = tile, Frames = frames };
             actor.Rect = Child("Actor_" + kind + "_" + id, ActorLayer);
             actor.Rect.anchorMin = actor.Rect.anchorMax = Vector2.zero;
             actor.Rect.pivot = new Vector2(.5f, 0f);
@@ -425,17 +427,33 @@ namespace IOSVN.TuTien.Core
 
         private void Place(WorldActor actor)
         {
+            actor.Rect.localScale = Vector3.one * ActorDisplayScale(actor);
             var local = TileToLocal(actor.Pos);
             actor.Rect.anchoredPosition = new Vector2(local.x, local.y + (actor.Rig != null ? 0f : -T * .45f) + actor.Lift);
             if (actor.Shadow != null && (actor.Lift != 0f || actor == Player))
             {
                 // the shadow stays on the ground and thins out as the rider climbs
                 var height = Mathf.Max(0f, actor.Lift);
-                actor.Shadow.rectTransform.anchoredPosition = new Vector2(0, 2 - actor.Lift);
+                actor.Shadow.rectTransform.anchoredPosition = new Vector2(0, 2 - actor.Lift / ActorDisplayScale(actor));
                 var k = 1f / (1f + height * .035f);
                 actor.Shadow.rectTransform.localScale = new Vector3(k, k, 1f);
                 actor.Shadow.color = new Color(1f, 1f, 1f, Mathf.Lerp(1f, .5f, Mathf.Clamp01(height / 24f)));
             }
+        }
+
+        private float ActorDisplayScale(WorldActor actor) => actor.Rig != null ? Mathf.Max(1f, 1.35f / Zoom) : 1f;
+
+        /// <summary>Never magnify the realm painting far beyond its actual pixel density.</summary>
+        private void FitTextureZoom(bool initial = false)
+        {
+            if (Painting == null || Painting.texture == null || MapRect == null) return;
+            var canvas = GetComponentInParent<Canvas>();
+            var screenScale = canvas != null ? Mathf.Max(.1f, canvas.scaleFactor) : 1f;
+            var native = Mathf.Min(Painting.texture.width * Painting.uvRect.width / MapRect.sizeDelta.x,
+                Painting.texture.height * Painting.uvRect.height / MapRect.sizeDelta.y) / screenScale;
+            MaxZoom = Mathf.Max(.2f, native * 1.4f);
+            MinZoom = MaxZoom * .45f;
+            Zoom = initial ? native : Mathf.Clamp(Zoom, MinZoom, MaxZoom);
         }
 
         // ------------------------------------------------------------------ flying sword & mount
@@ -452,7 +470,7 @@ namespace IOSVN.TuTien.Core
             travelColor = color;
             vehicleFrames = mode == TravelMode.Mount ? mountFrames : null;
             Player.Speed = WalkSpeed * (mode == TravelMode.Walk ? 1f : Mathf.Max(1.2f, speedFactor));
-            var tall = Player.Rect.sizeDelta.y;
+            var tall = Player.Rect.sizeDelta.y * ActorDisplayScale(Player);
             liftTarget = mode == TravelMode.Sword ? tall * .34f : mode == TravelMode.Mount ? tall * .86f : 0f;
             Player.Path = null;
             Player.OnArrive = null;
@@ -525,6 +543,7 @@ namespace IOSVN.TuTien.Core
         private void UpdateVehicle(float dt)
         {
             if (Player == null) return;
+            liftTarget = Player.Rect.sizeDelta.y * ActorDisplayScale(Player) * (Travel == TravelMode.Sword ? .34f : Travel == TravelMode.Mount ? .86f : 0f);
             lift = Mathf.MoveTowards(lift, liftTarget, dt * 46f);
             var bob = lift > .5f ? Mathf.Sin(Time.time * 3.1f) * 1.1f * Mathf.Clamp01(lift / 6f) : 0f;
             Player.Lift = lift + bob;
@@ -690,6 +709,7 @@ namespace IOSVN.TuTien.Core
         public void Teleport(WorldActor actor, Vector2 tile)
         {
             actor.Pos = tile;
+            actor.PosePosition = tile;
             actor.Path = null;
             Place(actor);
             if (actor == Player) { focus = TileToLocal(tile); ApplyCamera(); }
@@ -732,11 +752,15 @@ namespace IOSVN.TuTien.Core
                     if (this == null || !isActiveAndEnabled || actor.Rect == null) return;
                 }
             }
+            var displacement = actor.Pos - actor.PosePosition;
+            actor.PosePosition = actor.Pos;
+            actor.Moving = displacement.sqrMagnitude > .000001f;
             actor.AnimTime += dt;
             if (actor.Rig != null)
             {
                 // on a flying sword the figure keeps its riding stance and the robe streams while moving
                 actor.Rig.Airborne = actor == Player && Flying;
+                actor.Rig.AdvanceTravel(new Vector2(displacement.x, -displacement.y), displacement.magnitude, dt);
                 actor.Rig.SetMotion(FighterAction.Idle, 0f, actor.Moving, actor.FaceRight, actor.AnimTime);
                 if (actor.AuraFx != null) actor.AuraFx.Flip = actor.FaceRight;
             }
@@ -868,6 +892,7 @@ namespace IOSVN.TuTien.Core
 
         private void ApplyCamera()
         {
+            foreach (var actor in Actors) if (actor.Rect != null) Place(actor);
             MapRect.localScale = new Vector3(Zoom, Zoom, 1f);
             var view = Viewport.rect.size;
             var map = MapRect.sizeDelta * Zoom;
@@ -992,6 +1017,7 @@ namespace IOSVN.TuTien.Core
 
         private void Start()
         {
+            FitTextureZoom(true);
             if (Player != null) focus = TileToLocal(Player.Pos);
             ApplyCamera();
         }
@@ -1150,7 +1176,7 @@ namespace IOSVN.TuTien.Core
                 actor.Tag.gameObject.SetActive(tagVisible);
                 if (!tagVisible) continue;
                 var local = TileToLocal(actor.Pos);
-                tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y + (actor.Rig != null ? 0f : -T * .45f) + actor.TagHeight + actor.Lift))));
+                tagScratch.Add((actor, LocalToViewport(new Vector2(local.x, local.y + (actor.Rig != null ? 0f : -T * .45f) + actor.TagHeight * ActorDisplayScale(actor) + actor.Lift))));
             }
             tagScratch.Sort((a, b) => a.basePos.y.CompareTo(b.basePos.y));
             for (var i = 0; i < tagScratch.Count; i++)

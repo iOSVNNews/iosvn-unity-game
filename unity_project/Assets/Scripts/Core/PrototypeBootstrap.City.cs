@@ -78,6 +78,8 @@ namespace IOSVN.TuTien.Core
             var root = new GameObject("CityPanorama", typeof(RectTransform), typeof(Image), typeof(RectMask2D)).GetComponent<RectTransform>();
             root.SetParent(backgroundRoot, false);
             root.anchorMin = Vector2.zero; root.anchorMax = Vector2.one; root.offsetMin = root.offsetMax = Vector2.zero;
+            // Give the resident rail its own space; rightmost buildings remain reachable by panning.
+            root.offsetMax = new Vector2(-350f, 0f);
             root.SetAsFirstSibling();
             root.GetComponent<Image>().color = new Color32(232, 226, 214, 255);
             cityRoot = root.gameObject;
@@ -93,11 +95,11 @@ namespace IOSVN.TuTien.Core
             pan.Aspect = cityLayout.w / (float)Mathf.Max(1, cityLayout.h);
             pan.Refit();
             // drifting mist over the city
-            for (var i = 0; i < 6; i++)
+            for (var i = 0; i < 3; i++)
             {
                 var cloud = InkUi.Simple(view, "Mist" + i, InkUi.Cloud, new Color(1, 1, 1, .22f + i % 3 * .06f), new Vector2(140 + i * 40, 60 + i * 12));
                 cloud.rectTransform.anchorMin = cloud.rectTransform.anchorMax = new Vector2((i * .19f) % 1f, .25f + (i % 3) * .2f);
-                cloud.gameObject.AddComponent<UiDrift>().speed = 6f + i * 2.5f;
+                cloud.gameObject.AddComponent<UiDrift>().speed = 3f + i * 1.5f;
             }
             // Quỷ Cốc layout: every building carries its own hanging signboard; small towns lack the
             // institutions of a great city (rankings, arena, lord's mansion).
@@ -175,15 +177,15 @@ namespace IOSVN.TuTien.Core
         /// </summary>
         private void BuildCityResidents(RectTransform hud, int request)
         {
-            cityPresencePanel = Anchored("CityResidents", hud, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-322, 112), new Vector2(-16, -16));
-            var fill = ModernSurface(cityPresencePanel, new Color32(18, 16, 13, 245), 12f, new Color32(214, 178, 108, 200));
+            cityPresencePanel = Anchored("CityResidents", hud, new Vector2(1, 0), new Vector2(1, 1), new Vector2(-342, 18), new Vector2(-16, -16));
+            var fill = ModernSurface(cityPresencePanel, new Color32(22, 29, 31, 246), 14f, new Color32(160, 173, 167, 90));
             fill.raycastTarget = true;
-            var title = AnchoredText(cityPresencePanel, "Title", "CƯ DÂN TRONG THÀNH", ModernUi.SemiBold, 16, HudGold,
+            var title = AnchoredText(cityPresencePanel, "Title", "CƯ DÂN TRONG THÀNH", ModernUi.SemiBold, 20, HudGold,
                 TextAnchor.MiddleCenter, new Vector2(0, 1), new Vector2(1, 1), new Vector2(10, -40), new Vector2(-10, -8));
             title.raycastTarget = false;
-            AddCityPresenceTab("NpcTab", "Cư dân", 1, new Vector2(0, 1), new Vector2(.5f, 1), new Vector2(12, -80), new Vector2(-4, -46));
-            AddCityPresenceTab("PlayersTab", "Đạo hữu", 0, new Vector2(.5f, 1), new Vector2(1, 1), new Vector2(4, -80), new Vector2(-12, -46));
-            var viewport = Anchored("RosterViewport", cityPresencePanel, Vector2.zero, Vector2.one, new Vector2(10, 10), new Vector2(-10, -88));
+            AddCityPresenceTab("NpcTab", "Cư dân", 1, new Vector2(0, 1), new Vector2(.5f, 1), new Vector2(12, -100), new Vector2(-4, -48));
+            AddCityPresenceTab("PlayersTab", "Đạo hữu", 0, new Vector2(.5f, 1), new Vector2(1, 1), new Vector2(4, -100), new Vector2(-12, -48));
+            var viewport = Anchored("RosterViewport", cityPresencePanel, Vector2.zero, Vector2.one, new Vector2(10, 12), new Vector2(-10, -112));
             viewport.gameObject.AddComponent<RectMask2D>();
             var image = viewport.gameObject.AddComponent<Image>();
             image.color = new Color(1f, 1f, 1f, .012f);
@@ -196,7 +198,7 @@ namespace IOSVN.TuTien.Core
             layout.spacing = 6f;
             layout.padding = new RectOffset(2, 2, 2, 2);
             layout.childControlWidth = true;
-            layout.childControlHeight = false;
+            layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             cityPresenceRoster.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -365,7 +367,7 @@ namespace IOSVN.TuTien.Core
             layout.spacing = 6f;
             layout.padding = new RectOffset(2, 2, 2, 2);
             layout.childControlWidth = true;
-            layout.childControlHeight = false;
+            layout.childControlHeight = true;
             layout.childForceExpandWidth = true;
             layout.childForceExpandHeight = false;
             cityPresenceRoster.gameObject.AddComponent<ContentSizeFitter>().verticalFit = ContentSizeFitter.FitMode.PreferredSize;
@@ -386,7 +388,7 @@ namespace IOSVN.TuTien.Core
             var button = tab.gameObject.AddComponent<Button>();
             button.targetGraphic = fill;
             button.onClick.AddListener(() => SelectCityPresenceCategory(category));
-            var text = AnchoredText(tab, "Label", label, ModernUi.SemiBold, 14, Cream, TextAnchor.MiddleCenter,
+            var text = AnchoredText(tab, "Label", label, ModernUi.SemiBold, 20, Cream, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, new Vector2(2f, 0f), new Vector2(-2f, 0f));
             text.raycastTarget = false;
         }
@@ -493,9 +495,10 @@ namespace IOSVN.TuTien.Core
             button.targetGraphic = fill;
             var target = npc;
             button.onClick.AddListener(() => OpenNpcDialog(target));
-            row.GetComponent<LayoutElement>().preferredHeight = 78f;
-            fill.color = new Color32(40, 33, 26, 255);
-            var face = Anchored("Face", row.GetComponent<RectTransform>(), new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(6, -33), new Vector2(72, 33));
+            row.GetComponent<LayoutElement>().preferredHeight = 164f;
+            ModernUi.Fill(fill, 10f);
+            fill.color = new Color32(33, 42, 43, 255);
+            var face = Anchored("Face", row.GetComponent<RectTransform>(), new Vector2(0, 1), new Vector2(0, 1), new Vector2(10, -90), new Vector2(78, -14));
             var faceBg = face.gameObject.AddComponent<Image>();
             ModernUi.Fill(faceBg, 8f);
             faceBg.color = new Color32(214, 204, 184, 255);
@@ -510,20 +513,20 @@ namespace IOSVN.TuTien.Core
                 }
                 catch (Exception ex) { Debug.LogWarning("resident portrait: " + ex.Message); }
             }
-            var name = AnchoredText(row.GetComponent<RectTransform>(), "Name", Clean(npc["name"].Str()) + " · " + Clean(npc["title"].Str()),
-                ModernUi.SemiBold, 15, Cream, TextAnchor.MiddleLeft, new Vector2(0f, .46f), Vector2.one, new Vector2(80f, 2f), new Vector2(-96f, -3f));
+            var name = AnchoredText(row.GetComponent<RectTransform>(), "Name", Clean(npc["name"].Str()),
+                ModernUi.SemiBold, 22, Cream, TextAnchor.MiddleLeft, new Vector2(0f, 1f), Vector2.one, new Vector2(88f, -64f), new Vector2(-10f, -10f));
             name.horizontalOverflow = HorizontalWrapMode.Wrap;
             name.verticalOverflow = VerticalWrapMode.Truncate;
             name.raycastTarget = false;
-            AnchoredText(row.GetComponent<RectTransform>(), "Realm", Clean(npc["realmName"].Str()) + " · " + Vn(npc["power"]) + " chiến lực",
-                ModernUi.Regular, 12, new Color32(200, 190, 172, 255), TextAnchor.MiddleLeft,
-                Vector2.zero, new Vector2(1f, .46f), new Vector2(80f, 0f), new Vector2(-96f, 0f)).raycastTarget = false;
-            var meet = Anchored("Meet", row.GetComponent<RectTransform>(), new Vector2(1f, .5f), new Vector2(1f, .5f), new Vector2(-88f, -20f), new Vector2(-8f, 20f));
-            var meetFill = ModernSurface(meet, new Color32(39, 66, 57, 255), 8f, new Color32(122, 183, 143, 200), true);
+            AnchoredText(row.GetComponent<RectTransform>(), "Realm", Clean(npc["realmName"].Str()) + " · " + Vn(npc["power"]),
+                ModernUi.Regular, 18, new Color32(190, 201, 197, 255), TextAnchor.MiddleLeft,
+                new Vector2(0f, 1f), Vector2.one, new Vector2(88f, -100f), new Vector2(-10f, -64f)).raycastTarget = false;
+            var meet = Anchored("Meet", row.GetComponent<RectTransform>(), Vector2.zero, new Vector2(1f, 0), new Vector2(10f, 8f), new Vector2(-10f, 52f));
+            var meetFill = ModernSurface(meet, new Color32(44, 68, 61, 255), 8f, new Color32(122, 183, 143, 100), true);
             var meetButton = meet.gameObject.AddComponent<Button>();
             meetButton.targetGraphic = meetFill;
             meetButton.onClick.AddListener(() => OpenNpcDialog(target));
-            AnchoredText(meet, "Label", "GẶP MẶT", ModernUi.SemiBold, 12, Cream, TextAnchor.MiddleCenter,
+            AnchoredText(meet, "Label", "Gặp mặt  ›", ModernUi.SemiBold, 20, Cream, TextAnchor.MiddleCenter,
                 Vector2.zero, Vector2.one, Vector2.zero, Vector2.zero).raycastTarget = false;
         }
 
@@ -605,65 +608,26 @@ namespace IOSVN.TuTien.Core
             hitBtn.targetGraphic = hitImg;
             hitBtn.onClick.AddListener(() => OpenCityService(id));
 
-            // Hanging wooden signboard over the building (Quỷ Cốc style): icon on a seal, the name written
-            // downwards one word per line.
-            var words = (spot.label ?? id).Split(' ');
-            var lineCount = Mathf.Min(words.Length, 4);
-            var text = string.Join("\n", words, 0, lineCount).ToUpperInvariant();
-            const float boardW = 46f;
-            var boardH = 40f + lineCount * 19f;
-            var topY = 1f - spot.y / h;
-            var badge = Anchored("Sign_" + spot.id, view, new Vector2(cx, topY), new Vector2(cx, topY),
-                new Vector2(-boardW * .5f, -boardH * .55f), new Vector2(boardW * .5f, boardH * .45f));
-            var fill = ModernSurface(badge, new Color32(46, 30, 20, 238), 6f, new Color32(226, 184, 104, 230), true);
-            var inner = Anchored("Inner", badge, Vector2.zero, Vector2.one, new Vector2(3, 3), new Vector2(-3, -3)).gameObject.AddComponent<Image>();
-            ModernUi.Ring(inner, 4f, 1f);
-            inner.color = new Color32(226, 184, 104, 110);
-            inner.raycastTarget = false;
-            var seal = Anchored("Seal", badge, new Vector2(.5f, 1f), new Vector2(.5f, 1f), new Vector2(-17f, -36f), new Vector2(17f, -2f));
-            var sealImg = seal.gameObject.AddComponent<Image>();
-            sealImg.sprite = InkUi.Glow;
-            sealImg.color = new Color32(150, 40, 30, 230);
-            sealImg.raycastTarget = false;
+            // A compact horizontal plaque leaves the painted roofs visible.
+            var badge = Anchored("Sign_" + spot.id, view, new Vector2(cx, cy), new Vector2(cx, cy),
+                new Vector2(-88f, -30f), new Vector2(88f, 30f));
+            var fill = ModernSurface(badge, new Color32(24, 34, 35, 235), 10f, new Color32(208, 187, 140, 135), true);
             if (CityIcons.TryGetValue(spot.id, out var iconId))
             {
-                var icon = Anchored("Icon", seal, Vector2.zero, Vector2.one, new Vector2(5, 5), new Vector2(-5, -5)).gameObject.AddComponent<Image>();
+                var icon = Anchored("Icon", badge, new Vector2(0, .5f), new Vector2(0, .5f), new Vector2(10, -16), new Vector2(42, 16)).gameObject.AddComponent<Image>();
                 icon.sprite = UiPixelIcon(iconId);
                 icon.preserveAspect = true;
                 icon.raycastTarget = false;
             }
-            var signName = AnchoredText(badge, "Name", text, ModernUi.SemiBold, 14, new Color32(255, 230, 182, 255), TextAnchor.UpperCenter,
-                Vector2.zero, Vector2.one, new Vector2(2, 4), new Vector2(-2, -38));
-            signName.lineSpacing = .92f;
-            signName.horizontalOverflow = HorizontalWrapMode.Overflow;
+            var signName = AnchoredText(badge, "Name", spot.label ?? id, ModernUi.SemiBold, 22, HudCream, TextAnchor.MiddleCenter,
+                Vector2.zero, Vector2.one, new Vector2(46, 4), new Vector2(-8, -4));
+            signName.horizontalOverflow = HorizontalWrapMode.Wrap;
+            signName.resizeTextForBestFit = true;
+            signName.resizeTextMinSize = 19; signName.resizeTextMaxSize = 22;
             signName.raycastTarget = false;
-            // the cords it hangs from
-            for (var k = 0; k < 2; k++)
-            {
-                var cx2 = k == 0 ? .22f : .78f;
-                var cord = Anchored("Cord" + k, badge, new Vector2(cx2, 1f), new Vector2(cx2, 1f), new Vector2(-1f, 0f), new Vector2(1f, 12f)).gameObject.AddComponent<Image>();
-                cord.color = new Color32(226, 184, 104, 200);
-                cord.raycastTarget = false;
-            }
-            var glow = Anchored("Glow", badge, new Vector2(-.3f, -.15f), new Vector2(1.3f, 1.15f), Vector2.zero, Vector2.zero).gameObject.AddComponent<Image>();
-            glow.sprite = InkUi.Glow;
-            glow.color = new Color(1f, .92f, .7f, 0f);
-            glow.raycastTarget = false;
-            glow.transform.SetAsFirstSibling();
-
             var button = badge.gameObject.AddComponent<Button>();
-            button.transition = Selectable.Transition.None;
             button.targetGraphic = fill;
             button.onClick.AddListener(() => OpenCityService(id));
-
-            var trigger = badge.gameObject.AddComponent<EventTrigger>();
-            var down = new EventTrigger.Entry { eventID = EventTriggerType.PointerDown };
-            down.callback.AddListener(_ => glow.color = new Color(1f, .92f, .7f, .45f));
-            trigger.triggers.Add(down);
-            var up = new EventTrigger.Entry { eventID = EventTriggerType.PointerUp };
-            up.callback.AddListener(_ => glow.color = new Color(1f, .92f, .7f, 0f));
-            trigger.triggers.Add(up);
-
             badge.gameObject.AddComponent<UiPressScale>();
         }
 
@@ -689,7 +653,7 @@ namespace IOSVN.TuTien.Core
             }
             picks.Sort((a, b) => a.score.CompareTo(b.score));
             float w = cityLayout.w, h = cityLayout.h;
-            const float frameW = 24f, frameH = 32f;
+            const float frameW = 32f, frameH = 48f;
             for (var i = 0; i < CityNpcSpots.Length && i < picks.Count; i++)
             {
                 var npc = picks[i].npc;
@@ -718,7 +682,9 @@ namespace IOSVN.TuTien.Core
                     idle.Offset = i * .37f;
                 }
                 // a small name under the feet, as in a Quỷ Cốc town: it never covers the building signs above
-                var tag = InkUi.Tag(rect, Clean(npc["name"].Str()), 14, new Color32(214, 236, 255, 255), 18f);
+                var npcName = Clean(npc["name"].Str());
+                if (npcName.Length > 18) npcName = npcName.Substring(0, 17).TrimEnd() + "…";
+                var tag = InkUi.Tag(rect, npcName, 18, HudCream, 12f);
                 tag.anchorMin = tag.anchorMax = new Vector2(.5f, 0f);
                 tag.pivot = new Vector2(.5f, 1f);
                 tag.anchoredPosition = new Vector2(0, -1);

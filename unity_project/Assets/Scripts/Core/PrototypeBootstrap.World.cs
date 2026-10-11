@@ -105,7 +105,7 @@ namespace IOSVN.TuTien.Core
                 me.Rig = CultivatorFigure2D.Create(me.Rect, LookOf(player));
                 me.Body.enabled = false;
                 me.Frames = null;
-                me.TagHeight = HeroSize.y + 27f;
+                me.TagHeight = HeroSize.y * .78f + 8f;
                 if (me.Shadow != null) me.Shadow.rectTransform.sizeDelta = new Vector2(22f, 8f);
             }
             worldView.WalkSpeed = 3.2f;
@@ -200,7 +200,7 @@ namespace IOSVN.TuTien.Core
         }
 
         /// <summary>Keep the cultivator readable on an iPhone while cities still dominate the landscape.</summary>
-        private static readonly Vector2 HeroSize = new Vector2(64f, 72f);
+        private static readonly Vector2 HeroSize = new Vector2(80f, 124f);
 
         /// <summary>The player's layered look (creator look, or one derived from the legacy appearance).</summary>
         private static LookSpec LookOf(J player)

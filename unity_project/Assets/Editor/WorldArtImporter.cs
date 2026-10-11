@@ -18,7 +18,7 @@ namespace IOSVN.TuTien.Editor
             importer.mipmapEnabled = false;
             importer.wrapMode = TextureWrapMode.Clamp;
             importer.filterMode = FilterMode.Bilinear;
-            importer.maxTextureSize = battleArt ? 1024 : 2048;
+            importer.maxTextureSize = 2048;
             importer.textureCompression = TextureImporterCompression.CompressedHQ;
             importer.compressionQuality = 100;
         }

@@ -164,7 +164,7 @@ namespace IOSVN.TuTien.Core
         private RectTransform root, layerRoot;
         private Rig rig;
         private Slot[] slots = new Slot[0];
-        private Image weapon, aura;
+        private Image weapon, aura, rearScalp;
         private Image auraRing;
         private readonly List<Image> auraMotes = new List<Image>();
         private Color auraTint;
@@ -176,6 +176,8 @@ namespace IOSVN.TuTien.Core
         private FighterAction action;
         private float progress, clock, blinkAt, blinkStart = -10f;
         private bool moving, externallyDriven, hit;
+        private bool travelHeading;
+        private float heading, stridePhase, strideWeight;
         private Vector2[] boneWorld = new Vector2[0];
         private float[] boneAngle = new float[0];
         private Vector2[] boneScale = new Vector2[0];
@@ -265,6 +267,7 @@ namespace IOSVN.TuTien.Core
         {
             foreach (var s in slots) if (s.Image != null) Kill(s.Image.gameObject);
             if (weapon != null) Kill(weapon.gameObject);
+            if (rearScalp != null) Kill(rearScalp.gameObject);
             rig = next;
             var n = rig.BoneNames.Length;
             boneWorld = new Vector2[n]; boneAngle = new float[n]; boneScale = new Vector2[n];
@@ -274,7 +277,8 @@ namespace IOSVN.TuTien.Core
             for (var i = 0; i < rig.Layers.Length; i++)
             {
                 var def = rig.Layers[i];
-                var go = new GameObject(def.Id, typeof(RectTransform), def.Flex ? typeof(FlexImage) : typeof(Image));
+                var joint = def.Id == "armN_up" || def.Id == "armF_up" || def.Id == "plateN" || def.Id == "plateF";
+                var go = new GameObject(def.Id, typeof(RectTransform), def.Flex || joint ? typeof(FlexImage) : typeof(Image));
                 go.transform.SetParent(layerRoot, false);
                 var image = go.GetComponent<Image>();
                 if (def.Tint == "hc") image.material = HairTintMaterial;
@@ -288,6 +292,19 @@ namespace IOSVN.TuTien.Core
             weapon.raycastTarget = false;
             weapon.preserveAspect = true;
             weapon.rectTransform.anchorMin = weapon.rectTransform.anchorMax = new Vector2(.5f, 0f);
+            var scalpTexture = Resources.Load<Texture2D>("Characters/Modular/RearScalps");
+            if (scalpTexture != null)
+            {
+                rearScalp = new GameObject("RearScalp", typeof(RectTransform), typeof(Image)).GetComponent<Image>();
+                rearScalp.transform.SetParent(layerRoot, false);
+                rearScalp.sprite = RearScalpSprite(scalpTexture, rig.Gender == "f");
+                rearScalp.material = HairTintMaterial;
+                rearScalp.raycastTarget = false;
+                rearScalp.rectTransform.anchorMin = rearScalp.rectTransform.anchorMax = new Vector2(.5f, 0f);
+                rearScalp.rectTransform.pivot = new Vector2(.5f, 0f);
+                rearScalp.rectTransform.sizeDelta = new Vector2(rig.Gender == "f" ? 145f : 150f, 198f);
+                rearScalp.enabled = false;
+            }
         }
 
         private static void Kill(UnityEngine.Object o)
@@ -299,7 +316,6 @@ namespace IOSVN.TuTien.Core
         private int Bone(string name) => rig != null && rig.BoneIndex.TryGetValue(name, out var i) ? i : -1;
 
         private static readonly string[] StyleKeys = { "to", "ha", "fa", "ey", "br", "no", "mo", "bd", "ma", "hat" };
-        private static readonly string[] WalkSeamJoints = { "torso", "armN_up", "armN_lo", "armF_up", "armF_lo" };
         private static readonly Dictionary<string, int> StyleCounts = new Dictionary<string, int>
         {
             { "to", 6 }, { "ha", 10 }, { "fa", 4 }, { "ey", 8 }, { "br", 5 }, { "no", 4 }, { "mo", 5 }, { "bd", 5 }, { "ma", 6 }, { "hat", 6 },
@@ -411,6 +427,19 @@ namespace IOSVN.TuTien.Core
         }
 
         private static readonly Dictionary<int, Sprite> Equipment = new Dictionary<int, Sprite>();
+        private static readonly Dictionary<bool, Sprite> RearScalpSprites = new Dictionary<bool, Sprite>();
+
+        private static Sprite RearScalpSprite(Texture2D texture, bool female)
+        {
+            if (RearScalpSprites.TryGetValue(female, out var sprite) && sprite != null) return sprite;
+            // Tight bounds of the generated atlas, normalized so importer resolution is irrelevant.
+            var rect = female ? new Rect(1020, 75, 620, 716) : new Rect(130, 63, 664, 764);
+            rect = new Rect(rect.x / 1774f * texture.width, rect.y / 887f * texture.height,
+                rect.width / 1774f * texture.width, rect.height / 887f * texture.height);
+            sprite = Sprite.Create(texture, rect, new Vector2(.5f, 0), 100f);
+            RearScalpSprites[female] = sprite;
+            return sprite;
+        }
 
         private static Sprite EquipmentSprite(Texture2D texture, int index)
         {
@@ -443,6 +472,20 @@ namespace IOSVN.TuTien.Core
         }
 
         public void SetFacing(bool right) => faceRight = right;
+
+        /// <summary>Screen direction and actual ground distance drive turning and footfalls.</summary>
+        public void AdvanceTravel(Vector2 direction, float distance, float dt)
+        {
+            travelHeading = true;
+            if (direction.sqrMagnitude > .0001f)
+            {
+                var target = Mathf.Atan2(direction.x, -direction.y) * Mathf.Rad2Deg;
+                heading = Mathf.LerpAngle(heading, target, 1f - Mathf.Exp(-dt * 18f));
+                if (Mathf.Abs(direction.x) > .001f) faceRight = direction.x > 0;
+            }
+            stridePhase += distance * (2f * Mathf.PI / 2.6f);
+            strideWeight = Mathf.MoveTowards(strideWeight, distance > .0001f ? 1f : 0f, dt * 8f);
+        }
 
         public void SetPreviewMotion(FighterAction next, bool run = false)
         {
@@ -512,7 +555,7 @@ namespace IOSVN.TuTien.Core
             }
             root.anchorMin = root.anchorMax = new Vector2(.5f, 0f);
             root.anchoredPosition = new Vector2(0, y);
-            root.localScale = new Vector3(faceRight ? scale : -scale, scale, 1f);
+            root.localScale = new Vector3(travelHeading || faceRight ? scale : -scale, scale, 1f);
         }
 
         // ------------------------------------------------------------------ posing
@@ -533,7 +576,7 @@ namespace IOSVN.TuTien.Core
         {
             for (var i = 0; i < poseAngle.Length; i++) { poseAngle[i] = 0; poseOffset[i] = Vector2.zero; poseScale[i] = Vector2.one; }
             var t = clock;
-            var walking = moving && action == FighterAction.Idle || action == FighterAction.Walk;
+            var walking = (moving || travelHeading && strideWeight > 0f) && action == FighterAction.Idle || action == FighterAction.Walk;
             // ---- base: breathing idle
             var breathe = Mathf.Sin(t * 2.1f);
             Pose("torso", Mathf.Sin(t * .8f) * .8f, 0, 0, 1f, 1f + breathe * .007f);
@@ -564,26 +607,26 @@ namespace IOSVN.TuTien.Core
                 bendSleeve = -30f * wind + Mathf.Sin(t * 8f) * 5f;
                 bendCape = -60f * wind + Mathf.Sin(t * 6f) * 10f;
             }
-            else if (walking && action == FighterAction.Idle || action == FighterAction.Walk)
+            else if (walking)
             {
                 var run = Running;
-                var p = t * (run ? 11f : 7.6f);
-                var s = Mathf.Sin(p);
-                var amp = run ? 34f : 22f;
+                var p = travelHeading ? stridePhase : t * (run ? 11f : 7.6f);
+                var weight = travelHeading ? strideWeight : 1f;
+                var s = Mathf.Sin(p) * weight;
+                var amp = run ? 30f : 15f;
                 Pose("legN_up", amp * s);
                 Pose("legF_up", -amp * s);
-                Pose("legN_lo", -(run ? 34f : 20f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f)));
-                Pose("legF_lo", -(run ? 34f : 20f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f + Mathf.PI)));
-                Pose("hips", run ? -4f : -1f, 0, (run ? -10f : -7f) * Mathf.Abs(s) + 3f);
-                // The painted robe has cut edges, rather than a deformable shared mesh. Keep its
-                // torso and sleeve joints in the bind pose while the whole body leans and bobs.
-                // Legs and flexible cloth still animate; the cut edges can no longer pull apart.
-                foreach (var joint in WalkSeamJoints)
-                {
-                    var bone = Bone(joint);
-                    if (bone >= 0) poseAngle[bone] = 0;
-                }
-                Pose("head", run ? 5f : 2f);
+                Pose("legN_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f)) * weight);
+                Pose("legF_lo", -(run ? 30f : 12f) * Mathf.Max(0f, Mathf.Sin(p + 1.4f + Mathf.PI)) * weight);
+                Pose("hips", (run ? -3f : -.5f) * weight, 0, (run ? -7f : -3f) * Mathf.Abs(s));
+                // Opposite arm / leg swing. Sleeve meshes retain the shoulder seam while their
+                // lower vertices follow the joint; the hands and elbows stay on the same skeleton.
+                poseAngle[Bone("torso")] = 0f;
+                poseAngle[Bone("armN_up")] = -(run ? 20f : 8f) * s;
+                poseAngle[Bone("armF_up")] = (run ? 20f : 8f) * s;
+                poseAngle[Bone("armN_lo")] = (run ? 12f : 3f) * weight;
+                poseAngle[Bone("armF_lo")] = (run ? 12f : 3f) * weight;
+                Pose("head", (run ? 3f : .5f) * weight);
                 bendHair = (run ? -30f : -12f) - 4f * Mathf.Sin(2 * p);
                 bendSkirt = (run ? -26f : -10f) - 6f * Mathf.Abs(s);
                 bendSleeve = (run ? -8f : -4f) + 2f * s;
@@ -649,6 +692,7 @@ namespace IOSVN.TuTien.Core
             if (rig == null || slots.Length == 0) return;
             AnimateAura();
             BuildPose();
+            var walkingPose = (moving || travelHeading && strideWeight > 0f) && action == FighterAction.Idle || action == FighterAction.Walk;
             var n = rig.BoneNames.Length;
             for (var i = 0; i < n; i++)
             {
@@ -689,18 +733,55 @@ namespace IOSVN.TuTien.Core
                 var ox = offset.x * sc.x; var oy = offset.y * sc.y;
                 var pos = boneWorld[b] + new Vector2(ox * Mathf.Cos(rad) - oy * Mathf.Sin(rad), ox * Mathf.Sin(rad) + oy * Mathf.Cos(rad));
                 var r = s.Image.rectTransform;
+                var yaw = travelHeading ? heading * Mathf.Deg2Rad : 0f;
+                var side = Mathf.Sin(yaw);
+                var front = Mathf.Cos(yaw);
+                var width = travelHeading ? .58f + .42f * Mathf.Abs(front) : 1f;
+                pos.x *= width;
+                if (s.Def.Bone == "head") pos.x += side * 20f;
                 r.anchoredPosition = pos;
                 r.localRotation = Quaternion.Euler(0, 0, a);
                 var sy = sc.y;
                 var sx = sc.x * (s.Mirrored ? -1f : 1f);
+                sx *= width;
                 if (s.Def.Eye) { sy *= blink * eyeScale; sx *= eyeScale; }
                 r.localScale = new Vector3(sx, sy, 1f);
                 if (s.Flex != null)
                 {
                     var id = s.Def.Id;
-                    var bend = id == "hairB" ? bendHair : id == "cape" ? bendCape : id.StartsWith("arm") ? bendSleeve : bendSkirt;
+                    var bend = id.StartsWith("plate") ? 0f : id == "hairB" ? bendHair : id == "cape" ? bendCape : id.StartsWith("arm") ? bendSleeve : bendSkirt;
                     if (s.Mirrored) bend = -bend;
                     s.Flex.Bend = bend;
+                    var shoulder = id == "armN_up" || id == "armF_up" || id == "plateN" || id == "plateF";
+                    var swing = shoulder && walkingPose ? poseAngle[b] : 0f;
+                    s.Flex.JointSwing = swing;
+                    if (shoulder) r.localRotation = Quaternion.Euler(0, 0, a - swing);
+                }
+                if (travelHeading)
+                {
+                    var id = s.Def.Id;
+                    var faceDetail = s.Def.Anchor != null || id.StartsWith("eye") || id.StartsWith("brow") || id == "face" || id == "nose" || id == "mouth" || id == "beard" || id == "blush" || id == "hairS" || id == "torsoT" || id == "skirtT";
+                    s.Image.enabled = !(front < -.15f && faceDetail);
+                    if (Mathf.Abs(side) > .7f && (id.EndsWith("_L") || id.EndsWith("_R")))
+                        s.Image.enabled &= side > 0 ? !id.EndsWith("_L") : !id.EndsWith("_R");
+                    s.Image.color = id == "face" && front < -.15f ? TintOf("hc") : s.Tint * (hit ? new Color(1f, .62f, .58f) : Color.white);
+                    // Back hair and cape cover the face and front fastenings when walking away.
+                    if (id == "cape" || id == "hairB") s.Image.transform.SetSiblingIndex(front < -.15f ? layerRoot.childCount - 1 : id == "cape" ? 0 : 1);
+                }
+            }
+            if (rearScalp != null)
+            {
+                var yaw = heading * Mathf.Deg2Rad;
+                rearScalp.enabled = travelHeading && Mathf.Cos(yaw) < -.15f;
+                if (rearScalp.enabled)
+                {
+                    var width = .58f + .42f * Mathf.Abs(Mathf.Cos(yaw));
+                    var head = boneWorld[boneHead];
+                    rearScalp.rectTransform.anchoredPosition = new Vector2(head.x * width + Mathf.Sin(yaw) * 20f, head.y - 6f);
+                    rearScalp.rectTransform.localScale = new Vector3(width, 1f, 1f);
+                    rearScalp.rectTransform.localRotation = Quaternion.Euler(0, 0, boneAngle[boneHead]);
+                    rearScalp.color = TintOf("hc");
+                    rearScalp.transform.SetAsLastSibling();
                 }
             }
             if (weapon != null && weapon.enabled)
@@ -720,6 +801,14 @@ namespace IOSVN.TuTien.Core
                     wr.anchoredPosition = boneWorld[boneHandN] + new Vector2(grip.x * Mathf.Cos(rad) - grip.y * Mathf.Sin(rad), grip.x * Mathf.Sin(rad) + grip.y * Mathf.Cos(rad));
                     wr.localRotation = Quaternion.Euler(0, 0, a - 8f);
                     wr.localScale = new Vector3(-1f, 1f, 1f);
+                }
+                if (travelHeading)
+                {
+                    var width = .58f + .42f * Mathf.Abs(Mathf.Cos(heading * Mathf.Deg2Rad));
+                    var position = wr.anchoredPosition;
+                    position.x *= width;
+                    wr.anchoredPosition = position;
+                    var scale = wr.localScale; scale.x *= width; wr.localScale = scale;
                 }
             }
         }
@@ -756,6 +845,12 @@ namespace IOSVN.TuTien.Core
     internal sealed class FlexImage : Image
     {
         private float bend;
+        private float jointSwing;
+        public float JointSwing
+        {
+            get => jointSwing;
+            set { if (Mathf.Abs(value - jointSwing) > .01f) { jointSwing = value; SetVerticesDirty(); } }
+        }
         /// <summary>Sideways displacement (rig units) of the far end of the sprite.</summary>
         public float Bend
         {
@@ -784,7 +879,10 @@ namespace IOSVN.TuTien.Core
                 {
                     var x = col == 0 ? rect.xMin : rect.xMax;
                     var vert = UIVertex.simpleVert;
-                    vert.position = new Vector3(x + dx, y);
+                    var point = new Vector2(x + dx, y);
+                    // Hold the cut shoulder edge in place, blending to the rotating sleeve below.
+                    var joint = jointSwing * Mathf.SmoothStep(0f, 1f, Mathf.Clamp01(-y / 150f)) * Mathf.Deg2Rad;
+                    vert.position = new Vector3(point.x * Mathf.Cos(joint) - point.y * Mathf.Sin(joint), point.x * Mathf.Sin(joint) + point.y * Mathf.Cos(joint));
                     vert.uv0 = new Vector2(Mathf.Lerp(outer.x, outer.z, col), Mathf.Lerp(outer.y, outer.w, v));
                     vert.color = c;
                     vh.AddVert(vert);
